@@ -1,0 +1,32 @@
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.sidebar {
+    min-height: 100vh;
+    background-color: #ffffff;
+    border-right: 1px solid #dee2e6;
+}
+
+.sidebar a {
+    color: #333;
+    padding: 10px;
+    display: block;
+    text-decoration: none;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.topbar {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.card-stat {
+    border-left: 4px solid #0d6efd;
+}

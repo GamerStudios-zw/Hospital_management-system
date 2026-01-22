@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HMS | Receptionist</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+:root{
+    --primary:#0d6efd;
+    --dark:#0f172a;
+    --bg:#f4f6f9;
+    --card:#ffffff;
+    --muted:#64748b;
+    --success:#16a34a;
+    --warning:#f59e0b;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,sans-serif}
+body{background:var(--bg);display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{
+    width:260px;background:var(--dark);color:#fff;
+    padding:25px;display:flex;flex-direction:column
+}
+.logo{font-size:1.2rem;font-weight:700;display:flex;gap:10px;margin-bottom:30px}
+.logo i{color:var(--primary)}
+.nav a{
+    display:flex;gap:12px;align-items:center;
+    padding:14px;border-radius:10px;
+    text-decoration:none;color:#e5e7eb;
+    margin-bottom:6px;cursor:pointer
+}
+.nav a.active,.nav a:hover{background:rgba(13,110,253,.15)}
+.logout{margin-top:auto;background:rgba(220,38,38,.15);color:#fecaca}
+
+/* MAIN */
+.main{flex:1;padding:30px}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.section{display:none}
+.section.active{display:block}
+
+/* CARDS */
+.card{
+    background:var(--card);
+    padding:25px;border-radius:14px;
+    box-shadow:0 10px 25px rgba(0,0,0,.05);
+    margin-bottom:20px
+}
+
+/* FORM */
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:15px
+}
+input,select,textarea{
+    width:100%;padding:12px;border-radius:10px;
+    border:1px solid #cbd5e1;font-size:.9rem
+}
+textarea{resize:none;height:70px}
+
+/* BUTTON */
+.btn{
+    padding:10px 14px;border-radius:10px;
+    border:none;cursor:pointer;font-size:.85rem
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px;text-align:left;font-size:.9rem}
+th{color:var(--muted);border-bottom:1px solid #e5e7eb}
+
+/* FINGERPRINT */
+.fingerprint{
+    width:110px;height:110px;border-radius:50%;
+    border:3px dashed var(--primary);
+    display:flex;align-items:center;justify-content:center;
+    font-size:2rem;color:var(--primary);margin:10px auto
+}
+
+/* MODAL */
+.modal{
+    position:fixed;inset:0;background:rgba(0,0,0,.5);
+    display:none;align-items:center;justify-content:center;z-index:1000
+}
+.modal.active{display:flex}
+.modal-content{
+    background:#fff;border-radius:14px;
+    width:90%;max-width:400px;padding:25px
+}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+    .sidebar{display:none}
+    .main{padding:20px}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+<div class="logo"><i class="fa-solid fa-hospital"></i> HMS Reception</div>
+<nav class="nav">
+    <a class="active" onclick="show('search')"><i class="fa-solid fa-magnifying-glass"></i> Patient Arrival</a>
+    <a onclick="show('doctors')"><i class="fa-solid fa-user-doctor"></i> Doctors on Duty</a>
+    <a onclick="show('settings')"><i class="fa-solid fa-gear"></i> Settings</a>
+    <a class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+</nav>
+</aside>
+
+<main class="main">
+<div class="topbar">
+<h1 id="title">Patient Arrival</h1>
+</div>
+
+<!-- PATIENT SEARCH -->
+<section id="search" class="section active">
+<div class="card">
+<h2>Search Patient</h2>
+<div class="grid">
+<input placeholder="ID Number">
+<input placeholder="Phone Number">
+<input placeholder="Medical Aid Number">
+</div>
+<button class="btn btn-primary" style="margin-top:15px" onclick="foundPatient()">
+Search Patient
+</button>
+</div>
+
+<!-- PATIENT FOUND -->
+<div id="patientCard" class="card" style="display:none">
+<h3>Patient Found</h3>
+<p><strong>Name:</strong> John Moyo</p>
+<p><strong>ID:</strong> 12-345678 Z 90</p>
+<button class="btn btn-success" onclick="show('visit')">Create Visit</button>
+</div>
+
+<!-- REGISTER -->
+<div id="registerCard" class="card" style="display:none">
+<h3>Register New Patient</h3>
+<div class="grid">
+<input placeholder="Name & Surname">
+<input placeholder="ID Number">
+<input type="date">
+<input placeholder="Phone">
+<input placeholder="Email">
+<input placeholder="Physical Address">
+<input placeholder="Next of Kin">
+<textarea placeholder="Allergies"></textarea>
+</div>
+
+<select id="aid" onchange="toggleAid()" style="margin-top:15px">
+<option>Cash</option>
+<option>Medical Aid</option>
+</select>
+
+<div id="aidFields" style="display:none">
+<div class="grid" style="margin-top:15px">
+<input placeholder="Member Name">
+<input placeholder="Medical Aid Number">
+<input placeholder="Suffix">
+</div>
+<div class="fingerprint"><i class="fa-solid fa-fingerprint"></i></div>
+</div>
+
+<button class="btn btn-success" style="margin-top:15px">Register Patient</button>
+</div>
+</section>
+
+<!-- CREATE VISIT -->
+<section id="visit" class="section">
+<div class="card">
+<h2>Create Visit / Appointment</h2>
+<div class="grid">
+<select>
+<option>General Consultation</option>
+<option>Pediatrics</option>
+<option>Emergency</option>
+</select>
+<select>
+<option>Dr. Chikore</option>
+<option>Dr. Ndlovu</option>
+</select>
+<select>
+<option>Walk-In</option>
+<option>Appointment</option>
+<option>Emergency</option>
+</select>
+<textarea placeholder="Reason for Visit"></textarea>
+</div>
+<button class="btn btn-success" style="margin-top:15px" onclick="openModal()">
+Send to Nurse Aide
+</button>
+</div>
+</section>
+
+<!-- DOCTORS -->
+<section id="doctors" class="section">
+<div class="card">
+<h2>Doctors on Duty</h2>
+<table>
+<tr><th>Name</th><th>Department</th><th>Status</th></tr>
+<tr><td>Dr. Chikore</td><td>General</td><td>Available</td></tr>
+<tr><td>Dr. Ndlovu</td><td>Pediatrics</td><td>Consulting</td></tr>
+</table>
+</div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="section">
+<div class="card">
+<h2>Reception Settings</h2>
+<p style="color:var(--muted)">Queue rules, alerts, workflow configuration.</p>
+</div>
+</section>
+</main>
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+<div class="modal-content">
+<h3>Visit Sent</h3>
+<p>Patient has been sent to Nurse Aide for vitals.</p>
+<button class="btn btn-primary" onclick="closeModal()">OK</button>
+</div>
+</div>
+
+<script>
+function show(id){
+document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'))
+document.getElementById(id).classList.add('active')
+title.innerText=document.querySelector('.nav a.active')?.innerText||''
+}
+
+function foundPatient(){
+patientCard.style.display='block'
+registerCard.style.display='none'
+}
+
+function toggleAid(){
+aidFields.style.display=aid.value==='Medical Aid'?'block':'none'
+}
+
+function openModal(){
+modal.classList.add('active')
+}
+
+function closeModal(){
+modal.classList.remove('active')
+}
+</script>
+
+</body>
+</html>
