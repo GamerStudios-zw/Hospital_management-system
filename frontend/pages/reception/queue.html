@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Queue | Hospital Management System</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Inter', sans-serif; }
+        .sidebar { min-height: 100vh; background: #0b5ed7; color: white; }
+        .nav-link { color: rgba(255,255,255,0.85); margin-bottom: 5px; }
+        .nav-link:hover, .nav-link.active { color: white; background: rgba(255,255,255,0.1); border-radius: 5px; }
+        .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .status-badge { width: 100px; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+
+        <nav class="col-md-2 d-none d-md-block sidebar p-3">
+            <h4 class="fw-bold mb-4 px-2">HMS Portal</h4>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a href="../reception/dashboard.html" class="nav-link">Dashboard</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-list-ol me-2"></i> Patient Queue</a></li>
+                <li class="nav-item"><a href="../patients/register.html" class="nav-link"><i class="bi bi-person-plus me-2"></i> Registration</a></li>
+                <li class="nav-item mt-4"><a href="#" onclick="logout()" class="nav-link text-danger"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+            </ul>
+        </nav>
+
+        <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Live Patient Queue</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addQueueModal">
+                        <i class="bi bi-plus-lg"></i> Add Patient to Queue
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card p-3 border-start border-4 border-warning">
+                        <small class="text-muted">Waiting</small>
+                        <h3 class="fw-bold mb-0">12</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 border-start border-4 border-info">
+                        <small class="text-muted">Triaged (Ready for Doctor)</small>
+                        <h3 class="fw-bold mb-0">5</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 border-start border-4 border-primary">
+                        <small class="text-muted">In Consultation</small>
+                        <h3 class="fw-bold mb-0">3</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-secondary">Current List</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadQueue()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Patient Name</th>
+                                <th scope="col">Chief Complaint</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="queueTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    Loading queue data...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="addQueueModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Patient to Queue</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addToQueueForm">
+                    <div class="mb-3">
+                        <label class="form-label">Select Patient</label>
+                        <select class="form-select" id="patientSelect" required>
+                            <option value="" selected disabled>Choose a registered patient...</option>
+                            <option value="1">John Doe (P-1001)</option>
+                            <option value="2">Jane Smith (P-1002)</option>
+                            <option value="3">Tinashe Moyo (P-1003)</option>
+                        </select>
+                        <div class="form-text"><a href="../patients/register.html">Register new patient?</a></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Chief Complaint / Reason</label>
+                        <textarea class="form-control" id="chiefComplaint" rows="3" placeholder="e.g. High fever, Headache..." required></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Add to List</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+    // Allow Receptionists, Nurses, Doctors, and Admins to view this page
+    protectPage(['admin', 'receptionist', 'nurse', 'doctor']);
+</script>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/queue.js"></script>
+
+</body>
+</html>

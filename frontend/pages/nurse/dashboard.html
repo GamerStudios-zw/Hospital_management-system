@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurse Dashboard | HMS</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+
+        /* Navbar & Sidebar */
+        .navbar { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+        .sidebar {
+            min-height: calc(100vh - 60px);
+            background: #0f172a;
+            color: #fff;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 20px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background: #10b981; /* Emerald Green for Nurses */
+            color: #fff;
+        }
+        /* Logout Button */
+        .btn-logout {
+            color: #ef4444 !important;
+            font-weight: 500;
+        }
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.1) !important;
+            color: #fca5a5 !important;
+        }
+
+        /* Stats Cards */
+        .stat-card {
+            border: none;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .icon-box {
+            width: 48px; height: 48px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* Table Styles */
+        .table-custom th {
+            font-weight: 600;
+            color: #64748b;
+            background-color: #f1f5f9;
+            border-top: none;
+        }
+        .avatar-initial {
+            width: 35px; height: 35px;
+            background: #e2e8f0;
+            color: #475569;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg sticky-top px-4">
+    <a class="navbar-brand fw-bold text-success" href="#"><i class="bi bi-hospital-fill me-2"></i>HMS Portal</a>
+
+    <div class="ms-auto d-flex align-items-center">
+        <div class="dropdown">
+            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
+                <div class="avatar-initial bg-success text-white me-2">N</div>
+                <span class="fw-medium" id="navUserName">Loading...</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
+                <li><a class="dropdown-item" href="#">Profile</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item text-danger" onclick="logout()">Logout</button></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+
+        <div class="col-md-2 d-none d-md-block sidebar px-3 py-4 d-flex flex-column justify-content-between">
+            <div>
+                <small class="text-uppercase text-secondary fw-bold ms-3" style="font-size: 0.7rem;">Nursing Station</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-speedometer2 me-2"></i> Triage Dashboard</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-heart-pulse me-2"></i> Ward Monitoring</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-clipboard-plus me-2"></i> Admissions</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-people me-2"></i> Shift Roster</a></li>
+                </ul>
+            </div>
+
+            <div class="mt-auto mb-4">
+                <button onclick="logout()" class="nav-link btn-logout w-100 text-start bg-transparent border-0">
+                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <main class="col-md-10 ms-sm-auto px-4 py-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="fw-bold mb-0">Triage Station</h4>
+                    <p class="text-muted mb-0">Record vitals for incoming patients.</p>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                    <i class="bi bi-circle-fill me-2 small"></i>Shift Active
+                </span>
+            </div>
+
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="stat-card p-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-muted mb-1 small fw-bold">PENDING TRIAGE</p>
+                            <h2 class="fw-bold mb-0 text-warning">8</h2>
+                        </div>
+                        <div class="icon-box bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-clipboard-pulse"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card p-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-muted mb-1 small fw-bold">WARD OCCUPANCY</p>
+                            <h2 class="fw-bold mb-0 text-primary">24/30</h2>
+                        </div>
+                        <div class="icon-box bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-hospital"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card p-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-muted mb-1 small fw-bold">EMERGENCY ALERTS</p>
+                            <h2 class="fw-bold mb-0 text-danger">0</h2>
+                        </div>
+                        <div class="icon-box bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card stat-card border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Patients Awaiting Vitals</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>Patient Name</th>
+                                <th>Arrival Time</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="triageTableBody">
+                            <tr>
+                                <td><span class="badge bg-secondary">T-101</span></td>
+                                <td class="fw-bold">Michael Brown</td>
+                                <td>10:15 AM</td>
+                                <td><span class="badge bg-warning text-dark">Pending Vitals</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-success" onclick="openVitalsModal('Michael Brown', 'T-101')">
+                                        <i class="bi bi-activity me-1"></i> Record Vitals
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="vitalsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Record Vitals</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3 text-center">
+                    <h5 id="modalPatientName" class="fw-bold">Patient Name</h5>
+                    <small class="text-muted">Token: <span id="modalToken">...</span></small>
+                </div>
+                <form id="vitalsForm">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Temperature (°C)</label>
+                            <input type="number" class="form-control" placeholder="36.5" step="0.1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Heart Rate (BPM)</label>
+                            <input type="number" class="form-control" placeholder="72">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Blood Pressure (mmHg)</label>
+                            <input type="text" class="form-control" placeholder="120/80">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Weight (kg)</label>
+                            <input type="number" class="form-control" placeholder="70" step="0.1">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Oxygen Saturation (SpO2 %)</label>
+                            <input type="number" class="form-control" placeholder="98">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" rows="2" placeholder="Patient complains of dizziness..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveVitals()">Save & Send to Doctor</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script>
+    // 1. SECURITY: Only Nurses and Admins
+    protectPage(['nurse', 'admin']);
+
+    // 2. Load User Info
+    document.addEventListener("DOMContentLoaded", () => {
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        if (user

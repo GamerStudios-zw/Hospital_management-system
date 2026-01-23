@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Management System | Digital Healthcare Platform</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A secure, modern Hospital Management System for government and private hospitals.">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #212529;
+        }
+
+        .navbar {
+            background: #0b5ed7;
+        }
+
+        .hero {
+            background: linear-gradient(
+                rgba(11,94,215,0.85),
+                rgba(8,66,152,0.85)
+            ),
+            url("assets/img/hero-hospital.jpg") center/cover no-repeat;
+            color: white;
+            padding: 120px 0;
+        }
+
+        .hero h1 {
+            font-weight: 700;
+        }
+
+        .section-title {
+            font-weight: 600;
+        }
+
+        .feature-card {
+            border: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+        }
+
+        .feature-image {
+            width: 100%;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .contact-section {
+            background: #0b5ed7;
+            color: white;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 25px 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">HMS</a>
+        <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div id="nav" class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+                <li class="nav-item"><a class="nav-link" href="#roles">Roles</a></li>
+                <li class="nav-item">
+                    <a class="btn btn-light btn-sm ms-lg-3" href="pages/auth/login.html">
+                        Staff Login
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<section class="hero text-center">
+    <div class="container">
+        <h1 class="mb-4">Modern Hospital Management System</h1>
+        <p class="mb-4 fs-5">
+            Digitizing patient care, clinical workflows, pharmacy operations,
+            and inventory management for healthcare institutions.
+        </p>
+        <a href="pages/auth/login.html" class="btn btn-outline-light btn-lg">
+            Access System
+        </a>
+    </div>
+</section>
+
+<section id="features" class="py-5">
+    <div class="container">
+        <h2 class="text-center section-title mb-5">What the System Offers</h2>
+        <div class="row g-4">
+
+            <div class="col-md-4">
+                <div class="card feature-card p-4 h-100">
+                    <img src="assets/img/patient-flow.jpg" class="feature-image" alt="Patient Flow" onerror="this.style.display='none'">
+                    <h5>Patient Flow Management</h5>
+                    <p>
+                        Digital registration, biometric verification, queue tracking,
+                        and electronic patient records.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card feature-card p-4 h-100">
+                    <img src="assets/img/clinical-care.jpg" class="feature-image" alt="Clinical Care" onerror="this.style.display='none'">
+                    <h5>Clinical Operations</h5>
+                    <p>
+                        Nurse vital capture, doctor consultations,
+                        digital prescriptions, and history tracking.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card feature-card p-4 h-100">
+                    <img src="assets/img/pharmacy.jpg" class="feature-image" alt="Pharmacy" onerror="this.style.display='none'">
+                    <h5>Pharmacy & Inventory</h5>
+                    <p>
+                        Medicine dispensing, stock monitoring,
+                        procurement tracking, and low-stock alerts.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<section id="roles" class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center section-title mb-4">Built for Every Hospital Department</h2>
+        <p class="text-center text-muted mb-4">
+            Role-based access ensures staff only see what they need.
+        </p>
+        <div class="row text-center fw-medium">
+            <div class="col-md-2 offset-md-1">Reception</div>
+            <div class="col-md-2">Nurses</div>
+            <div class="col-md-2">Doctors</div>
+            <div class="col-md-2">Pharmacy</div>
+            <div class="col-md-2">Inventory</div>
+        </div>
+    </div>
+</section>
+
+<section id="contact" class="py-5" style="background:#f8f9fa;">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col text-center">
+                <h2 class="section-title">Contact Us</h2>
+                <p class="text-muted">
+                    Request a demo, ask about deployment, or discuss partnerships.
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-7">
+                <div class="card shadow-sm h-100 border-0">
+                    <div class="card-body p-4">
+                        <h5 class="mb-3">Send us a message</h5>
+
+                        <form id="contactForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" id="contactName" class="form-control" placeholder="Your name" required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Email Address</label>
+                                    <input type="email" id="contactEmail" class="form-control" placeholder="you@example.com" required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Organization</label>
+                                    <input type="text" id="contactOrg" class="form-control" placeholder="Hospital / Institution">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" id="contactPhone" class="form-control" placeholder="+263 …">
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label">Message</label>
+                                    <textarea id="contactMessage" class="form-control" rows="5" placeholder="Tell us how we can help…" required></textarea>
+                                </div>
+
+                                <div class="col-12">
+                                    <button type="submit" id="submitBtn" class="btn btn-primary px-4">
+                                        Submit Inquiry
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div id="formAlert" class="alert mt-3 d-none"></div>
+
+                        <small class="text-muted d-block mt-3">
+                            Your information will be handled confidentially.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <h5 class="mb-3">Reach us directly</h5>
+
+                        <p class="mb-2"><strong>Email:</strong><br> info@hmsplatform.com</p>
+                        <p class="mb-2"><strong>Phone:</strong><br> +263 XXX XXX XXX</p>
+                        <p class="mb-4"><strong>Location:</strong><br> Harare, Zimbabwe</p>
+
+                        <h6 class="mb-3">Business Hours</h6>
+                        <p class="mb-1">Monday – Friday: 08:00 – 17:00</p>
+                        <p>Saturday: 09:00 – 13:00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="pt-5" style="background:#0b5ed7; color:white;">
+    <div class="container">
+        <div class="row g-4">
+
+            <div class="col-md-4">
+                <h5 class="fw-bold">Hospital Management System</h5>
+                <p class="small">
+                    A secure digital healthcare platform designed for
+                    government and private hospitals.
+                </p>
+            </div>
+
+            <div class="col-md-2">
+                <h6 class="fw-semibold">Platform</h6>
+                <ul class="list-unstyled small">
+                    <li><a href="#features" class="text-white text-decoration-none">Features</a></li>
+                    <li><a href="#roles" class="text-white text-decoration-none">Roles</a></li>
+                    <li><a href="pages/auth/login.html" class="text-white text-decoration-none">Staff Login</a></li>
+                </ul>
+            </div>
+
+            <div class="col-md-3">
+                <h6 class="fw-semibold">Compliance</h6>
+                <ul class="list-unstyled small">
+                    <li>Data Protection Ready</li>
+                    <li>Audit Logging Supported</li>
+                    <li>Role-Based Access Control</li>
+                    <li>Healthcare Security Focused</li>
+                </ul>
+            </div>
+
+            <div class="col-md-3">
+                <h6 class="fw-semibold">Connect with us</h6>
+                <div class="d-flex gap-3">
+                    <a href="#" class="text-white text-decoration-none">LinkedIn</a>
+                    <a href="#" class="text-white text-decoration-none">Twitter</a>
+                    <a href="#" class="text-white text-decoration-none">Facebook</a>
+                </div>
+            </div>
+
+        </div>
+
+        <hr class="border-light my-4">
+
+        <div class="text-center small">
+            &copy; 2026 Hospital Management System. All rights reserved.
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    document.getElementById('contactForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // UI Elements
+        const submitBtn = document.getElementById('submitBtn');
+        const alertBox = document.getElementById('formAlert');
+        const originalBtnText = submitBtn.innerText;
+
+        // 1. Gather Data
+        const formData = {
+            name: document.getElementById('contactName').value,
+            email: document.getElementById('contactEmail').value,
+            organization: document.getElementById('contactOrg').value,
+            phone: document.getElementById('contactPhone').value,
+            message: document.getElementById('contactMessage').value
+        };
+
+        // 2. Disable button to prevent double submit
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Sending...";
+        alertBox.classList.add('d-none'); // Hide previous alerts
+
+        try {
+            // 3. Send to Backend
+            // Ensure this URL matches your backend setup exactly
+            const response = await fetch('http://localhost/Hospital_Management_System/backend/index.php/contact/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            // 4. Handle Response
+            alertBox.classList.remove('d-none');
+
+            if (response.ok) {
+                // Success
+                alertBox.className = 'alert alert-success mt-3';
+                alertBox.innerText = "Message sent successfully! We will contact you shortly.";
+                document.getElementById('contactForm').reset();
+            } else {
+                // Backend Error
+                alertBox.className = 'alert alert-danger mt-3';
+                alertBox.innerText = result.message || "Failed to send message. Please try again.";
+            }
+
+        } catch (error) {
+            // Network Error
+            console.error('Error:', error);
+            alertBox.classList.remove('d-none');
+            alertBox.className = 'alert alert-danger mt-3';
+            alertBox.innerText = "Connection error. Please check if the backend server is running.";
+        } finally {
+            // 5. Reset Button
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
+        }
+    });
+</script>
+
+</body>
+</html>
