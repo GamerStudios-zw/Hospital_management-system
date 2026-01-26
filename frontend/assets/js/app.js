@@ -66,3 +66,50 @@ async function authFetch(endpoint, options = {}) {
 
     return response;
 }
+// ... (Keep your existing CONFIG and Api code at the top) ...
+
+/* ==========================================================
+   GLOBAL HELPER FUNCTIONS (Add this to the bottom of app.js)
+   ========================================================== */
+
+/**
+ * Global Logout Function
+ * Clears session and redirects to home
+ */
+function logout() {
+    if(confirm("Are you sure you want to log out?")) {
+        localStorage.removeItem("hms_token");
+        localStorage.removeItem("hms_user");
+        localStorage.removeItem("hms_role");
+
+        // Redirect to login page
+        window.location.href = "../../index.html";
+    }
+}
+
+/**
+ * Page Security / Access Control
+ * Checks if user is logged in and has the correct role
+ */
+function protectPage(allowedRoles) {
+    const userJson = localStorage.getItem("hms_user");
+    const token = localStorage.getItem("hms_token");
+
+    // 1. Check if logged in
+    if (!userJson || !token) {
+        alert("Please log in to access this page.");
+        window.location.href = "../auth/login.html";
+        return;
+    }
+
+    // 2. Check Role
+    const user = JSON.parse(userJson);
+    if (!allowedRoles.includes(user.role)) {
+        alert("⛔ Access Denied: You do not have permission.");
+        // Redirect back to their correct dashboard based on their actual role
+        if(user.role === 'doctor') window.location.href = "../doctor/dashboard.html";
+        else if(user.role === 'nurse') window.location.href = "../nurse/dashboard.html";
+        else if(user.role === 'admin') window.location.href = "../admin/dashboard.html";
+        else window.location.href = "../auth/login.html";
+    }
+}
