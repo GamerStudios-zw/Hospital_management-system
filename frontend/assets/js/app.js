@@ -1,68 +1,104 @@
-const API_BASE_URL = "http://localhost/Hospital_Management_System/backend/index.php";
+// FILE: assets/js/app.js
 
 /**
- * Log the user out by clearing storage and redirecting
+ * 1. CONFIGURATION
+ * Central location for your backend URL.
+ */
+const CONFIG = {
+    // Ensure this matches your XAMPP folder name exactly
+    BASE_URL: "http://localhost/Hospital_Management_System/backend/index.php"
+};
+
+/**
+ * 2. API HANDLER
+ * Used by Login, Contact Form, and Data Fetching
+ */
+const Api = {
+    getToken: () => localStorage.getItem("hms_token"),
+
+    async request(endpoint, method = "GET", body = null) {
+        const headers = {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.getToken()}`
+        };
+
+        const config = { method, headers };
+        if (body) config.body = JSON.stringify(body);
+
+        try {
+            const response = await fetch(`${CONFIG.BASE_URL}${endpoint}`, config);
+
+            // Handle Unauthorized (Session Expired)
+            if (response.status === 401) {
+                logout(); // Call the global logout function
+                return null;
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error("API Error:", error);
+            alert("Network error. Please check your connection or backend.");
+            return null;
+        }
+    },
+
+    get: (endpoint) => Api.request(endpoint, "GET"),
+    post: (endpoint, data) => Api.request(endpoint, "POST", data)
+};
+
+/**
+ * 3. GLOBAL LOGOUT
+ * Clears session and redirects to the login page.
  */
 function logout() {
-    // 1. Optional: Call backend to invalidate token (if you implement blocklist)
-    // fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' });
+    if(confirm("Are you sure you want to log out?")) {
+        localStorage.removeItem("hms_token");
+        localStorage.removeItem("hms_user");
+        localStorage.removeItem("hms_role");
 
-    // 2. Clear Local Storage
-    localStorage.removeItem("hms_token");
-    localStorage.removeItem("hms_role");
-    localStorage.removeItem("hms_user");
-
-    // 3. Redirect to Login
-    window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
+        // Go up two levels to find the login page
+        // Adjust this if your folder structure is different
+        window.location.href = "../../pages/auth/login.html";
+    }
 }
 
 /**
- * Protect a page to ensure only specific roles can access it
- * @param {string|string[]} allowedRoles - Single role string or array of allowed roles
+ * 4. PAGE SECURITY (The "Bouncer")
+ * Checks if the user is allowed to be on this page.
  */
 function protectPage(allowedRoles) {
+    const userJson = localStorage.getItem("hms_user");
     const token = localStorage.getItem("hms_token");
-    const userRole = localStorage.getItem("hms_role");
 
-    // 1. Check if token exists
-    if (!token || !userRole) {
+    // A. Check if logged in
+    if (!userJson || !token) {
         alert("You must be logged in to view this page.");
-        window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
+        window.location.href = "../../pages/auth/login.html";
         return;
     }
 
-    // 2. Check if the user's role is allowed
-    // Convert single string to array for easier checking
+    // B. Check if Role is Allowed
+    let user;
+    try {
+        user = JSON.parse(userJson);
+    } catch (e) {
+        // If JSON is corrupt, log them out
+        logout();
+        return;
+    }
+
+    // Ensure allowedRoles is an array (even if you passed a single string)
     const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
 
-    if (!rolesArray.includes(userRole)) {
-        alert("Access Denied: You do not have permission to view this page.");
-        // Redirect to their correct dashboard or logout
-        logout(); 
+    if (!rolesArray.includes(user.role)) {
+        alert("⛔ Access Denied: You do not have permission.");
+
+        // Redirect them to their CORRECT dashboard
+        if(user.role === 'doctor') window.location.href = "../doctor/dashboard.html";
+        else if(user.role === 'nurse') window.location.href = "../nurse/dashboard.html";
+        else if(user.role === 'admin') window.location.href = "../admin/dashboard.html";
+        else if(user.role === 'receptionist') window.location.href = "../reception/receptionist.html";
+        else if(user.role === 'pharmacist') window.location.href = "../pharmacy/dashboard.html";
+        else logout();
     }
-}
-
-/**
- * Helper to make Authenticated API Requests
- * Use this instead of plain fetch() for protected backend routes
- */
-async function authFetch(endpoint, options = {}) {
-    const token = localStorage.getItem("hms_token");
-
-    // Ensure headers exist
-    options.headers = options.headers || {};
-    
-    // Add Authorization Header
-    options.headers["Authorization"] = `Bearer ${token}`;
-    options.headers["Content-Type"] = "application/json";
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    
-    // If token is expired (401), force logout
-    if (response.status === 401) {
-        logout();
-        return null;
-    }
-
-    return response;
 }

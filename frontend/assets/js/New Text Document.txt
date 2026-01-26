@@ -1,0 +1,30 @@
+// FILE: assets/js/app.js
+
+// 1. GLOBAL LOGOUT FUNCTION
+function logout() {
+    if(confirm("Are you sure you want to log out?")) {
+        localStorage.removeItem("hms_token");
+        localStorage.removeItem("hms_user");
+        localStorage.removeItem("hms_role");
+        window.location.href = "../../index.html"; // Go to homepage
+    }
+}
+
+// 2. SECURITY CHECK (PROTECT PAGE)
+function protectPage(allowedRoles) {
+    const userJson = localStorage.getItem("hms_user");
+    
+    if (!userJson) {
+        // No user found -> Redirect to login
+        window.location.href = "../auth/login.html"; 
+        return;
+    }
+
+    const user = JSON.parse(userJson);
+    
+    // If user's role is not in the allowed list
+    if (!allowedRoles.includes(user.role)) {
+        alert("⛔ Access Denied: You are not authorized to view this page.");
+        window.location.href = "../auth/login.html";
+    }
+}

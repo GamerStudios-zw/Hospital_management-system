@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shift Roster | HMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #10b981; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar px-3 py-4 d-flex flex-column justify-content-between">
+            <div>
+                <h5 class="text-white fw-bold mb-4 px-2">🏥 HMS Nurse</h5>
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="bi bi-speedometer2 me-2"></i> Triage</a></li>
+                    <li class="nav-item"><a href="ward_monitoring.html" class="nav-link"><i class="bi bi-heart-pulse me-2"></i> Ward Monitor</a></li>
+                    <li class="nav-item"><a href="admissions.html" class="nav-link"><i class="bi bi-clipboard-plus me-2"></i> Admissions</a></li>
+                    <li class="nav-item"><a href="shift_roster.html" class="nav-link active"><i class="bi bi-people me-2"></i> Shift Roster</a></li>
+                </ul>
+            </div>
+            <button onclick="logout()" class="btn text-danger fw-bold text-start w-100"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
+        </div>
+
+        <main class="col-md-10 bg-light p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Nursing Shift Schedule</h4>
+                <button class="btn btn-outline-primary btn-sm">Download PDF</button>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Shift Time</th>
+                                <th>Assigned Nurse</th>
+                                <th>Ward</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-success">
+                                <td class="fw-bold">Today (Jan 26)</td>
+                                <td>07:00 AM - 03:00 PM</td>
+                                <td>You (Nurse Betty)</td>
+                                <td>General Ward A</td>
+                                <td><span class="badge bg-success">Active</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jan 26</td>
+                                <td>03:00 PM - 11:00 PM</td>
+                                <td>Nurse T. Banda</td>
+                                <td>ICU</td>
+                                <td><span class="badge bg-secondary">Upcoming</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jan 27</td>
+                                <td>07:00 AM - 03:00 PM</td>
+                                <td>Nurse Chipo</td>
+                                <td>General Ward B</td>
+                                <td><span class="badge bg-secondary">Scheduled</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script>
+    protectPage(['nurse', 'admin']);
+</script>
+</body>
+</html>
