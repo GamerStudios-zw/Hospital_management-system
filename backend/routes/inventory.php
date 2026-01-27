@@ -1,40 +1,80 @@
 <?php
-// backend/routes/inventory.php
+// FILE: backend/routes/inventory.php
 
-include_once 'controllers/InventoryController.php';
-include_once 'middleware/AuthMiddleware.php';
-include_once 'middleware/RoleMiddleware.php';
+require_once __DIR__ . '/../config/database.php';
 
-$controller = new InventoryController();
+$database = new Database();
+$db = $database->getConnection();
+
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
-$user = AuthMiddleware::isAuthenticated();
-
 switch ($action) {
-    // /inventory/list
+
+    // 1. GET ALL STOCK
     case 'list':
         if ($method === 'GET') {
-            // Doctors and Pharmacists need to see list
-            RoleMiddleware::allow(['admin', 'pharmacist', 'doctor'], $user);
-            $controller->listInventory();
+            $stmt = $db->query("SELECT * FROM medicines ORDER BY created_at DESC");
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         }
         break;
 
-    // /inventory/add
+    // 2. ADD NEW STOCK
     case 'add':
         if ($method === 'POST') {
-            // Only Pharmacists update stock
-            RoleMiddleware::allow(['admin', 'pharmacist'], $user);
-            $controller->addMedicine();
+            $data = json_decode(file_get_contents("php://input"));
+
+            if(!isset($data->name) || !isset($data->quantity)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Name and Quantity are required"]);
+                exit;
+            }
+
+            $sql = "INSERT INTO medicines (name, batch_number, stock_quantity, unit, expiry_date, price) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $db->prepare($sql);
+
+            // Default price to 0 if not provided
+            $price = isset($data->price) ? $data->price : 0;
+
+            if($stmt->execute([$data->name, $data->batch_number, $data->quantity, $data->unit, $data->expiry_date, $price])) {
+                echo json_encode(["message" => "Stock Added Successfully"]);
+            } else {
+                http_response_code(500);
+            }
         }
         break;
 
-    // /inventory/search?q=aspirin
-    case 'search':
-        if ($method === 'GET') {
-            RoleMiddleware::allow(['admin', 'pharmacist', 'doctor'], $user);
-            $controller->searchMedicine();
+    // 3. UPDATE STOCK
+    case 'update':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+
+            if(!isset($data->id)) { http_response_code(400); exit; }
+
+            $sql = "UPDATE medicines SET name=?, batch_number=?, stock_quantity=?, unit=?, expiry_date=? WHERE id=?";
+            $stmt = $db->prepare($sql);
+
+            if($stmt->execute([$data->name, $data->batch_number, $data->quantity, $data->unit, $data->expiry_date, $data->id])) {
+                echo json_encode(["message" => "Stock Updated"]);
+            } else {
+                http_response_code(500);
+            }
+        }
+        break;
+
+    // 4. DELETE STOCK
+    case 'delete':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+
+            if(!isset($data->id)) { http_response_code(400); exit; }
+
+            $stmt = $db->prepare("DELETE FROM medicines WHERE id = ?");
+            if($stmt->execute([$data->id])) {
+                echo json_encode(["message" => "Stock Deleted"]);
+            } else {
+                http_response_code(500);
+            }
         }
         break;
 

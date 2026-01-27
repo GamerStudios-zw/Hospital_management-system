@@ -104,20 +104,63 @@
 <script>
     protectPage(['doctor', 'admin']);
 
+    // 1. Load User Info
     const user = JSON.parse(localStorage.getItem("hms_user"));
     if (user) document.getElementById("navUserName").innerText = user.full_name || user.username;
 
-    // Activate "Start" Buttons
-    const startBtns = document.querySelectorAll('.btn-primary');
-    startBtns.forEach(btn => {
-        if(btn.innerText === "Start") {
-            btn.onclick = function() {
-                const row = this.closest('tr');
-                const patient = row.cells[1].innerText; // Get name from 2nd column
-                if(confirm(`Start consultation with ${patient}?`)) {
-                    alert(`✅ Consultation started for ${patient}.`);
+    // 2. Load Appointments Function
+    document.addEventListener("DOMContentLoaded", loadAppointments);
+
+    async function loadAppointments() {
+        const tbody = document.querySelector('tbody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4">Checking schedule...</td></tr>';
+
+        const appointments = await Api.get('/doctor/appointments');
+        tbody.innerHTML = '';
+
+        if (appointments && appointments.length > 0) {
+            appointments.forEach(apt => {
+                // Format Time (e.g., 09:30 AM)
+                const timeStr = new Date(apt.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                // Color Badges
+                let statusBadge = 'secondary';
+                if(apt.status === 'Waiting') statusBadge = 'warning text-dark';
+                if(apt.status === 'With Doctor') statusBadge = 'success';
+                if(apt.status === 'In Triage') statusBadge = 'info text-dark';
+
+                // Determine Button Action
+                let actionBtn = `<button class="btn btn-sm btn-primary" onclick="startConsult(${apt.queue_id}, '${apt.full_name}')">Start</button>`;
+                if(apt.status === 'With Doctor') {
+                    actionBtn = `<button class="btn btn-sm btn-outline-success" disabled>In Progress</button>`;
                 }
-            };
+
+                const row = `
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">${timeStr}</td>
+                        <td>${apt.full_name}</td>
+                        <td><span class="badge bg-light text-dark border">${apt.payment_method || 'General Visit'}</span></td>
+                        <td><span class="badge bg-${statusBadge}">${apt.status}</span></td>
+                        <td>${actionBtn}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4">No appointments scheduled for today.</td></tr>';
         }
-    });
+    }
+
+    // 3. Start Consultation Logic
+    async function startConsult(queueId, name) {
+        if(confirm(`Start consultation with ${name}?`)) {
+            const res = await Api.post('/doctor/start_consult', { queue_id: queueId });
+            if(res) {
+                alert(`✅ Consultation started for ${name}.`);
+                loadAppointments(); // Refresh list to show "In Progress"
+            }
+        }
+    }
 </script>
+</body>
+</html>

@@ -12,9 +12,18 @@
         .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
         .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #10b981; color: #fff; }
-        .bed-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white; transition: 0.2s; }
+
+        .bed-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            background: white;
+            transition: 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
         .bed-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
+        .status-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
     </style>
 </head>
 <body>
@@ -35,56 +44,17 @@
         </div>
 
         <main class="col-md-10 bg-light p-4">
-            <h4 class="fw-bold mb-4">Ward Occupancy Status</h4>
-
-            <div class="mb-5">
-                <h6 class="text-muted text-uppercase fw-bold mb-3">General Ward A (Male)</h6>
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <div class="bed-card border-start border-4 border-danger">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold">Bed A-01</span>
-                                <span class="badge bg-danger bg-opacity-10 text-danger">Occupied</span>
-                            </div>
-                            <small class="text-muted d-block">Patient: John Doe</small>
-                            <small class="text-muted">Cond: Stable</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="bed-card border-start border-4 border-success">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold">Bed A-02</span>
-                                <span class="badge bg-success bg-opacity-10 text-success">Available</span>
-                            </div>
-                            <small class="text-muted d-block">--</small>
-                            <button class="btn btn-sm btn-outline-success mt-2 w-100">Assign Patient</button>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="bed-card border-start border-4 border-warning">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold">Bed A-03</span>
-                                <span class="badge bg-warning bg-opacity-10 text-warning">Cleaning</span>
-                            </div>
-                            <small class="text-muted d-block">Housekeeping notified</small>
-                        </div>
-                    </div>
-                </div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Ward Occupancy Status</h4>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadBeds()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                </button>
             </div>
 
-            <div>
-                <h6 class="text-muted text-uppercase fw-bold mb-3">Intensive Care Unit (ICU)</h6>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="bed-card bg-danger text-white">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>ICU-01</span>
-                                <span class="badge bg-white text-danger">Critical</span>
-                            </div>
-                            <p class="mb-0 small">Patient: Sarah Connor</p>
-                            <p class="mb-0 small">Vitals: Unstable - BP 90/60</p>
-                        </div>
-                    </div>
+            <div id="wardContainer">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Loading ward data...</p>
                 </div>
             </div>
         </main>
@@ -95,6 +65,100 @@
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['nurse', 'admin']);
+
+    document.addEventListener("DOMContentLoaded", loadBeds);
+
+    async function loadBeds() {
+        const container = document.getElementById('wardContainer');
+        const beds = await Api.get('/nurse/beds');
+
+        container.innerHTML = ''; // Clear loading spinner
+
+        if(beds && beds.length > 0) {
+            // Group beds by Ward Name
+            const wards = {};
+            beds.forEach(bed => {
+                if(!wards[bed.ward_name]) wards[bed.ward_name] = [];
+                wards[bed.ward_name].push(bed);
+            });
+
+            // Loop through each Ward and create a section
+            for (const [wardName, wardBeds] of Object.entries(wards)) {
+
+                let cardsHtml = '';
+
+                wardBeds.forEach(bed => {
+                    // Logic for Colors & Actions
+                    let colorClass = 'success'; // Default Available
+                    let statusText = 'Available';
+                    let patientInfo = '<span class="text-muted small">--</span>';
+                    let actionButton = `<a href="admissions.html" class="btn btn-sm btn-outline-success w-100 mt-2">Assign Patient</a>`;
+
+                    if(bed.status === 'Occupied') {
+                        colorClass = 'danger';
+                        statusText = 'Occupied';
+                        patientInfo = `<span class="fw-bold d-block text-truncate">${bed.patient_name || 'Unknown'}</span>
+                                       <small class="text-muted">Admitted</small>`;
+                        actionButton = `<button class="btn btn-sm btn-outline-danger w-100 mt-2" onclick="dischargePatient(${bed.id}, '${bed.bed_number}')">Discharge</button>`;
+                    } else if (bed.status === 'Cleaning') {
+                        colorClass = 'warning';
+                        statusText = 'Cleaning';
+                        patientInfo = '<span class="text-muted small fst-italic">Housekeeping...</span>';
+                        actionButton = `<button class="btn btn-sm btn-outline-warning w-100 mt-2" onclick="markClean(${bed.id})">Mark Clean</button>`;
+                    }
+
+                    cardsHtml += `
+                        <div class="col-md-3 col-sm-6">
+                            <div class="bed-card h-100">
+                                <div class="status-stripe bg-${colorClass}"></div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="fw-bold">${bed.bed_number}</span>
+                                    <span class="badge bg-${colorClass} bg-opacity-10 text-${colorClass}">${statusText}</span>
+                                </div>
+                                <div class="mb-3" style="min-height: 40px;">
+                                    ${patientInfo}
+                                </div>
+                                ${actionButton}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Add Section to Page
+                container.innerHTML += `
+                    <div class="mb-5">
+                        <h6 class="text-muted text-uppercase fw-bold mb-3 border-bottom pb-2">${wardName}</h6>
+                        <div class="row g-3">
+                            ${cardsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+        } else {
+            container.innerHTML = '<div class="alert alert-info">No beds configured in the system.</div>';
+        }
+    }
+
+    // --- ACTIONS ---
+
+    async function dischargePatient(bedId, bedNum) {
+        if(confirm(`Are you sure you want to discharge the patient from ${bedNum}?\nThis will mark the bed for cleaning.`)) {
+            const res = await Api.post('/nurse/discharge', { bed_id: bedId });
+            if(res) {
+                // alert("✅ Patient discharged.");
+                loadBeds(); // Refresh UI instantly
+            }
+        }
+    }
+
+    async function markClean(bedId) {
+        const res = await Api.post('/nurse/mark_clean', { bed_id: bedId });
+        if(res) {
+            // alert("✨ Bed is now ready!");
+            loadBeds(); // Refresh UI instantly
+        }
+    }
 </script>
 </body>
 </html>

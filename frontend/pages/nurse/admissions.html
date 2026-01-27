@@ -83,6 +83,33 @@
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['nurse', 'admin']);
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        // Load Patients into dropdown (reuse doctor endpoint or make a new one)
+        const patients = await Api.get('/doctor/patients');
+        // Load Available Beds
+        const beds = await Api.get('/nurse/beds');
+
+        // This logic requires adding <select id="patientSelect"> and <select id="bedSelect"> to your HTML
+        // For now, we will assume you update the HTML to give IDs to your inputs.
+    });
+
+    async function confirmAdmission() {
+        // Mock data gathering - Add IDs to your HTML inputs to make this real!
+        const data = {
+            patient_id: 1, // Example
+            bed_id: 2      // Example
+        };
+
+        const res = await Api.post('/nurse/admit', data);
+        if(res) {
+            alert("✅ Patient Admitted Successfully!");
+            window.location.href = "ward_monitoring.html";
+        }
+    }
+
+    // Bind the button
+    document.querySelector('.btn-success').onclick = confirmAdmission;
 </script>
 </body>
 </html>

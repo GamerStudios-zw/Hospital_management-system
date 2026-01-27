@@ -250,10 +250,80 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
-    // 1. SECURITY: Only Nurses and Admins
     protectPage(['nurse', 'admin']);
 
-    // 2. Load User Info
+    let activePatientId = null;
+    let activeQueueId = null;
+
     document.addEventListener("DOMContentLoaded", () => {
         const user = JSON.parse(localStorage.getItem("hms_user"));
-        if (user
+        if (user) document.getElementById("navUserName").innerText = user.full_name || "Nurse";
+
+        loadStats();
+        loadTriageQueue();
+    });
+
+    async function loadStats() {
+        const stats = await Api.get('/nurse/stats');
+        if(stats) {
+            document.querySelector('.text-warning').innerText = stats.pending_triage;
+            document.querySelector('.text-primary').innerText = stats.occupancy;
+        }
+    }
+
+    async function loadTriageQueue() {
+        const tbody = document.getElementById('triageTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
+
+        const queue = await Api.get('/nurse/triage_queue');
+        tbody.innerHTML = '';
+
+        if(queue && queue.length > 0) {
+            queue.forEach(q => {
+                const timeStr = new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                tbody.innerHTML += `
+                    <tr>
+                        <td><span class="badge bg-secondary">Q-${q.queue_id}</span></td>
+                        <td class="fw-bold">${q.full_name}</td>
+                        <td>${timeStr}</td>
+                        <td><span class="badge bg-warning text-dark">Pending Vitals</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="openVitalsModal('${q.full_name}', ${q.patient_id}, ${q.queue_id})">
+                                <i class="bi bi-activity me-1"></i> Record
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No patients waiting for triage.</td></tr>';
+        }
+    }
+
+    function openVitalsModal(name, patientId, queueId) {
+        activePatientId = patientId;
+        activeQueueId = queueId;
+        document.getElementById('modalPatientName').innerText = name;
+        document.getElementById('modalToken').innerText = "Q-" + queueId;
+        new bootstrap.Modal(document.getElementById('vitalsModal')).show();
+    }
+
+    async function saveVitals() {
+        const data = {
+            patient_id: activePatientId,
+            queue_id: activeQueueId,
+            temperature: document.querySelector('input[placeholder="36.5"]').value,
+            heart_rate: document.querySelector('input[placeholder="72"]').value,
+            bp: document.querySelector('input[placeholder="120/80"]').value,
+            weight: document.querySelector('input[placeholder="70"]').value,
+            spo2: document.querySelector('input[placeholder="98"]').value,
+            notes: document.querySelector('textarea').value
+        };
+
+        const res = await Api.post('/nurse/save_vitals', data);
+        if(res) {
+            alert("✅ Vitals Recorded! Patient sent to Doctor.");
+            location.reload();
+        }
+    }
+</script>

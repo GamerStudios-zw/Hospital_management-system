@@ -11,6 +11,15 @@
         .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
         .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #10b981; color: #fff; }
+
+        .avatar-initial {
+            width: 35px; height: 35px;
+            background: #e2e8f0; color: #475569;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 0.9rem;
+        }
+        .shift-card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
     </style>
 </head>
 <body>
@@ -31,49 +40,57 @@
         </div>
 
         <main class="col-md-10 bg-light p-4">
+
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold">Nursing Shift Schedule</h4>
-                <button class="btn btn-outline-primary btn-sm">Download PDF</button>
+                <div>
+                    <h4 class="fw-bold mb-1">Nursing Roster</h4>
+                    <p class="text-muted mb-0">Manage and view weekly shift schedules.</p>
+                </div>
+                <button class="btn btn-outline-primary" onclick="window.print()">
+                    <i class="bi bi-printer me-2"></i>Print Schedule
+                </button>
             </div>
 
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date</th>
-                                <th>Shift Time</th>
-                                <th>Assigned Nurse</th>
-                                <th>Ward</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="table-success">
-                                <td class="fw-bold">Today (Jan 26)</td>
-                                <td>07:00 AM - 03:00 PM</td>
-                                <td>You (Nurse Betty)</td>
-                                <td>General Ward A</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td>Jan 26</td>
-                                <td>03:00 PM - 11:00 PM</td>
-                                <td>Nurse T. Banda</td>
-                                <td>ICU</td>
-                                <td><span class="badge bg-secondary">Upcoming</span></td>
-                            </tr>
-                            <tr>
-                                <td>Jan 27</td>
-                                <td>07:00 AM - 03:00 PM</td>
-                                <td>Nurse Chipo</td>
-                                <td>General Ward B</td>
-                                <td><span class="badge bg-secondary">Scheduled</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="card bg-primary text-white border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;">
+                <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="badge bg-white text-success mb-2">CURRENTLY ACTIVE</span>
+                        <h3 class="fw-bold mb-1">General Ward A</h3>
+                        <p class="mb-0 opacity-75"><i class="bi bi-clock me-2"></i>07:00 AM - 03:00 PM • Shift Leader</p>
+                    </div>
+                    <i class="bi bi-stopwatch fs-1 opacity-50"></i>
                 </div>
             </div>
+
+            <ul class="nav nav-tabs mb-3 border-bottom-0">
+                <li class="nav-item">
+                    <button class="nav-link active fw-bold" onclick="filterShifts('all')">All Shifts</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link text-secondary" onclick="filterShifts('my')">My Shifts Only</button>
+                </li>
+            </ul>
+
+            <div class="card shift-card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4 py-3">Nurse</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Ward / Unit</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rosterBody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 </div>
@@ -82,6 +99,57 @@
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['nurse', 'admin']);
+
+    document.addEventListener("DOMContentLoaded", loadShifts);
+
+    async function loadShifts() {
+        const tbody = document.getElementById('rosterBody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5">Loading roster...</td></tr>';
+
+        const shifts = await Api.get('/nurse/shifts');
+        tbody.innerHTML = '';
+
+        if(shifts && shifts.length > 0) {
+            shifts.forEach(s => {
+                const dateObj = new Date(s.shift_start);
+                const dateStr = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                const timeStart = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const timeEnd = new Date(s.shift_end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                // Status Logic
+                let badge = 'secondary';
+                if(s.status === 'Active') badge = 'success';
+                if(s.status === 'Scheduled') badge = 'primary';
+
+                // Initials for Avatar
+                const initials = s.nurse_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+
+                const row = `
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-initial bg-light text-primary me-3">${initials}</div>
+                                <span class="fw-bold text-dark">${s.nurse_name}</span>
+                            </div>
+                        </td>
+                        <td>${dateStr}</td>
+                        <td class="text-muted">${timeStart} - ${timeEnd}</td>
+                        <td>${s.ward_assigned}</td>
+                        <td><span class="badge bg-${badge}-subtle text-${badge} border border-${badge}">${s.status}</span></td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">No shifts scheduled yet.</td></tr>';
+        }
+    }
+
+    function filterShifts(type) {
+        // In a real app, you would filter the array here.
+        // For now, we just reload all.
+        loadShifts();
+    }
 </script>
 </body>
 </html>

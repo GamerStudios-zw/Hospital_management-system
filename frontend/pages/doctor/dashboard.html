@@ -90,10 +90,10 @@
         <div class="col-md-2 d-none d-md-block sidebar px-3 py-4">
             <small class="text-uppercase text-secondary fw-bold ms-3" style="font-size: 0.7rem;">Main Menu</small>
             <ul class="nav flex-column mt-2">
-                <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-grid-fill me-2"></i> Dashboard</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-people me-2"></i> My Patients</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-clipboard-data me-2"></i> Reports</a></li>
+                <li class="nav-item"><a href="dashboard.html" class="nav-link active"><i class="bi bi-grid-fill me-2"></i> Dashboard</a></li>
+                <li class="nav-item"><a href="my_patients.html" class="nav-link"><i class="bi bi-people me-2"></i> My Patients</a></li>
+                <li class="nav-item"><a href="appointments.html" class="nav-link"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
+                <li class="nav-item"><a href="reports.html" class="nav-link"><i class="bi bi-clipboard-data me-2"></i> Reports</a></li>
             </ul>
         </div>
 
@@ -237,69 +237,111 @@
 <script src="../../assets/js/app.js"></script>
 
 <script>
-    // 1. SECURITY CHECK: Only allow Doctors
-    // Note: Admins can view too for debugging
+    // 1. SECURITY CHECK
     protectPage(['doctor', 'admin']);
 
-    // 2. LOAD USER DATA
-    document.addEventListener("DOMContentLoaded", () => {
-        const user = JSON.parse(localStorage.getItem("hms_user"));
-        if (user) {
-            document.getElementById("navUserName").innerText = user.full_name || user.username;
-        }
+    // Global variable to track which patient is currently in the modal
+    let activeQueueId = null;
 
-        // Populate Demo Data (This would come from API later)
-        populateDemoQueue();
+    // 2. INITIALIZATION
+    document.addEventListener("DOMContentLoaded", () => {
+        // Load User Name
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        if (user) document.getElementById("navUserName").innerText = user.full_name || user.username;
+
+        // Load Data
+        loadStats();
+        loadQueue();
     });
 
-    // 3. DEMO QUEUE DATA
-    function populateDemoQueue() {
-        const tbody = document.getElementById('queueTableBody');
-        // We leave the HTML sample row for now,
-        // but here is where you would fetch(API_URL + '/queue/list')...
-
-        // Example of adding another row dynamically:
-        const demoRow = `
-            <tr>
-                <td>2</td>
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div class="avatar-initial bg-success bg-opacity-25 text-success me-2">SM</div>
-                        <div>
-                            <span class="fw-bold d-block">Sarah Miller</span>
-                            <small class="text-muted">ID: P-2023045</small>
-                        </div>
-                    </div>
-                </td>
-                <td>28 / F</td>
-                <td>Abdominal Pain</td>
-                <td><span class="badge bg-danger bg-opacity-10 text-danger border border-danger">BP: 140/90</span></td>
-                <td><span class="badge bg-warning text-dark">Waiting</span></td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="openConsultation('Sarah Miller', 'P-2023045')">Consult</button>
-                </td>
-            </tr>
-        `;
-        tbody.innerHTML += demoRow;
+    // 3. LOAD STATS
+    async function loadStats() {
+        const stats = await Api.get('/doctor/stats');
+        if(stats) {
+            // Update the big numbers on the dashboard
+            // Note: We use querySelector to find the elements based on their text color classes in your HTML
+            document.querySelector('.text-danger').innerText = stats.waiting;
+            document.querySelector('.text-success').innerText = stats.attended;
+            document.querySelector('.text-primary').innerText = stats.total;
+        }
     }
 
-    // 4. OPEN MODAL
-    function openConsultation(name, id) {
-        document.getElementById('modalPatientName').innerText = name;
-        document.getElementById('modalPatientID').innerText = id;
+    // 4. LOAD QUEUE TABLE
+    async function loadQueue() {
+        const tbody = document.getElementById('queueTableBody');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Loading queue...</td></tr>';
 
-        // Show Bootstrap Modal
+        const queue = await Api.get('/doctor/appointments');
+        tbody.innerHTML = '';
+
+        if(queue && queue.length > 0) {
+            queue.forEach((item, index) => {
+                // Calculate Age (Rough estimate from Year)
+                const age = item.dob ? new Date().getFullYear() - new Date(item.dob).getFullYear() : 'N/A';
+
+                const row = `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-initial bg-primary bg-opacity-10 text-primary me-2">
+                                    ${item.full_name.charAt(0)}
+                                </div>
+                                <div>
+                                    <span class="fw-bold d-block">${item.full_name}</span>
+                                    <small class="text-muted">Queue ID: #${item.queue_id}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${age} / ${item.gender ? item.gender.charAt(0) : '-'}</td>
+                        <td>General Checkup</td>
+                        <td><span class="badge bg-light text-dark border">Not Recorded</span></td>
+                        <td><span class="badge bg-${item.status === 'With Doctor' ? 'success' : 'warning text-dark'}">${item.status}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openConsultation('${item.full_name}', '${item.queue_id}')">
+                                ${item.status === 'With Doctor' ? 'Resume' : 'Consult'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No patients in the queue. Good job!</td></tr>';
+        }
+    }
+
+    // 5. OPEN MODAL & START CONSULT
+    async function openConsultation(name, queueId) {
+        activeQueueId = queueId; // Store ID for when we click "Complete"
+        document.getElementById('modalPatientName').innerText = name;
+        document.getElementById('modalPatientID').innerText = "QID-" + queueId;
+
+        // Tell backend we started (Changes status to "With Doctor")
+        await Api.post('/doctor/start_consult', { queue_id: queueId });
+
+        // Show Modal
         var myModal = new bootstrap.Modal(document.getElementById('consultModal'));
         myModal.show();
+
+        // Refresh background queue to show "With Doctor" status
+        loadQueue();
     }
 
-    // 5. FINISH ACTION
-    function finishConsultation() {
-        alert("Consultation saved! Patient moved to Pharmacy queue.");
-        // Close modal manually or refresh
-        location.reload();
+    // 6. COMPLETE CONSULTATION
+    async function finishConsultation() {
+        if(!activeQueueId) return;
+
+        // In a real app, you would gather the text from the textareas here
+        // const diagnosis = document.querySelector('textarea[placeholder*="diagnosis"]').value;
+
+        const res = await Api.post('/doctor/complete_consult', { queue_id: activeQueueId });
+
+        if(res) {
+            alert("✅ Consultation Completed!");
+            location.reload(); // Refresh page to update stats and remove patient from list
+        }
     }
 </script>
-
 </body>
 </html>

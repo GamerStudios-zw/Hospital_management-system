@@ -11,9 +11,11 @@
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .sidebar { min-height: 100vh; background: #0f172a; color: white; }
         .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #f59e0b; color: white; } /* Amber for Inventory */
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #f59e0b; color: white; }
         .btn-logout { color: #ef4444 !important; }
         .btn-logout:hover { background: rgba(239, 68, 68, 0.1) !important; color: #fca5a5 !important; }
+        .stat-card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body>
@@ -25,8 +27,6 @@
             <ul class="nav flex-column mb-auto">
                 <li class="nav-item"><a href="../pharmacy/dashboard.html" class="nav-link"><i class="bi bi-arrow-left me-2"></i> Back to Pharmacy</a></li>
                 <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-boxes me-2"></i> Stock List</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-cart-plus me-2"></i> Orders</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-calendar-x me-2"></i> Expiry Check</a></li>
             </ul>
             <button onclick="logout()" class="nav-link btn-logout border-0 bg-transparent text-start">
                 <i class="bi bi-box-arrow-right me-2"></i> Logout
@@ -36,9 +36,14 @@
         <main class="col-md-10 bg-light p-4">
             <div class="d-flex justify-content-between mb-4">
                 <h2>Medical Inventory</h2>
-                <button class="btn btn-warning text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addStockModal">
-                    <i class="bi bi-plus-square me-2"></i> Add New Stock
-                </button>
+                <div>
+                    <button class="btn btn-outline-dark me-2" onclick="openReportsModal()">
+                        <i class="bi bi-graph-up me-2"></i>Reports & Stats
+                    </button>
+                    <button class="btn btn-warning text-dark fw-bold" onclick="openAddModal()">
+                        <i class="bi bi-plus-square me-2"></i> Add New Stock
+                    </button>
+                </div>
             </div>
 
             <div class="card border-0 shadow-sm">
@@ -49,33 +54,66 @@
                                 <th>Drug Name</th>
                                 <th>Batch No.</th>
                                 <th>Quantity</th>
+                                <th>Price</th>
                                 <th>Expiry Date</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td class="fw-bold">Paracetamol 500mg</td>
-                                <td>BATCH-001</td>
-                                <td>500 Boxes</td>
-                                <td>Dec 2026</td>
-                                <td><span class="badge bg-success">Good</span></td>
-                                <td><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                            </tr>
-                            <tr class="table-warning">
-                                <td class="fw-bold">Amoxicillin 500mg</td>
-                                <td>BATCH-099</td>
-                                <td class="text-danger fw-bold">12 Boxes</td>
-                                <td>Mar 2026</td>
-                                <td><span class="badge bg-warning text-dark">Low Stock</span></td>
-                                <td><button class="btn btn-sm btn-outline-primary">Reorder</button></td>
-                            </tr>
+                        <tbody id="inventoryBody">
+                            <tr><td colspan="7" class="text-center py-4">Loading inventory...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </main>
+    </div>
+</div>
+
+<div class="modal fade" id="reportsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-graph-up me-2"></i>Inventory Analytics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card stat-card p-3">
+                            <h6 class="text-muted small fw-bold">TOTAL STOCK VALUE</h6>
+                            <h3 class="fw-bold text-primary mb-0" id="repTotalValue">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card p-3">
+                            <h6 class="text-muted small fw-bold">LOW STOCK ITEMS</h6>
+                            <h3 class="fw-bold text-warning mb-0" id="repLowStock">0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card p-3">
+                            <h6 class="text-muted small fw-bold">EXPIRING SOON (90 DAYS)</h6>
+                            <h3 class="fw-bold text-danger mb-0" id="repExpiring">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white fw-bold">Export Options</div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2 d-md-block">
+                            <button class="btn btn-outline-success" onclick="downloadCSV('full')">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Download Full Inventory (CSV)
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="downloadCSV('expiring')">
+                                <i class="bi bi-exclamation-circle me-2"></i>Download Expiry Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -87,30 +125,68 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form>
+                <form id="addStockForm">
                     <div class="mb-3">
                         <label class="form-label">Drug Name</label>
-                        <input type="text" class="form-control" placeholder="e.g. Ibuprofen">
+                        <input type="text" class="form-control" id="drugName" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label class="form-label">Batch Number</label>
+                            <input type="text" class="form-control" id="batchNo">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Price per Unit ($)</label>
+                            <input type="number" class="form-control" id="price" step="0.01" value="0.00">
+                        </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col">
                             <label class="form-label">Quantity</label>
-                            <input type="number" class="form-control">
+                            <input type="number" class="form-control" id="quantity" required>
                         </div>
                         <div class="col">
                             <label class="form-label">Unit</label>
-                            <select class="form-select"><option>Boxes</option><option>Bottles</option><option>Tablets</option></select>
+                            <select class="form-select" id="unit">
+                                <option>Boxes</option>
+                                <option>Bottles</option>
+                                <option>Tablets</option>
+                            </select>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Expiry Date</label>
-                        <input type="date" class="form-control">
+                        <input type="date" class="form-control" id="expiryDate" required>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="alert('Stock Added!')">Save Stock</button>
+                <button type="button" class="btn btn-primary" onclick="saveStock()">Save Stock</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title">Edit Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStockForm">
+                    <input type="hidden" id="editId">
+                    <div class="mb-3"><label>Name</label><input type="text" class="form-control" id="editDrugName"></div>
+                    <div class="mb-3"><label>Batch</label><input type="text" class="form-control" id="editBatchNo"></div>
+                    <div class="mb-3"><label>Quantity</label><input type="number" class="form-control" id="editQuantity"></div>
+                    <div class="mb-3"><label>Expiry</label><input type="date" class="form-control" id="editExpiryDate"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteStock()">Delete</button>
+                <button class="btn btn-primary" onclick="updateStock()">Update</button>
             </div>
         </div>
     </div>
@@ -119,8 +195,126 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
-    // Allowed: Pharmacist and Admin can manage inventory
     protectPage(['pharmacist', 'admin']);
+
+    document.addEventListener("DOMContentLoaded", loadInventory);
+
+    // 1. Load Inventory List
+    async function loadInventory() {
+        const tbody = document.getElementById('inventoryBody');
+        const items = await Api.get('/inventory/list');
+        tbody.innerHTML = '';
+
+        if(items && items.length > 0) {
+            items.forEach(item => {
+                let status = '<span class="badge bg-success">Good</span>';
+                let rowClass = '';
+
+                if(item.stock_quantity < 20) { status = '<span class="badge bg-warning text-dark">Low Stock</span>'; rowClass = 'table-warning'; }
+                const expiry = new Date(item.expiry_date);
+                if(expiry < new Date()) { status = '<span class="badge bg-danger">Expired</span>'; rowClass = 'table-danger'; }
+
+                const dateStr = expiry.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td class="fw-bold">${item.name}</td>
+                        <td>${item.batch_number || '-'}</td>
+                        <td>${item.stock_quantity} ${item.unit || ''}</td>
+                        <td>$${parseFloat(item.price).toFixed(2)}</td>
+                        <td>${dateStr}</td>
+                        <td>${status}</td>
+                        <td><button class="btn btn-sm btn-outline-secondary" onclick="openEditModal(${item.id}, '${item.name}', '${item.batch_number}', ${item.stock_quantity}, '${item.unit}', '${item.expiry_date}')">Edit</button></td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No stock found.</td></tr>';
+        }
+    }
+
+    // 2. Open Reports Modal
+    async function openReportsModal() {
+        const stats = await Api.get('/inventory/reports?type=summary');
+        if(stats) {
+            document.getElementById('repTotalValue').innerText = "$" + parseFloat(stats.total_value || 0).toFixed(2);
+            document.getElementById('repLowStock').innerText = stats.low_stock_count;
+            document.getElementById('repExpiring').innerText = stats.expiring_soon;
+        }
+        new bootstrap.Modal(document.getElementById('reportsModal')).show();
+    }
+
+    // 3. Download CSV
+    async function downloadCSV(type) {
+        let data = [];
+        let filename = "inventory_report.csv";
+
+        if(type === 'full') {
+            data = await Api.get('/inventory/list');
+            filename = "full_inventory.csv";
+        } else if (type === 'expiring') {
+            data = await Api.get('/inventory/reports?type=expiring');
+            filename = "expiring_items.csv";
+        }
+
+        if(!data || data.length === 0) return alert("No data to export.");
+
+        // Convert JSON to CSV
+        const headers = Object.keys(data[0]).join(",");
+        const rows = data.map(obj => Object.values(obj).join(","));
+        const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows.join("\n");
+
+        // Trigger Download
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+    }
+
+    // 4. Add Stock (Updated with Price)
+    function openAddModal() { new bootstrap.Modal(document.getElementById('addStockModal')).show(); }
+
+    async function saveStock() {
+        const data = {
+            name: document.getElementById('drugName').value,
+            batch_number: document.getElementById('batchNo').value,
+            price: document.getElementById('price').value,
+            quantity: document.getElementById('quantity').value,
+            unit: document.getElementById('unit').value,
+            expiry_date: document.getElementById('expiryDate').value
+        };
+        if(await Api.post('/inventory/add', data)) { location.reload(); }
+    }
+
+    // 5. Edit & Delete Logic (Keep simplified for brevity here, acts same as before)
+    function openEditModal(id, name, batch, qty, unit, expiry) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editDrugName').value = name;
+        document.getElementById('editBatchNo').value = batch;
+        document.getElementById('editQuantity').value = qty;
+        document.getElementById('editExpiryDate').value = expiry;
+        new bootstrap.Modal(document.getElementById('editStockModal')).show();
+    }
+
+    async function updateStock() {
+        const data = {
+            id: document.getElementById('editId').value,
+            name: document.getElementById('editDrugName').value,
+            batch_number: document.getElementById('editBatchNo').value,
+            quantity: document.getElementById('editQuantity').value,
+            unit: 'Boxes', // Simplify for now
+            expiry_date: document.getElementById('editExpiryDate').value
+        };
+        if(await Api.post('/inventory/update', data)) { location.reload(); }
+    }
+
+    async function deleteStock() {
+        if(confirm("Delete item?")) {
+            if(await Api.post('/inventory/delete', { id: document.getElementById('editId').value })) location.reload();
+        }
+    }
 </script>
 </body>
 </html>

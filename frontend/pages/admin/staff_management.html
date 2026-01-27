@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Staff Management | Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .brand { font-size: 1.4rem; font-weight: 700; padding: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .avatar-initial { width: 35px; height: 35px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-2 d-none d-md-block sidebar px-3">
+            <div class="brand"><i class="bi bi-hospital me-2 text-primary"></i> HMS Admin</div>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a></li>
+                <li class="nav-item"><a href="staff_management.html" class="nav-link active"><i class="bi bi-people me-2"></i> Staff Management</a></li>
+                <li class="nav-item"><a href="system_logs.html" class="nav-link"><i class="bi bi-file-earmark-medical me-2"></i> System Logs</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><i class="bi bi-gear me-2"></i> Settings</a></li>
+                <li class="nav-item mt-5"><button onclick="logout()" class="nav-link text-danger w-100 text-start bg-transparent border-0"><i class="bi bi-box-arrow-right me-2"></i> Logout</button></li>
+            </ul>
+        </nav>
+
+        <main class="col-md-10 ms-sm-auto p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold">Staff Directory</h2>
+                <button class="btn btn-primary"><i class="bi bi-plus-lg me-2"></i> Add New Staff</button>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" placeholder="Search by name or email...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select">
+                                <option>All Roles</option>
+                                <option>Doctor</option>
+                                <option>Nurse</option>
+                                <option>Receptionist</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select">
+                                <option>Active</option>
+                                <option>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-secondary w-100">Filter</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Staff Member</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-initial bg-primary text-white me-3">SM</div>
+                                        <div>
+                                            <div class="fw-bold">Dr. Sarah Moyo</div>
+                                            <div class="small text-muted">sarah.moyo@hospital.com</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">Doctor</span></td>
+                                <td>Cardiology</td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-light border text-danger"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-initial bg-success text-white me-3">TB</div>
+                                        <div>
+                                            <div class="fw-bold">Nurse T. Banda</div>
+                                            <div class="small text-muted">banda.t@hospital.com</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-success-subtle text-success border border-success-subtle">Nurse</span></td>
+                                <td>General Ward</td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-light border text-danger"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+
+<script src="../../assets/js/app.js"></script>
+
+<script src="../../assets/js/app.js"></script>
+
+<script>
+    // 1. Security Check
+    protectPage('admin');
+
+    // 2. Load Data when page opens
+    document.addEventListener("DOMContentLoaded", loadStaffTable);
+
+    async function loadStaffTable() {
+        const tbody = document.querySelector('tbody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading staff data...</td></tr>';
+
+        // Fetch from API
+        const users = await Api.get('/users');
+
+        // Clear Loading Message
+        tbody.innerHTML = '';
+
+        if(users && users.length > 0) {
+            users.forEach(user => {
+                // Color code the roles for better UI
+                let badgeColor = 'secondary';
+                if(user.role === 'doctor') badgeColor = 'primary';
+                if(user.role === 'nurse') badgeColor = 'success';
+                if(user.role === 'admin') badgeColor = 'dark';
+                if(user.role === 'receptionist') badgeColor = 'warning';
+
+                const row = `
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-initial bg-${badgeColor} text-white me-3">
+                                    ${user.full_name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div class="fw-bold">${user.full_name}</div>
+                                    <div class="small text-muted">${user.email}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-${badgeColor} bg-opacity-75">${user.role.toUpperCase()}</span></td>
+                        <td>General Staff</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-light border text-danger" onclick="deleteUser(${user.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No staff members found. Add one!</td></tr>';
+        }
+    }
+
+    async function deleteUser(id) {
+        if(confirm("Are you sure you want to PERMANENTLY delete this user?")) {
+            // Send DELETE request to backend
+            const result = await Api.request(`/users?id=${id}`, 'DELETE');
+            if(result) {
+                alert("User deleted successfully.");
+                loadStaffTable(); // Refresh table immediately
+            }
+        }
+    }
+</script>
+</body>
+</html>

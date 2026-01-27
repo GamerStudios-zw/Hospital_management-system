@@ -1,148 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Reception | HMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .sidebar { min-height: 100vh; background: #0f172a; color: white; }
-        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #8b5cf6; color: white; } /* Purple for Reception */
-        .stat-card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .btn-logout { color: #ef4444 !important; }
-        .btn-logout:hover { background: rgba(239, 68, 68, 0.1) !important; color: #fca5a5 !important; }
-    </style>
+<meta charset="UTF-8">
+<title>Reception | HMS</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { font-family:'Inter',sans-serif; background:#f8fafc; }
+.sidebar { min-height:100vh; background:#0f172a; color:white; }
+.sidebar .nav-link { color:rgba(255,255,255,.7); padding:12px 20px; cursor:pointer; }
+.sidebar .nav-link:hover, .sidebar .nav-link.active { background:#8b5cf6; color:white; }
+.section { display:none; }
+.section.active { display:block; }
+.top-search { position: fixed; top: 20px; right: 30px; width: 300px; background:white; border-radius:12px; padding:10px 14px; box-shadow:0 2px 10px rgba(0,0,0,.05); z-index:1000; }
+.search-results { position:absolute; top:45px; right:0; width:100%; background:white; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.08); overflow:hidden; z-index: 1001; }
+.search-results div { padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; }
+.search-results div:hover { background:#f8fafc; color:#8b5cf6; }
+</style>
 </head>
 <body>
 
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-md-2 sidebar d-flex flex-column p-3">
-            <h4 class="fw-bold text-center py-3">🏥 HMS Front Desk</h4>
-            <ul class="nav flex-column mb-auto">
-                <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-person-plus-fill me-2"></i> Registration</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-calendar-event me-2"></i> Appointments</a></li>
-                <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-search me-2"></i> Patient Search</a></li>
-            </ul>
-            <button onclick="logout()" class="nav-link btn-logout border-0 bg-transparent text-start">
-                <i class="bi bi-box-arrow-right me-2"></i> Logout
-            </button>
-        </div>
+<div class="row">
 
-        <main class="col-md-10 bg-light p-4">
-            <div class="d-flex justify-content-between mb-4">
-                <h2>Reception Dashboard</h2>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
-                    <i class="bi bi-plus-circle me-2"></i> Register New Patient
-                </button>
-            </div>
-
-            <div class="row g-4 mb-4">
-                <div class="col-md-3">
-                    <div class="card stat-card p-3">
-                        <small class="text-muted fw-bold">TODAY'S PATIENTS</small>
-                        <h2 class="fw-bold text-primary">24</h2>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card stat-card p-3">
-                        <small class="text-muted fw-bold">DOCTORS AVAILABLE</small>
-                        <h2 class="fw-bold text-success">5</h2>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3 fw-bold">Recent Registrations</div>
-                <div class="card-body">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Phone</th>
-                                <th>Assigned To</th>
-                                <th>Time</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>P-2026-001</td>
-                                <td>John Doe</td>
-                                <td>0771-123-456</td>
-                                <td>Dr. Sarah Moyo</td>
-                                <td>08:30 AM</td>
-                                <td><span class="badge bg-success">Checked In</span></td>
-                            </tr>
-                            <tr>
-                                <td>P-2026-002</td>
-                                <td>Mary Jane</td>
-                                <td>0772-987-654</td>
-                                <td>Dr. Banda</td>
-                                <td>09:15 AM</td>
-                                <td><span class="badge bg-warning text-dark">Waiting</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
-    </div>
+<div class="col-md-2 sidebar d-flex flex-column p-3">
+    <h4 class="fw-bold text-center py-3">🏥 HMS Front Desk</h4>
+    <ul class="nav flex-column mb-auto">
+        <li><a class="nav-link active" onclick="showSection('dashboard')">Dashboard</a></li>
+        <li><a class="nav-link" onclick="showSection('register')">Register Patient</a></li>
+        <li><a class="nav-link" onclick="showSection('admit')">Admit Patient</a></li>
+    </ul>
+    <button onclick="logout()" class="nav-link text-danger text-start border-0 bg-transparent"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
 </div>
 
-<div class="modal fade" id="addPatientModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Register New Patient</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form>
-                    <div class="mb-3">
-                        <label class="form-label">Full Name</label>
-                        <input type="text" class="form-control" required>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col">
-                            <label class="form-label">Date of Birth</label>
-                            <input type="date" class="form-control">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Gender</label>
-                            <select class="form-select"><option>Male</option><option>Female</option></select>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Phone Number</label>
-                        <input type="tel" class="form-control" placeholder="077...">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Assign Doctor</label>
-                        <select class="form-select">
-                            <option>Dr. Sarah Moyo (General)</option>
-                            <option>Dr. Banda (Dental)</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="alert('Patient Registered!')">Save Record</button>
+<main class="col-md-10 p-4 bg-light">
+
+    <div class="top-search">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-search text-muted"></i>
+        <input id="searchInput" class="form-control border-0" placeholder="Search existing patient..." onkeyup="searchPatient()">
+      </div>
+      <div id="searchResults" class="search-results d-none"></div>
+    </div>
+
+    <section id="dashboard" class="section active mt-5">
+        <h2 class="mb-1">Reception Dashboard</h2>
+        <div class="row g-3 mb-4 mt-2">
+            <div class="col-md-4"><div class="card p-3 shadow-sm border-0"><h6 class="text-muted">Patients Today</h6><h3 class="fw-bold mb-0" id="statToday">0</h3></div></div>
+            <div class="col-md-4"><div class="card p-3 shadow-sm border-0"><h6 class="text-muted">Empty Beds</h6><h3 class="fw-bold mb-0">8</h3></div></div>
+            <div class="col-md-4"><div class="card p-3 shadow-sm border-0"><h6 class="text-muted">Pending Triage</h6><h3 class="fw-bold mb-0" id="statPending">0</h3></div></div>
+        </div>
+        <div class="card shadow-sm border-0"><div class="card-body"><h5 class="mb-3">Today's Patient Flow</h5>
+            <table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Time</th><th>Patient Name</th><th>Assigned To</th><th>Status</th></tr></thead>
+            <tbody id="flowTable"></tbody></table>
+        </div></div>
+    </section>
+
+    <section id="register" class="section mt-5">
+        <h4 class="mb-3">Register New Patient</h4>
+        <div class="card border-0 shadow-sm p-4">
+            <div class="row g-3">
+                <div class="col-md-6"><label>Full Name</label><input id="regName" class="form-control" required></div>
+                <div class="col-md-3"><label>Date of Birth</label><input id="regDob" type="date" class="form-control"></div>
+                <div class="col-md-3"><label>Gender</label><select id="regGender" class="form-select"><option>Male</option><option>Female</option></select></div>
+                <div class="col-md-6"><label>Phone</label><input id="regPhone" class="form-control"></div>
+                <div class="col-md-6"><label>Address</label><input id="regAddress" class="form-control"></div>
+
+                <div class="col-md-12 border-top pt-3">
+                    <label class="fw-bold">Medical Aid</label>
+                    <select id="hasAid" class="form-select w-50 mb-3" onchange="document.getElementById('aidFields').classList.toggle('d-none', this.value === '0')">
+                        <option value="0">No (Cash Patient)</option>
+                        <option value="1">Yes (Medical Aid)</option>
+                    </select>
+                </div>
+                <div id="aidFields" class="row g-3 d-none">
+                    <div class="col-md-6"><input id="aidProvider" class="form-control" placeholder="Provider (e.g. CIMAS)"></div>
+                    <div class="col-md-6"><input id="aidNumber" class="form-control" placeholder="Membership Number"></div>
+                </div>
+                <div class="col-12 mt-4"><button class="btn btn-primary px-4" onclick="registerPatient()">Save & Create Record</button></div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <section id="admit" class="section mt-5">
+        <h4 class="mb-3">Admit Patient to Queue</h4>
+
+        <div id="noPatientSelected" class="alert alert-warning">Please search for a patient in the top-right bar first!</div>
+
+        <div id="activePatient" class="card border-0 shadow-sm p-4 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                <div>
+                    <h2 id="admitName" class="text-primary mb-0">Patient Name</h2>
+                    <small id="admitMeta" class="text-muted">ID: #000</small>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">Change</button>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Assign Doctor</label>
+                    <select id="admitDoctor" class="form-select">
+                        <option>Any Available</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label>Payment Method</label>
+                    <select id="admitPayment" class="form-select">
+                        <option value="Cash">Cash</option>
+                        <option value="Medical Aid">Medical Aid</option>
+                    </select>
+                </div>
+                <div class="col-12 mt-3">
+                    <button class="btn btn-success w-100 py-2" onclick="admitPatient()">
+                        <i class="bi bi-check-circle-fill me-2"></i> Send to Nurse / Triage
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['receptionist', 'admin']);
+
+    let currentPatientId = null;
+
+    // --- MAIN INITIALIZATION ---
+    document.addEventListener("DOMContentLoaded", () => {
+        loadDashboardStats();
+        loadDoctors(); // Automatically load doctors when page starts
+    });
+
+    // --- NAVIGATION ---
+    function showSection(id){
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    // --- 1. LOAD DASHBOARD (Stats + Table) ---
+    async function loadDashboardStats() {
+        const stats = await Api.get('/reception/stats');
+
+        if(stats) {
+            // Update the Card Number
+            document.getElementById('statToday').innerText = stats.today || 0;
+
+            // Populate "Today's Patient Flow" Table
+            const tbody = document.getElementById('flowTable');
+            tbody.innerHTML = '';
+
+            if (stats.flow && stats.flow.length > 0) {
+                stats.flow.forEach(row => {
+                    let badge = 'warning text-dark';
+                    if(row.status === 'With Doctor') badge = 'success';
+                    if(row.status === 'In Triage') badge = 'info text-dark';
+                    if(row.status === 'Completed') badge = 'secondary';
+
+                    const timeStr = new Date(row.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                    const tableRow = `
+                        <tr>
+                            <td class="text-muted small">${timeStr}</td>
+                            <td class="fw-bold text-primary">${row.full_name}</td>
+                            <td>${row.doctor_assigned || 'Unassigned'}</td>
+                            <td><span class="badge bg-${badge}">${row.status}</span></td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += tableRow;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">No patients admitted yet today.</td></tr>`;
+            }
+        }
+    }
+
+    // --- 2. LOAD DOCTORS (Dropdown) ---
+    async function loadDoctors() {
+        const users = await Api.get('/users');
+        const doctorSelect = document.getElementById('admitDoctor');
+
+        doctorSelect.innerHTML = '<option value="Any Available">Any Available</option>';
+
+        if(users && users.length > 0) {
+            const doctors = users.filter(u => u.role === 'doctor');
+            doctors.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.full_name;
+                option.textContent = doc.full_name;
+                doctorSelect.appendChild(option);
+            });
+        }
+    }
+
+    // --- 3. SEARCH PATIENT ---
+    let debounceTimer;
+    function searchPatient() {
+        clearTimeout(debounceTimer);
+        const q = document.getElementById('searchInput').value;
+        const resultsBox = document.getElementById('searchResults');
+
+        if(q.length < 2) { resultsBox.classList.add('d-none'); return; }
+
+        debounceTimer = setTimeout(async () => {
+            const results = await Api.get(`/reception/search?q=${q}`);
+            resultsBox.innerHTML = '';
+
+            if(results.length === 0) {
+                resultsBox.innerHTML = '<div class="text-muted p-2">No patient found. Go to Register.</div>';
+            } else {
+                results.forEach(p => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `<strong>${p.full_name}</strong> <span class="text-muted small">(${p.gender})</span><br><small>${p.phone || 'No Phone'}</small>`;
+                    div.onclick = () => selectPatient(p);
+                    resultsBox.appendChild(div);
+                });
+            }
+            resultsBox.classList.remove('d-none');
+        }, 300);
+    }
+
+    function selectPatient(p) {
+        currentPatientId = p.id;
+        document.getElementById('searchResults').classList.add('d-none');
+        document.getElementById('searchInput').value = '';
+
+        document.getElementById('admitName').innerText = p.full_name;
+        document.getElementById('admitMeta').innerText = `ID: #${p.id} • ${p.gender}`;
+        document.getElementById('noPatientSelected').classList.add('d-none');
+        document.getElementById('activePatient').classList.remove('d-none');
+
+        showSection('admit');
+    }
+
+    function clearSelection() {
+        currentPatientId = null;
+        document.getElementById('activePatient').classList.add('d-none');
+        document.getElementById('noPatientSelected').classList.remove('d-none');
+    }
+
+    // --- 4. REGISTER PATIENT ---
+    async function registerPatient() {
+        const data = {
+            full_name: document.getElementById('regName').value,
+            dob: document.getElementById('regDob').value,
+            gender: document.getElementById('regGender').value,
+            phone: document.getElementById('regPhone').value,
+            address: document.getElementById('regAddress').value,
+            has_medical_aid: document.getElementById('hasAid').value,
+            medical_aid_provider: document.getElementById('aidProvider').value,
+            medical_aid_number: document.getElementById('aidNumber').value
+        };
+
+        if(!data.full_name) return alert("Full Name is required");
+
+        const res = await Api.post('/reception/register', data);
+        if(res) {
+            alert("✅ Patient Registered Successfully!");
+            document.querySelectorAll('input').forEach(i => i.value = '');
+            showSection('dashboard');
+            loadDashboardStats();
+        }
+    }
+
+    // --- 5. ADMIT PATIENT ---
+    async function admitPatient() {
+        if(!currentPatientId) return alert("No patient selected");
+
+        const data = {
+            patient_id: currentPatientId,
+            doctor: document.getElementById('admitDoctor').value,
+            payment: document.getElementById('admitPayment').value
+        };
+
+        const res = await Api.post('/reception/admit', data);
+        if(res) {
+            alert("✅ Patient Admitted to Queue!");
+            clearSelection();
+            showSection('dashboard');
+            loadDashboardStats();
+        }
+    }
 </script>
 </body>
 </html>

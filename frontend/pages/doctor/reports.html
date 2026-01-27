@@ -9,36 +9,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .navbar { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-        .sidebar { min-height: calc(100vh - 60px); background: #0f172a; color: #fff; }
-        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; border-radius: 8px; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #2563eb; color: #fff; }
         .stat-card { border: none; border-radius: 12px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .avatar-initial { width: 35px; height: 35px; background: #e2e8f0; color: #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg sticky-top px-4">
-    <a class="navbar-brand fw-bold text-primary" href="#"><i class="bi bi-hospital-fill me-2"></i>HMS Portal</a>
-    <div class="ms-auto d-flex align-items-center">
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
-                <div class="avatar-initial bg-primary text-white me-2">D</div>
-                <span class="fw-medium" id="navUserName">Loading...</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
-                <li><button class="dropdown-item text-danger" onclick="logout()">Logout</button></li>
-            </ul>
-        </div>
-    </div>
-</nav>
-
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-2 d-none d-md-block sidebar px-3 py-4">
-            <small class="text-uppercase text-secondary fw-bold ms-3" style="font-size: 0.7rem;">Main Menu</small>
-            <ul class="nav flex-column mt-2">
+            <h5 class="fw-bold ps-3 mb-4">🏥 HMS Portal</h5>
+            <ul class="nav flex-column">
                 <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="bi bi-grid-fill me-2"></i> Dashboard</a></li>
                 <li class="nav-item"><a href="my_patients.html" class="nav-link"><i class="bi bi-people me-2"></i> My Patients</a></li>
                 <li class="nav-item"><a href="appointments.html" class="nav-link"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
@@ -47,74 +30,71 @@
         </div>
 
         <main class="col-md-10 ms-sm-auto px-4 py-4">
-            <h4 class="fw-bold mb-4">Medical Analytics</h4>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Medical Reports</h4>
+                <button class="btn btn-primary" onclick="openUploadModal()">
+                    <i class="bi bi-cloud-upload me-2"></i>Upload Report
+                </button>
+            </div>
 
             <div class="row g-4 mb-4">
-                <div class="col-md-4">
-                    <div class="stat-card p-4 h-100">
-                        <h6 class="text-muted text-uppercase small fw-bold">Prescriptions Issued</h6>
-                        <h2 class="mb-0 fw-bold">142</h2>
-                        <small class="text-success"><i class="bi bi-arrow-up"></i> 12% from last month</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card p-4 h-100">
-                        <h6 class="text-muted text-uppercase small fw-bold">Avg. Consultation Time</h6>
-                        <h2 class="mb-0 fw-bold">18m</h2>
-                        <small class="text-secondary">Standard duration</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card p-4 h-100">
-                        <h6 class="text-muted text-uppercase small fw-bold">Referrals</h6>
-                        <h2 class="mb-0 fw-bold">8</h2>
-                        <small class="text-danger"><i class="bi bi-arrow-down"></i> 2 pending</small>
-                    </div>
-                </div>
+                <div class="col-md-4"><div class="stat-card p-4"><h6>Prescriptions</h6><h2 id="statPresc">0</h2></div></div>
+                <div class="col-md-4"><div class="stat-card p-4"><h6>Avg Time</h6><h2 id="statTime">--</h2></div></div>
+                <div class="col-md-4"><div class="stat-card p-4"><h6>Referrals</h6><h2 id="statRef">0</h2></div></div>
             </div>
 
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h6 class="mb-0 fw-bold">Recent Documents & Certificates</h6>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                <div class="card-body">
+                    <table class="table table-hover align-middle">
                         <thead class="bg-light">
-                            <tr>
-                                <th>Date</th>
-                                <th>Report Name</th>
-                                <th>Patient</th>
-                                <th>Type</th>
-                                <th>Action</th>
-                            </tr>
+                            <tr><th>Date</th><th>Report Name</th><th>Patient</th><th>Type</th><th>Action</th></tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td>Jan 26, 2026</td>
-                                <td>Diagnosis Report #402</td>
-                                <td>John Doe</td>
-                                <td><span class="badge bg-primary">Diagnosis</span></td>
-                                <td><button class="btn btn-sm btn-light border"><i class="bi bi-download me-1"></i> PDF</button></td>
-                            </tr>
-                            <tr>
-                                <td>Jan 25, 2026</td>
-                                <td>Sick Leave Certificate</td>
-                                <td>Sarah Miller</td>
-                                <td><span class="badge bg-secondary">Certificate</span></td>
-                                <td><button class="btn btn-sm btn-light border"><i class="bi bi-download me-1"></i> PDF</button></td>
-                            </tr>
-                            <tr>
-                                <td>Jan 22, 2026</td>
-                                <td>Lab Results Summary</td>
-                                <td>Peter Parker</td>
-                                <td><span class="badge bg-info text-white">Lab</span></td>
-                                <td><button class="btn btn-sm btn-light border"><i class="bi bi-download me-1"></i> PDF</button></td>
-                            </tr>
-                        </tbody>
+                        <tbody id="reportsTable"></tbody>
                     </table>
                 </div>
             </div>
         </main>
+    </div>
+</div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Medical Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="mb-3">
+                        <label class="form-label">Select Patient</label>
+                        <select id="patientSelect" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Report Type</label>
+                        <select id="reportType" class="form-select">
+                            <option>Diagnosis</option>
+                            <option>Prescription</option>
+                            <option>Lab Result</option>
+                            <option>Certificate</option>
+                            <option>Referral</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Report Name</label>
+                        <input type="text" id="reportName" class="form-control" placeholder="e.g. Blood Test Results" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Attach File</label>
+                        <input type="file" id="reportFile" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitUpload()">Upload</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -123,16 +103,112 @@
 <script>
     protectPage(['doctor', 'admin']);
 
-    const user = JSON.parse(localStorage.getItem("hms_user"));
-    if (user) document.getElementById("navUserName").innerText = user.full_name || user.username;
-
-    // Activate PDF Buttons
-    const pdfBtns = document.querySelectorAll('.btn-light.border');
-    pdfBtns.forEach(btn => {
-        btn.onclick = function() {
-            const row = this.closest('tr');
-            const reportName = row.cells[1].innerText;
-            alert(`⬇️ Downloading ${reportName}...`);
-        }
+    document.addEventListener("DOMContentLoaded", () => {
+        loadStats();
+        loadReports();
     });
+
+    // 1. Load Stats
+    async function loadStats() {
+        const stats = await Api.get('/reports/stats');
+        if(stats) {
+            document.getElementById('statPresc').innerText = stats.prescriptions;
+            document.getElementById('statTime').innerText = stats.avg_time;
+            document.getElementById('statRef').innerText = stats.referrals;
+        }
+    }
+
+    // 2. Load Reports
+    async function loadReports() {
+        const tbody = document.getElementById('reportsTable');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
+
+        const reports = await Api.get('/reports/list');
+        tbody.innerHTML = '';
+
+        if(reports && reports.length > 0) {
+            reports.forEach(r => {
+                let badge = 'secondary';
+                if(r.report_type === 'Lab Result') badge = 'info text-white';
+                if(r.report_type === 'Prescription') badge = 'success';
+
+                const dateStr = new Date(r.created_at).toLocaleDateString();
+
+                // Construct Real Download URL
+                // We assume backend runs on localhost/Hospital.../backend/
+                const downloadUrl = `http://localhost/Hospital_Management_System/backend/${r.file_path}`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${dateStr}</td>
+                        <td class="fw-medium">${r.report_name}</td>
+                        <td>${r.full_name}</td>
+                        <td><span class="badge bg-${badge}">${r.report_type}</span></td>
+                        <td>
+                            ${r.file_path ?
+                                `<a href="${downloadUrl}" target="_blank" class="btn btn-sm btn-light border"><i class="bi bi-download"></i> Download</a>` :
+                                `<button class="btn btn-sm btn-light border" disabled>No File</button>`
+                            }
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4">No documents found.</td></tr>';
+        }
+    }
+
+    // 3. Open Modal & Load Patients
+    async function openUploadModal() {
+        // Fetch patients for the dropdown
+        const patients = await Api.get('/doctor/patients'); // Reusing the doctor endpoint
+        const select = document.getElementById('patientSelect');
+        select.innerHTML = '';
+
+        if(patients) {
+            patients.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.innerText = p.full_name;
+                select.appendChild(opt);
+            });
+        }
+
+        new bootstrap.Modal(document.getElementById('uploadModal')).show();
+    }
+
+    // 4. Submit Upload
+    async function submitUpload() {
+        const fileInput = document.getElementById('reportFile');
+        if(fileInput.files.length === 0) return alert("Please select a file.");
+
+        const formData = new FormData();
+        formData.append('patient_id', document.getElementById('patientSelect').value);
+        formData.append('report_type', document.getElementById('reportType').value);
+        formData.append('report_name', document.getElementById('reportName').value);
+        formData.append('report_file', fileInput.files[0]);
+
+        // We use fetch directly here because our Api helper handles JSON, not FormData
+        try {
+            const token = localStorage.getItem("hms_token");
+            const response = await fetch("http://localhost/Hospital_Management_System/backend/index.php/reports/upload", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }, // No Content-Type for FormData!
+                body: formData
+            });
+
+            const result = await response.json();
+            if(response.ok) {
+                alert("✅ Upload Successful!");
+                location.reload();
+            } else {
+                alert("Upload Failed: " + result.message);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Network Error during upload.");
+        }
+    }
 </script>
+</body>
+</html>

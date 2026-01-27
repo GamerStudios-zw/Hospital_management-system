@@ -102,3 +102,39 @@ function protectPage(allowedRoles) {
         else logout();
     }
 }
+
+/**
+ * 5. ADMIN: ADD NEW USER
+ * Handles the form submission from the Admin Dashboard
+ */
+async function submitNewUser() {
+    // 1. Get Data from HTML Form
+    const name = document.querySelector('#addUserForm input[type="text"]').value;
+    const email = document.querySelector('#addUserForm input[type="email"]').value;
+    const role = document.querySelector('#addUserForm select').value;
+    const password = "Staff123!"; // Default temporary password
+
+    // 2. Simple Validation
+    if(!name || !email) {
+        alert("Please fill in all fields.");
+        return;
+    }
+
+    // 3. Prepare Data Object
+    const userData = {
+        full_name: name,
+        email: email,
+        username: email.split('@')[0], // Auto-generate username from email
+        password: password,
+        role: role
+    };
+
+    // 4. Send to Backend
+    // Note: We use the existing Api.post helper we wrote earlier
+    const result = await Api.post('/users/create', userData);
+
+    if (result) {
+        alert("✅ User Created Successfully!\nUsername: " + userData.username + "\nPassword: " + password);
+        location.reload(); // Refresh page to see new user
+    }
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Settings | Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .brand { font-size: 1.4rem; font-weight: 700; padding: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-2 d-none d-md-block sidebar px-3">
+            <div class="brand"><i class="bi bi-hospital me-2 text-primary"></i> HMS Admin</div>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a></li>
+                <li class="nav-item"><a href="staff_management.html" class="nav-link"><i class="bi bi-people me-2"></i> Staff Management</a></li>
+                <li class="nav-item"><a href="system_logs.html" class="nav-link"><i class="bi bi-file-earmark-medical me-2"></i> System Logs</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link active"><i class="bi bi-gear me-2"></i> Settings</a></li>
+                <li class="nav-item mt-5"><button onclick="logout()" class="nav-link text-danger w-100 text-start bg-transparent border-0"><i class="bi bi-box-arrow-right me-2"></i> Logout</button></li>
+            </ul>
+        </nav>
+
+        <main class="col-md-10 ms-sm-auto p-4">
+            <h2 class="fw-bold mb-4">System Configurations</h2>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white fw-bold">General Information</div>
+                        <div class="card-body">
+                            <form>
+                                <div class="mb-3">
+                                    <label class="form-label">Hospital Name</label>
+                                    <input type="text" class="form-control" value="City General Hospital">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contact Email</label>
+                                    <input type="email" class="form-control" value="admin@cityhospital.co.zw">
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="maintenanceMode">
+                                    <label class="form-check-label" for="maintenanceMode">Maintenance Mode (Block Access)</label>
+                                </div>
+                                <button type="button" class="btn btn-primary mt-3">Save Changes</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white fw-bold">Data & Security</div>
+                        <div class="card-body">
+                            <h6 class="fw-bold">Database Backup</h6>
+                            <p class="text-muted small">Last backup performed: 2 hours ago</p>
+                            <button class="btn btn-outline-success mb-4"><i class="bi bi-cloud-download me-2"></i> Download Backup</button>
+
+                            <h6 class="fw-bold text-danger">Danger Zone</h6>
+                            <button class="btn btn-outline-danger w-100 text-start">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i> Reset All System Passwords
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+    protectPage('admin');
+
+    // 1. Download Backup Function
+    function downloadBackup() {
+        // Direct link to the PHP script we just made
+        window.location.href = "http://localhost/Hospital_Management_System/backend/backup.php";
+    }
+
+    // 2. Save Settings Simulation (Visual Feedback)
+    function saveSettings() {
+        const btn = document.querySelector('.btn-primary'); // The Save button
+        const originalText = btn.innerText;
+
+        // Show loading state
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+        // Fake a 1-second delay to look professional
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerText = originalText;
+            alert("✅ System Settings Saved Successfully!");
+        }, 1000);
+    }
+
+    // 3. Reset Passwords Simulation
+    function resetPasswords() {
+        if(confirm("⚠️ DANGER: This will reset EVERY staff member's password to 'Staff123!'.\n\nAre you sure?")) {
+            alert("Request sent to server. All passwords have been reset.");
+        }
+    }
+
+    // 4. Attach Functions to Buttons (Wait for page load)
+    document.addEventListener("DOMContentLoaded", () => {
+        // Find buttons and attach events
+        document.querySelector(".btn-outline-success").onclick = downloadBackup; // Download Button
+        document.querySelector(".btn-primary").onclick = saveSettings;     // Save Changes button
+        document.querySelector(".btn-outline-danger").onclick = resetPasswords; // Reset button
+    });
+</script>
+</body>
+</html>
