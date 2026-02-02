@@ -10,15 +10,19 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($action) {
 
-    // 1. GET WAITING LIST (Includes Vitals for "In Triage" patients)
+    // FILE: backend/routes/doctor.php
+
+// ... inside switch ($action) ...
+
     case 'waiting_list':
         if ($method === 'GET') {
+            // REMOVED 'Waiting' from the IN clause to ensure Nurse priority
             $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.dob, p.gender, q.status,
                              v.bp, v.temperature, v.pulse, v.spo2
                       FROM patient_queue q
                       JOIN patients p ON q.patient_id = p.id
                       LEFT JOIN patient_vitals v ON q.id = v.queue_id
-                      WHERE q.status IN ('In Triage', 'Waiting', 'With Doctor')
+                      WHERE q.status IN ('In Triage', 'With Doctor')
                       ORDER BY q.created_at ASC";
             $stmt = $db->query($query);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
