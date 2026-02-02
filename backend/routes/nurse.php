@@ -8,9 +8,12 @@ $db = $database->getConnection();
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Ensure JSON header is set to prevent "Unexpected token <" errors in frontend
+header('Content-Type: application/json');
+
 switch ($action) {
 
-    // 1. NURSE DASHBOARD STATS
+    // 1. DASHBOARD STATS (Matches triage widget)
     case 'stats':
         $stmt = $db->query("SELECT COUNT(*) as count FROM patient_queue WHERE status = 'Waiting'");
         $pending = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
@@ -27,18 +30,7 @@ switch ($action) {
         ]);
         break;
 
-    // 2. WARD ANALYTICS (Matches Dashboard Header)
-    case 'ward_stats':
-        $admits = $db->query("SELECT COUNT(*) FROM patient_queue WHERE DATE(created_at) = CURDATE()")->fetchColumn();
-        $discharged = $db->query("SELECT COUNT(*) FROM patient_queue WHERE status = 'Completed' AND DATE(updated_at) = CURDATE()")->fetchColumn();
-
-        echo json_encode([
-            "admits_today" => (int)$admits,
-            "discharged_today" => (int)$discharged
-        ]);
-        break;
-
-    // 3. GET TRIAGE QUEUE (Reception -> Nurse)
+    // 2. TRIAGE QUEUE (Matches triageTable in dashboard)
     case 'triage_queue':
         if ($method === 'GET') {
             $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
@@ -51,7 +43,7 @@ switch ($action) {
         }
         break;
 
-    // 4. SAVE VITALS (Nurse -> Doctor Flow)
+    // 3. SAVE VITALS (Full data mapping for weight and SpO2)
     case 'save_vitals':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
@@ -65,7 +57,7 @@ switch ($action) {
             try {
                 $db->beginTransaction();
 
-                // MATCHING YOUR SQL: patient_vitals (patient_id, queue_id, temperature, pulse, bp, weight, spo2, notes)
+                // SQL Mapping based on your vitalsForm fields
                 $sql = "INSERT INTO patient_vitals (patient_id, queue_id, temperature, pulse, bp, weight, spo2, notes)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -95,7 +87,7 @@ switch ($action) {
         }
         break;
 
-    // 5. BED MANAGEMENT
+    // 4. BED MANAGEMENT
     case 'beds':
         $query = "SELECT b.*, p.full_name as patient_name, p.national_id
                   FROM beds b
@@ -107,23 +99,21 @@ switch ($action) {
     case 'discharge':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
+            // Sets status to 'Cleaning' to trigger custodial workflow
             $sql = "UPDATE beds SET status = 'Cleaning', current_patient_id = NULL, updated_at = NOW() WHERE id = ?";
             $stmt = $db->prepare($sql);
-            if($stmt->execute([$data->bed_id])) echo json_encode(["message" => "Discharged"]);
+            if($stmt->execute([$data->bed_id])) echo json_encode(["message" => "Discharge initiated. Bed sent for cleaning."]);
         }
         break;
 
-    case 'mark_clean':
-        if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            $sql = "UPDATE beds SET status = 'Available', updated_at = NOW() WHERE id = ?";
-            if($db->prepare($sql)->execute([$data->bed_id])) echo json_encode(["message" => "Ready"]);
-        }
-        break;
-
+    // 5. SHIFT ROSTER (Matches rosterBody in dashboard)
     case 'shifts':
-        $stmt = $db->query("SELECT * FROM nurse_shifts ORDER BY shift_start ASC");
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        if ($method === 'GET') {
+            // Updated to fetch from staff_shifts to match your admin assignments
+            $query = "SELECT * FROM staff_shifts WHERE role = 'nurse' ORDER BY shift_start ASC";
+            $stmt = $db->query($query);
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
         break;
 
     default:

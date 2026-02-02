@@ -97,5 +97,10 @@ switch ($module) {
         http_response_code(404);
         echo json_encode(["message" => "Endpoint not found: " . $module]);
         break;
+
+        // Add this to your backend/index.php
+     case 'shifts':
+      require_once 'routes/shifts.php';
+      break;
 }
 ?>

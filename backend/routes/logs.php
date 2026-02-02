@@ -1,32 +1,29 @@
 <?php
 // FILE: backend/routes/logs.php
-
+ob_start(); // Buffer output to prevent premature headers
 require_once __DIR__ . '/../config/database.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
-// Ensure the response is always treated as JSON
 header('Content-Type: application/json');
 
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($action) {
-
-    // 1. GET ALL LOGS
     case 'list':
         if ($method === 'GET') {
             try {
-                // Fetch last 100 logs to provide better history
                 $query = "SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100";
                 $stmt = $db->prepare($query);
                 $stmt->execute();
                 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                // Return an empty array if no logs exist to avoid null errors in JS
+                ob_clean(); // Clear any accidental PHP warnings before sending JSON
                 echo json_encode($logs ?: []);
             } catch (Exception $e) {
+                ob_clean();
                 http_response_code(500);
                 echo json_encode(["message" => "Database error: " . $e->getMessage()]);
             }

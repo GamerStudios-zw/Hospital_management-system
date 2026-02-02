@@ -221,3 +221,458 @@
 2026-02-02T09:46:47+01:00 [logout] raw_body: {"user_id":5}
 2026-02-02T09:46:47+01:00 [logout] token decode failed: Wrong number of segments
 
+2026-02-02T10:14:57+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMzY3MiwiZXhwIjoxNzcwMDI3MjcyLCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.HUDb6BoweaszagNUWxdQQyyjykhbpIaV0BhflqBDpK8","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:14:57+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:14:57+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:14:57+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:14:57+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T10:14:57+01:00 [logout] decoded user_id=4
+2026-02-02T10:14:57+01:00 [logout] update result=success
+2026-02-02T10:15:11+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMzcwMSwiZXhwIjoxNzcwMDI3MzAxLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.sl4yX_Jmj0TDxFDxOXaF5MfnCVsYbW13z-KVi9u31cU","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:15:11+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:15:11+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:15:11+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:15:11+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:15:11+01:00 [logout] decoded user_id=3
+2026-02-02T10:15:11+01:00 [logout] update result=success
+2026-02-02T10:15:32+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMzcxOSwiZXhwIjoxNzcwMDI3MzE5LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.zr-ZhI8l59cOk5St1BIVWQHBIHjOpRXNhdbiOqbKfQk","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:15:32+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:15:32+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:15:32+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:15:32+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:15:32+01:00 [logout] decoded user_id=2
+2026-02-02T10:15:32+01:00 [logout] update result=success
+2026-02-02T10:19:05+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMzczNSwiZXhwIjoxNzcwMDI3MzM1LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.5wMAaRw_m4nUfUPGcTKYX4GvbZRar9fTfTPQVl84VVM","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:19:05+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:19:05+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:19:05+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:19:05+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:19:05+01:00 [logout] decoded user_id=3
+2026-02-02T10:19:05+01:00 [logout] update result=success
+2026-02-02T10:23:59+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMzk1MywiZXhwIjoxNzcwMDI3NTUzLCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.Th_F8kZ4cMejua1pEWjKZh5G0ztPyh5KCPscoJ8YHJo","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:23:59+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:23:59+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:23:59+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:23:59+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:23:59+01:00 [logout] decoded user_id=2
+2026-02-02T10:23:59+01:00 [logout] update result=success
+2026-02-02T10:24:52+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDI0OCwiZXhwIjoxNzcwMDI3ODQ4LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.Y8ym9FmK4JkzxS7Lhgx2TJgffq-9nkPX3hzSWytReDs","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:24:52+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:24:52+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:24:52+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:24:52+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T10:24:52+01:00 [logout] decoded user_id=5
+2026-02-02T10:24:52+01:00 [logout] update result=success
+2026-02-02T10:25:00+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDI5NSwiZXhwIjoxNzcwMDI3ODk1LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.gBhsvWFJZfxRSvi9P18XjFPXltJfbmmhtyAlQ_BXO6g","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:25:00+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:25:00+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:25:00+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:25:00+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:25:00+01:00 [logout] decoded user_id=3
+2026-02-02T10:25:00+01:00 [logout] update result=success
+2026-02-02T10:25:31+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDMwNywiZXhwIjoxNzcwMDI3OTA3LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.cQcHqDLbK5vwSJjjxQonZ2oSJMXABqxQerjEfhhkCy0","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:25:31+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:25:31+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:25:31+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:25:31+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:25:31+01:00 [logout] decoded user_id=2
+2026-02-02T10:25:31+01:00 [logout] update result=success
+2026-02-02T10:27:26+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDM0MCwiZXhwIjoxNzcwMDI3OTQwLCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.sFUt_Gw4W2TahU-WfX5PnuqJWC1SUNaP6CpIUj7IhSw","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:27:26+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:27:26+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:27:26+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:27:26+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T10:27:26+01:00 [logout] decoded user_id=5
+2026-02-02T10:27:26+01:00 [logout] update result=success
+2026-02-02T10:29:01+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDEwNCwiZXhwIjoxNzcwMDI3NzA0LCJkYXRhIjp7ImlkIjoxLCJyb2xlIjoiYWRtaW4iLCJmdWxsX25hbWUiOiJTeXN0ZW0gQWRtaW4ifX0.SHMNIKIwfhtA8CE7828ohCDhhu_q0vgV7WNEClwUYjg","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T10:29:01+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:29:01+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:29:01+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:29:01+01:00 [logout] raw_body: {"user_id":1}
+2026-02-02T10:29:01+01:00 [logout] decoded user_id=1
+2026-02-02T10:29:01+01:00 [logout] update result=success
+2026-02-02T10:29:30+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDU1NiwiZXhwIjoxNzcwMDI4MTU2LCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.fH5iet-RQJh08VuyX-nRmMNAx9R2HTQmNR2xG4ldhj4","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T10:29:30+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:29:30+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:29:30+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:29:30+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T10:29:30+01:00 [logout] decoded user_id=4
+2026-02-02T10:29:30+01:00 [logout] update result=success
+2026-02-02T10:31:05+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc2OTc2NTcyMSwiZXhwIjoxNzY5NzY5MzIxLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.C1ACD79mKAq9CgAeajd-55rPI0m22qP9DZkF1rnP0B8","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9,en-GB;q=0.8"}
+2026-02-02T10:31:05+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:31:05+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:31:05+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0
+2026-02-02T10:31:05+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:31:05+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T10:31:05+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc2OTc2NTcyMSwiZXhwIjoxNzY5NzY5MzIxLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.C1ACD79mKAq9CgAeajd-55rPI0m22qP9DZkF1rnP0B8","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9,en-GB;q=0.8"}
+2026-02-02T10:31:05+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:31:05+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:31:05+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0
+2026-02-02T10:31:05+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:31:05+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T10:31:41+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMjAyNiwiZXhwIjoxNzcwMDI1NjI2LCJkYXRhIjp7ImlkIjo2LCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiU3RlcGhlbiBTdHJhbmdlIn19.8av1kG-ec-nuockh_nTsZY_94G13cmXwFCRpKRnyhHg","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T10:31:41+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:31:41+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:31:41+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:31:41+01:00 [logout] raw_body: {"user_id":6}
+2026-02-02T10:31:41+01:00 [logout] decoded user_id=6
+2026-02-02T10:31:41+01:00 [logout] update result=success
+2026-02-02T10:35:20+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDg0MiwiZXhwIjoxNzcwMDI4NDQyLCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.sN8SLc54EhlwRT1wQSwu4xtCRWW1tRG8HM_M7b8hzLc","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-GB,en;q=0.9,en-US;q=0.8"}
+2026-02-02T10:35:20+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:35:20+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:35:20+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0
+2026-02-02T10:35:20+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:35:20+01:00 [logout] decoded user_id=2
+2026-02-02T10:35:20+01:00 [logout] update result=success
+2026-02-02T10:35:34+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDkzMSwiZXhwIjoxNzcwMDI4NTMxLCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.0cXQgDEF7DUjnrlDlRcsRm2-k5qM-_aQDGKJPhM9Tv4","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-GB,en;q=0.9,en-US;q=0.8"}
+2026-02-02T10:35:34+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:35:34+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:35:34+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0
+2026-02-02T10:35:34+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T10:35:34+01:00 [logout] decoded user_id=4
+2026-02-02T10:35:34+01:00 [logout] update result=success
+2026-02-02T10:37:09+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDk0NCwiZXhwIjoxNzcwMDI4NTQ0LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.GuYcymJ_gdya-6ZpT2slMZzKXlzVcmPyrqtbx4kqypA","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-GB,en-US;q=0.9,en;q=0.8"}
+2026-02-02T10:37:09+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:37:09+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:37:09+01:00 [logout] remote_addr: 192.168.1.107 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:37:09+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:37:09+01:00 [logout] decoded user_id=2
+2026-02-02T10:37:09+01:00 [logout] update result=success
+2026-02-02T10:39:09+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTA0MCwiZXhwIjoxNzcwMDI4NjQwLCJkYXRhIjp7ImlkIjoxLCJyb2xlIjoiYWRtaW4iLCJmdWxsX25hbWUiOiJTeXN0ZW0gQWRtaW4ifX0.LhdHF-N86MlASd3VtJgy4y5XqmXY35LZ5uWom3i1FXw","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/admin\/settings.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-GB,en-US;q=0.9,en;q=0.8"}
+2026-02-02T10:39:09+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:39:09+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:39:09+01:00 [logout] remote_addr: 192.168.1.107 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:39:09+01:00 [logout] raw_body: {"user_id":1}
+2026-02-02T10:39:09+01:00 [logout] decoded user_id=1
+2026-02-02T10:39:09+01:00 [logout] update result=success
+2026-02-02T10:39:55+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTE3NiwiZXhwIjoxNzcwMDI4Nzc2LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.aR-bjuUfz8GMfy68o07G6wkREp9DxB0ycluVeq_DpZ8","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:39:55+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:39:55+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:39:55+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:39:55+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:39:55+01:00 [logout] decoded user_id=2
+2026-02-02T10:39:55+01:00 [logout] update result=success
+2026-02-02T10:40:28+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTIwNywiZXhwIjoxNzcwMDI4ODA3LCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.pKYTzHXmLc-1XegR530TEPOSVSiz5pn7aN8vCd1oCvQ","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:40:28+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:40:28+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:40:28+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:40:28+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T10:40:28+01:00 [logout] decoded user_id=4
+2026-02-02T10:40:28+01:00 [logout] update result=success
+2026-02-02T10:41:20+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTIzMSwiZXhwIjoxNzcwMDI4ODMxLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.2-6oLJnTudsHPZjA1c0umftS9aN9b3jwk0gt7QLepqs","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:41:20+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:41:20+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:41:20+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:41:20+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:41:20+01:00 [logout] decoded user_id=3
+2026-02-02T10:41:20+01:00 [logout] update result=success
+2026-02-02T10:44:07+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTQyMywiZXhwIjoxNzcwMDI5MDIzLCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.Lf_ofKmQCyhxUXwi3InC3CmGRJngpXJTSjV3pOIslmc","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:44:07+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:44:07+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:44:07+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:44:07+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:44:07+01:00 [logout] decoded user_id=2
+2026-02-02T10:44:07+01:00 [logout] update result=success
+2026-02-02T10:44:57+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTQ1MCwiZXhwIjoxNzcwMDI5MDUwLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.V9PlaeBaVTYwOwzx1jS_HLUuFMkDdZfL_jDouT4XeYk","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:44:57+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:44:57+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:44:57+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:44:57+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:44:57+01:00 [logout] decoded user_id=3
+2026-02-02T10:44:57+01:00 [logout] update result=success
+2026-02-02T10:45:54+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTUwNywiZXhwIjoxNzcwMDI5MTA3LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.scbvezW8GyDbXBI8eTvGkA6ugxZdR4t_eiM9QSN2PkQ","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:45:54+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:45:54+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:45:54+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:45:54+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:45:54+01:00 [logout] decoded user_id=2
+2026-02-02T10:45:54+01:00 [logout] update result=success
+2026-02-02T10:52:27+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTU2NiwiZXhwIjoxNzcwMDI5MTY2LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.Ki4I133xTnk_t9OURh3DYgtz-05nQp3qzpE0twns0ss","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:52:27+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:52:27+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:52:27+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:52:27+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T10:52:27+01:00 [logout] decoded user_id=5
+2026-02-02T10:52:27+01:00 [logout] update result=success
+2026-02-02T10:54:11+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMTk4MywiZXhwIjoxNzcwMDI1NTgzLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.euz3cg3LGHRXmX8c4UCLG5dSGbpcjFBDR1nIGmT8M6k","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T10:54:11+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:54:11+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:54:11+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:54:11+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:54:11+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T10:54:11+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyMTk4MywiZXhwIjoxNzcwMDI1NTgzLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.euz3cg3LGHRXmX8c4UCLG5dSGbpcjFBDR1nIGmT8M6k","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T10:54:11+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:54:11+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:54:11+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:54:11+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T10:54:11+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T10:54:51+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDU4MCwiZXhwIjoxNzcwMDI4MTgwLCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.jUjH72Op7NkeEN30MPMlAXvrErzhjHO3IEE3N6qWi5o","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T10:54:51+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:54:51+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:54:51+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:54:51+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T10:54:51+01:00 [logout] decoded user_id=5
+2026-02-02T10:54:51+01:00 [logout] update result=success
+2026-02-02T10:55:34+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNTQ3NSwiZXhwIjoxNzcwMDI5MDc1LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.OU6TZT6KAlI-TI9DCpeyN1ot_ARPoRUYYXQU9dUgz3Q","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-GB,en-US;q=0.9,en;q=0.8"}
+2026-02-02T10:55:34+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:55:34+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:55:34+01:00 [logout] remote_addr: 192.168.1.107 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:55:34+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T10:55:34+01:00 [logout] decoded user_id=2
+2026-02-02T10:55:34+01:00 [logout] update result=success
+2026-02-02T10:58:14+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNjEzNSwiZXhwIjoxNzcwMDI5NzM1LCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.YaB32PElp5nUaFjyCsl-0LW0EvUqcCAK_TQEn_Wvetw","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T10:58:14+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T10:58:14+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T10:58:14+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T10:58:14+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T10:58:14+01:00 [logout] decoded user_id=4
+2026-02-02T10:58:14+01:00 [logout] update result=success
+2026-02-02T11:15:02+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNjQzNSwiZXhwIjoxNzcwMDMwMDM1LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.mq-m0AopnaMLmlBUguA-hkFmlO84CP5pdW_CsV-Mg5M","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:15:02+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:15:02+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:15:02+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:15:02+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T11:15:02+01:00 [logout] decoded user_id=2
+2026-02-02T11:15:02+01:00 [logout] update result=success
+2026-02-02T11:17:43+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzMxMCwiZXhwIjoxNzcwMDMwOTEwLCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.3UJuij8UD1o8XcsYYo10Wf9h5i-bJyoObMjf3Ni8Ygo","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:17:43+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:17:43+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:17:43+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:17:43+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T11:17:43+01:00 [logout] decoded user_id=5
+2026-02-02T11:17:43+01:00 [logout] update result=success
+2026-02-02T11:18:02+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzQ2OCwiZXhwIjoxNzcwMDMxMDY4LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.z4qruNF-V5RrBdD9Oys67C9xmMUnUGVayvZO3EZHSv0","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:18:02+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:18:02+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:18:02+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:18:02+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T11:18:02+01:00 [logout] decoded user_id=3
+2026-02-02T11:18:02+01:00 [logout] update result=success
+2026-02-02T11:18:24+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzQ5NCwiZXhwIjoxNzcwMDMxMDk0LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.Z2f53XwnQXIBbm9H_WekCg-O5kO8WGsx-6FhZG-4a6Y","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:18:24+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:18:24+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:18:24+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:18:24+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T11:18:24+01:00 [logout] decoded user_id=2
+2026-02-02T11:18:24+01:00 [logout] update result=success
+2026-02-02T11:21:44+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"2","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzUwOSwiZXhwIjoxNzcwMDMxMTA5LCJkYXRhIjp7ImlkIjoxLCJyb2xlIjoiYWRtaW4iLCJmdWxsX25hbWUiOiJTeXN0ZW0gQWRtaW4ifX0.a_XGwNy0DI1rbVGZ569ihjN3aR-Mnl0HTCRuW5gM-20","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:21:44+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:21:44+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:21:44+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:21:44+01:00 [logout] raw_body: {}
+2026-02-02T11:21:44+01:00 [logout] decoded user_id=1
+2026-02-02T11:21:44+01:00 [logout] update result=success
+2026-02-02T11:25:15+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzkwMywiZXhwIjoxNzcwMDMxNTAzLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.6XPpKz-s3l5f6szxQof1fgdM_vnz--RhzRmjqt-AGMs","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:25:15+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:25:15+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:25:15+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:25:15+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T11:25:15+01:00 [logout] decoded user_id=3
+2026-02-02T11:25:15+01:00 [logout] update result=success
+2026-02-02T11:25:38+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36 Edg\/144.0.0.0","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDk0NywiZXhwIjoxNzcwMDI4NTQ3LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ._Y6Ty7p7qAKnvVQaw6zDcYR1LNm4MJSBdaRRwDSEH-I","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-GB,en;q=0.9,en-US;q=0.8"}
+2026-02-02T11:25:38+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:25:38+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:25:38+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0
+2026-02-02T11:25:38+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T11:25:38+01:00 [logout] decoded user_id=5
+2026-02-02T11:25:38+01:00 [logout] update result=success
+2026-02-02T11:26:26+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzkyNiwiZXhwIjoxNzcwMDMxNTI2LCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.u2zDNoMbs57NzznOLGIduKr9bFgr8OKHkSKU4t74a8E","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:26:26+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:26:26+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:26:26+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:26:26+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T11:26:26+01:00 [logout] decoded user_id=4
+2026-02-02T11:26:26+01:00 [logout] update result=success
+2026-02-02T11:27:13+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzk5NSwiZXhwIjoxNzcwMDMxNTk1LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.9szRWVWYjwOrqWBx-JAS-Wr_77NyATUkBxI21jWR0lQ","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:27:13+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:27:13+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:27:13+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:27:13+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T11:27:13+01:00 [logout] decoded user_id=3
+2026-02-02T11:27:13+01:00 [logout] update result=success
+2026-02-02T11:27:58+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODA0MiwiZXhwIjoxNzcwMDMxNjQyLCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.XH24GhcUftyohQAf_SESA4HZq_pDY_GvQzNVKx8ZdY4","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:27:58+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:27:58+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:27:58+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:27:58+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T11:27:58+01:00 [logout] decoded user_id=2
+2026-02-02T11:27:58+01:00 [logout] update result=success
+2026-02-02T11:33:10+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODIwNywiZXhwIjoxNzcwMDMxODA3LCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.YXVIJs7ygNA9uxFjHKaQ7k-_CSiaB1ioXmNAyf82b4k","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:33:10+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:33:10+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:33:10+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:33:10+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T11:33:10+01:00 [logout] decoded user_id=4
+2026-02-02T11:33:10+01:00 [logout] update result=success
+2026-02-02T11:34:19+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODQwMCwiZXhwIjoxNzcwMDMyMDAwLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.abmHEmyw9lPe1tlE0bYUijXcstzgfCWoN-6xzyd97Eo","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:34:19+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:34:19+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:34:19+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:34:19+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T11:34:19+01:00 [logout] decoded user_id=3
+2026-02-02T11:34:19+01:00 [logout] update result=success
+2026-02-02T11:35:24+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODQ3MiwiZXhwIjoxNzcwMDMyMDcyLCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.HogyXsRLfnXyHXL6rSwgDnOEp1wcBg-lW-6WLINE4MA","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:35:24+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:35:24+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:35:24+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:35:24+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T11:35:24+01:00 [logout] decoded user_id=2
+2026-02-02T11:35:24+01:00 [logout] update result=success
+2026-02-02T11:36:00+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDcxMCwiZXhwIjoxNzcwMDI4MzEwLCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.FKxIBKaqi4Antr4NPyFg2H5BTitlolfpUl3fuv9yzOg","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T11:36:00+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:36:00+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:36:00+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:36:00+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T11:36:00+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T11:36:00+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNDcxMCwiZXhwIjoxNzcwMDI4MzEwLCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.FKxIBKaqi4Antr4NPyFg2H5BTitlolfpUl3fuv9yzOg","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T11:36:00+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:36:00+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:36:00+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:36:00+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T11:36:00+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T11:36:57+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODUzMywiZXhwIjoxNzcwMDMyMTMzLCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.9t8STl09nTbmbZMNj2qMbcFUIAW6MP2dz-ef22NyyDw","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:36:57+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:36:57+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:36:57+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:36:57+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T11:36:57+01:00 [logout] decoded user_id=5
+2026-02-02T11:36:57+01:00 [logout] update result=success
+2026-02-02T11:37:19+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODYyNywiZXhwIjoxNzcwMDMyMjI3LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.GVdX_rYacNGoo09YxoHu8nxP19_d3CDuYuHczXl8VKk","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:37:19+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:37:19+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:37:19+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:37:19+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T11:37:19+01:00 [logout] decoded user_id=3
+2026-02-02T11:37:19+01:00 [logout] update result=success
+2026-02-02T11:37:56+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODY1MywiZXhwIjoxNzcwMDMyMjUzLCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.CLLjPTenHPHKvKbGEv7C3b62ERoAp_ahds8Tp6Mww-c","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:37:56+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:37:56+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:37:56+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:37:56+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T11:37:56+01:00 [logout] decoded user_id=4
+2026-02-02T11:37:56+01:00 [logout] update result=success
+2026-02-02T11:41:10+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODgzOSwiZXhwIjoxNzcwMDMyNDM5LCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.ZOsicvDx8g73knf9A5cUgDmU5l7u-P-YPbTv4UXI3eY","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:41:10+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:41:10+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:41:10+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:41:10+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T11:41:10+01:00 [logout] decoded user_id=4
+2026-02-02T11:41:10+01:00 [logout] update result=success
+2026-02-02T11:42:06+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODg4MCwiZXhwIjoxNzcwMDMyNDgwLCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.i3P9_T8KcOASmdicVu81Ox4JeNVlTA2jla3Tp1Z11NE","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:42:06+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:42:06+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:42:06+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:42:06+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T11:42:06+01:00 [logout] decoded user_id=3
+2026-02-02T11:42:06+01:00 [logout] update result=success
+2026-02-02T11:43:12+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODk0NSwiZXhwIjoxNzcwMDMyNTQ1LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.ryJUXi0u0khIk9fAb3xMx2svBwwbqdFaYHItC5gJTP8","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:43:12+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:43:12+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:43:12+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:43:12+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T11:43:12+01:00 [logout] decoded user_id=2
+2026-02-02T11:43:12+01:00 [logout] update result=success
+2026-02-02T11:48:58+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyOTAwNCwiZXhwIjoxNzcwMDMyNjA0LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.IBbe3LKS96YXNFN-YO-49PLDvqbeaffTZbG9EQfHCHI","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T11:48:58+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T11:48:58+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T11:48:58+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T11:48:58+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T11:48:58+01:00 [logout] decoded user_id=5
+2026-02-02T11:48:58+01:00 [logout] update result=success
+2026-02-02T13:00:01+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzQ2NCwiZXhwIjoxNzcwMDMxMDY0LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.qRrDXf6xyC5BBTmXOtA6hwyDGmE-uh3I1986vOK_L9g","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:00:01+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:00:01+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:00:01+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:00:01+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T13:00:01+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T13:00:01+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyNzQ2NCwiZXhwIjoxNzcwMDMxMDY0LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.qRrDXf6xyC5BBTmXOtA6hwyDGmE-uh3I1986vOK_L9g","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:00:01+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:00:01+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:00:01+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:00:01+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T13:00:01+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T13:56:03+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODg4NCwiZXhwIjoxNzcwMDMyNDg0LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.2o0M2QgZ2smni0CRLfrt9STQ67vsgme3gicDu3eE998","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:56:03+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:56:03+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:56:03+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:56:03+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T13:56:03+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T13:56:03+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAyODg4NCwiZXhwIjoxNzcwMDMyNDg0LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.2o0M2QgZ2smni0CRLfrt9STQ67vsgme3gicDu3eE998","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:56:03+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:56:03+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:56:03+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:56:03+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T13:56:03+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T13:57:53+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","Pragma":"no-cache","Cache-Control":"no-cache","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAzNjk4NCwiZXhwIjoxNzcwMDQwNTg0LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.3FIn-CtX-b4HnPTPm4m13dXpkS174HzKZonOrfIJ_hI","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:57:53+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:57:53+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:57:53+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:57:53+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T13:57:53+01:00 [logout] decoded user_id=2
+2026-02-02T13:57:53+01:00 [logout] update result=success
+2026-02-02T13:58:15+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","Pragma":"no-cache","Cache-Control":"no-cache","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAzNzA4MSwiZXhwIjoxNzcwMDQwNjgxLCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.52hqYpc91Y2aRIefaMqyL1H8M6I06S3bipYq58Pidwc","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:58:15+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:58:15+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:58:15+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:58:15+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T13:58:15+01:00 [logout] decoded user_id=4
+2026-02-02T13:58:15+01:00 [logout] update result=success
+2026-02-02T13:58:36+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","Pragma":"no-cache","Cache-Control":"no-cache","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAzNzEwNSwiZXhwIjoxNzcwMDQwNzA1LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.ABkPSsls8sXtg_4Z1QPTA0uBuGE06d3zhaQMgnPV34M","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T13:58:36+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T13:58:36+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T13:58:36+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T13:58:36+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T13:58:36+01:00 [logout] decoded user_id=3
+2026-02-02T13:58:36+01:00 [logout] update result=success
+2026-02-02T14:43:05+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAzMzYxMCwiZXhwIjoxNzcwMDM3MjEwLCJkYXRhIjp7ImlkIjoxLCJyb2xlIjoiYWRtaW4iLCJmdWxsX25hbWUiOiJTeXN0ZW0gQWRtaW4ifX0.fmnHOAMsRF4Ua-NYE9ZUbDEkkTG_U0Zt3VxNoNEIoio","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T14:43:05+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T14:43:05+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T14:43:05+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T14:43:05+01:00 [logout] raw_body: {"user_id":1}
+2026-02-02T14:43:05+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T14:43:05+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAzMzYxMCwiZXhwIjoxNzcwMDM3MjEwLCJkYXRhIjp7ImlkIjoxLCJyb2xlIjoiYWRtaW4iLCJmdWxsX25hbWUiOiJTeXN0ZW0gQWRtaW4ifX0.fmnHOAMsRF4Ua-NYE9ZUbDEkkTG_U0Zt3VxNoNEIoio","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T14:43:05+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T14:43:05+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T14:43:05+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T14:43:05+01:00 [logout] raw_body: {"user_id":1}
+2026-02-02T14:43:05+01:00 [logout] token decode failed: Expired token
+
+2026-02-02T14:47:44+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAzOTk5MywiZXhwIjoxNzcwMDQzNTkzLCJkYXRhIjp7ImlkIjo0LCJyb2xlIjoicmVjZXB0aW9uaXN0IiwiZnVsbF9uYW1lIjoiSm9obiBSZWNlcHRpb25pc3QifX0.I2mNX3NYpQXV84uAsoJsl5z_q0mS49Z9oo66432WOro","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/reception\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T14:47:44+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T14:47:44+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T14:47:44+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T14:47:44+01:00 [logout] raw_body: {"user_id":4}
+2026-02-02T14:47:44+01:00 [logout] decoded user_id=4
+2026-02-02T14:47:44+01:00 [logout] update result=success
+2026-02-02T14:48:05+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDA0MDA3NCwiZXhwIjoxNzcwMDQzNjc0LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.z0KCTxGHuLlNI-T7bV1GZg2QUkYmgqJUDfcAuRxGEBI","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/nurse\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T14:48:05+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T14:48:05+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T14:48:05+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T14:48:05+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T14:48:05+01:00 [logout] decoded user_id=3
+2026-02-02T14:48:05+01:00 [logout] update result=success
+2026-02-02T14:48:29+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDA0MDA5NiwiZXhwIjoxNzcwMDQzNjk2LCJkYXRhIjp7ImlkIjo1LCJyb2xlIjoicGhhcm1hY2lzdCIsImZ1bGxfbmFtZSI6Ik1pa2UgUGhhcm1hY2lzdCJ9fQ.uTgTWgBuptvI94HoYuDYlAdUn6tZ1qSSRuAauawXQGI","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/pharmacy\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T14:48:29+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T14:48:29+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T14:48:29+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T14:48:29+01:00 [logout] raw_body: {"user_id":5}
+2026-02-02T14:48:29+01:00 [logout] decoded user_id=5
+2026-02-02T14:48:29+01:00 [logout] update result=success
+2026-02-02T14:53:40+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDA0MDEyMSwiZXhwIjoxNzcwMDQzNzIxLCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.fRGSbLKyPS4ZYV2wRBR9q0kfW4ur9U7P2IpbmTFUT0U","Accept":"*\/*","Origin":"http:\/\/192.168.1.128","Referer":"http:\/\/192.168.1.128\/Hospital_Management_System\/frontend\/pages\/doctor\/dashboard.html","Accept-Encoding":"gzip, deflate","Accept-Language":"en-US,en;q=0.9"}
+2026-02-02T14:53:40+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T14:53:40+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T14:53:40+01:00 [logout] remote_addr: 192.168.1.128 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T14:53:40+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T14:53:40+01:00 [logout] decoded user_id=2
+2026-02-02T14:53:40+01:00 [logout] update result=success

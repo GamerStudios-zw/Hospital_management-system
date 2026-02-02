@@ -8,12 +8,12 @@ $db = $database->getConnection();
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Ensure JSON header is set to prevent "Unexpected token <" errors in frontend
+header('Content-Type: application/json');
+
 switch ($action) {
 
-    // FILE: backend/routes/doctor.php
-
-// ... inside switch ($action) ...
-
+    // 1. GET WAITING LIST (Strictly Triage Cleared)
     case 'waiting_list':
         if ($method === 'GET') {
             // REMOVED 'Waiting' from the IN clause to ensure Nurse priority
@@ -78,7 +78,22 @@ switch ($action) {
         }
         break;
 
-    // 3. GET PATIENT HISTORY (Vitals, Visits, and Prescriptions)
+    // 3. GET DOCTOR SHIFTS (New logic for Roster tab)
+    case 'shifts':
+        if ($method === 'GET') {
+            try {
+                // Filters for 'doctor' role to match Admin assignments
+                $query = "SELECT * FROM staff_shifts WHERE role = 'doctor' ORDER BY shift_start ASC";
+                $stmt = $db->query($query);
+                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to load roster: " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 4. GET PATIENT HISTORY
     case 'history':
         if ($method === 'GET') {
             $pid = $_GET['patient_id'] ?? 0;
@@ -93,7 +108,7 @@ switch ($action) {
         }
         break;
 
-    // 4. UPLOAD PATIENT DOCUMENTS
+    // 5. UPLOAD PATIENT DOCUMENTS
     case 'upload_file':
         if ($method === 'POST') {
             $patient_id = $_POST['patient_id'];
@@ -114,7 +129,7 @@ switch ($action) {
         }
         break;
 
-    // 5. HELPER DATA
+    // 6. HELPER DATA
     case 'medicines':
         echo json_encode($db->query("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity > 0 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC));
         break;

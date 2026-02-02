@@ -8,13 +8,15 @@ $db = $database->getConnection();
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Ensure JSON header to prevent "Unexpected token <" errors in frontend
+header('Content-Type: application/json');
+
 switch ($action) {
 
-    // 1. GET PENDING PRESCRIPTIONS (Unified for Internal & External)
+    // 1. GET PENDING PRESCRIPTIONS (Matches loadPending() in dashboard)
     case 'pending':
         if ($method === 'GET') {
-            // FIX: Use LEFT JOIN so manual medicines (where medicine_id is NULL) still show up
-            // FIX: Include p.notes as manual_name for medications not in stock
+            // Use LEFT JOIN so manual/external medicines still show up
             $query = "SELECT p.id, p.quantity, p.dosage, p.created_at, p.notes as manual_name,
                              pat.full_name as patient_name, pat.medical_aid_number,
                              med.name as med_name, med.stock_quantity,
@@ -53,7 +55,7 @@ switch ($action) {
 
                 if(!$presc) throw new Exception("Prescription not found");
 
-                // Only deduct stock and check availability IF it is a system-tracked medicine
+                // Only deduct stock if it's a system-tracked medicine
                 if($presc['medicine_id']) {
                     $checkStock = $db->prepare("SELECT stock_quantity FROM medicines WHERE id = ?");
                     $checkStock->execute([$presc['medicine_id']]);
@@ -63,12 +65,10 @@ switch ($action) {
                         throw new Exception("Insufficient stock! Available: $currentStock");
                     }
 
-                    // Deduct Stock
                     $updateStock = $db->prepare("UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?");
                     $updateStock->execute([$presc['quantity'], $presc['medicine_id']]);
                 }
 
-                // Update Status to Dispensed
                 $updateStatus = $db->prepare("UPDATE prescriptions SET status = 'Dispensed' WHERE id = ?");
                 $updateStatus->execute([$data->prescription_id]);
 
@@ -83,10 +83,9 @@ switch ($action) {
         }
         break;
 
-    // 3. GET DISPENSING HISTORY
+    // 3. GET DISPENSING HISTORY (Matches loadHistory() in dashboard)
     case 'history':
         if ($method === 'GET') {
-            // FIX: Use LEFT JOIN and IFNULL to show the name for both internal and external meds
             $query = "SELECT p.id, p.quantity, p.dosage, p.created_at,
                              pat.full_name as patient_name,
                              IFNULL(med.name, p.notes) as med_name
@@ -103,7 +102,22 @@ switch ($action) {
         }
         break;
 
-    // 4. STATS (Updated for External Status)
+    // 4. GET PHARMACIST SHIFTS (Matches loadPharmacistShifts() in dashboard)
+    case 'shifts':
+        if ($method === 'GET') {
+            try {
+                // Filters for 'pharmacist' role to ensure correct roster display
+                $query = "SELECT * FROM staff_shifts WHERE role = 'pharmacist' ORDER BY shift_start ASC";
+                $stmt = $db->query($query);
+                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to load roster: " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 5. DASHBOARD STATS
     case 'stats':
         $pending = $db->query("SELECT COUNT(*) FROM prescriptions WHERE status IN ('Pending', 'External')")->fetchColumn();
         $today = $db->query("SELECT COUNT(*) FROM prescriptions WHERE status = 'Dispensed' AND DATE(created_at) = CURDATE()")->fetchColumn();

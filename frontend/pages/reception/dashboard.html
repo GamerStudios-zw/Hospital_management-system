@@ -33,6 +33,7 @@
             <li><a class="nav-link active" onclick="showSection('dashboard')"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a></li>
             <li><a class="nav-link" onclick="showSection('directory')"><i class="bi bi-people me-2"></i> Patient Directory</a></li>
             <li><a class="nav-link" onclick="showSection('register')"><i class="bi bi-person-plus me-2"></i> Register New</a></li>
+            <li><a class="nav-link" onclick="showSection('shifts')"><i class="bi bi-calendar-event me-2"></i> My Shifts</a></li>
         </ul>
         <button onclick="logout()" class="nav-link text-danger text-start border-0 bg-transparent mt-5"><i class="bi bi-power me-2"></i> Logout</button>
     </div>
@@ -108,7 +109,7 @@
                                 <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" required></div>
                                 <div class="col-md-3"><label class="form-label small fw-bold">ID (xx-xxxxxx-x-xx)</label><input id="regId" class="form-control" placeholder="00-000000-A-00" required></div>
                                 <div class="col-md-3"><label class="form-label small fw-bold">Date of Birth</label><input id="regDob" type="date" class="form-control" required></div>
-                                
+
                                 <div class="col-md-3"><label class="form-label small fw-bold">Gender</label><select id="regGender" class="form-select"><option>Male</option><option>Female</option></select></div>
                                 <div class="col-md-3"><label class="form-label small fw-bold">Phone (+263...)</label><input id="regPhone" class="form-control" placeholder="+263700000000" required></div>
                                 <div class="col-md-6"><label class="form-label small fw-bold">Address</label><input id="regAddress" class="form-control" required></div>
@@ -142,6 +143,31 @@
                             </div>
                         </form>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="shifts" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">My Shift Roster</h4>
+                <div class="badge bg-primary px-3 py-2">Current Assignments</div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Shift Type</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shiftTableBody">
+                            <tr><td colspan="5" class="text-center py-4 text-muted">Loading your roster...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -197,7 +223,7 @@
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
-        // Find the link that has the onclick matching the id
+
         const links = document.querySelectorAll('.sidebar .nav-link');
         links.forEach(link => {
             if(link.getAttribute('onclick')?.includes(id)) link.classList.add('active');
@@ -205,6 +231,7 @@
 
         if(id === 'directory') loadDirectory();
         if(id === 'dashboard') loadDashboardStats();
+        if(id === 'shifts') loadMyShifts();
     }
 
     function toggleAid(el) {
@@ -233,7 +260,7 @@
                     const item = document.createElement('div');
                     item.className = 'search-item d-flex justify-content-between align-items-center';
                     item.innerHTML = `<div><strong>${p.full_name}</strong><br><small class="text-muted">${p.national_id}</small></div>`;
-                    
+
                     if(p.is_active > 0) {
                         item.innerHTML += `<span class="badge bg-success">Admitted</span>`;
                     } else {
@@ -254,7 +281,7 @@
         patients.forEach(p => {
             let actionBtn = `<button class="btn btn-sm btn-outline-primary" onclick='openAdmitModal(${JSON.stringify(p)})'>Admit <i class="bi bi-arrow-right"></i></button>`;
             if(p.is_active > 0) actionBtn = `<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> Active Queue</span>`;
-            
+
             tbody.innerHTML += `<tr>
                 <td class="ps-4 fw-medium">${p.full_name}</td>
                 <td class="small">${p.national_id}</td>
@@ -344,6 +371,30 @@
         users?.filter(u => u.role === 'doctor').forEach(d => {
             select.innerHTML += `<option value="${d.full_name}">${d.full_name}</option>`;
         });
+    }
+
+    async function loadMyShifts() {
+        const tbody = document.getElementById('shiftTableBody');
+        const shifts = await Api.get('/reception/shifts');
+        tbody.innerHTML = '';
+
+        if(shifts && shifts.length > 0) {
+            shifts.forEach(s => {
+                const date = new Date(s.shift_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                const start = new Date(s.shift_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const end = new Date(s.shift_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                tbody.innerHTML += `<tr>
+                    <td class="ps-4 fw-medium">${date}</td>
+                    <td><span class="badge bg-info-subtle text-info">${s.shift_type || 'Reception'}</span></td>
+                    <td>${start}</td>
+                    <td>${end}</td>
+                    <td><span class="badge bg-success">Confirmed</span></td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No upcoming shifts found.</td></tr>';
+        }
     }
 </script>
 </body>

@@ -1,21 +1,9 @@
-// FILE: assets/js/app.js
-
-/**
- * 1. CONFIGURATION
- * Central location for your backend URL.
- */
-// FILE: assets/js/app.js
-
 const CONFIG = {
     // UPDATED: Use your network IP so other devices can connect
     BASE_URL: "http://192.168.1.128/Hospital_Management_System/backend/index.php",
     BACKEND_ROOT: "http://192.168.1.128/Hospital_Management_System/backend"
 };
 
-/**
- * 2. API HANDLER
- * Handles all network requests with centralized error handling.
- */
 const Api = {
     getToken: () => localStorage.getItem("hms_token"),
 
