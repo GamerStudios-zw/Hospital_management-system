@@ -137,3 +137,17 @@
 2026-02-02T08:37:25+01:00 [logout] raw_body: {"user_id":3}
 2026-02-02T08:37:25+01:00 [logout] decoded user_id=3
 2026-02-02T08:37:25+01:00 [logout] update result=success
+2026-02-02T08:39:30+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAxNzg1NCwiZXhwIjoxNzcwMDIxNDU0LCJkYXRhIjp7ImlkIjoyLCJyb2xlIjoiZG9jdG9yIiwiZnVsbF9uYW1lIjoiRHIuIFNhcmFoIE1veW8ifX0.BZ7YML50UXHi5vA6DKU8hK9G_pgI-s5GiCuuAwuyUDI","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T08:39:30+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T08:39:30+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T08:39:30+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T08:39:30+01:00 [logout] raw_body: {"user_id":2}
+2026-02-02T08:39:30+01:00 [logout] decoded user_id=2
+2026-02-02T08:39:30+01:00 [logout] update result=success
+2026-02-02T08:39:44+01:00 [logout] incoming headers: {"Host":"192.168.1.128","Connection":"keep-alive","Content-Length":"13","User-Agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/144.0.0.0 Safari\/537.36","Content-Type":"application\/json","Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc3MDAxNzk3NSwiZXhwIjoxNzcwMDIxNTc1LCJkYXRhIjp7ImlkIjozLCJyb2xlIjoibnVyc2UiLCJmdWxsX25hbWUiOiJOdXJzZSBCZXR0eSJ9fQ.uoCJJV6Ouj8padLl2T8P4lgeF5qmZyVvCf20YWHDO7I","Accept":"*\/*","Origin":"http:\/\/localhost","Referer":"http:\/\/localhost\/","Accept-Encoding":"gzip, deflate","Accept-Language":"en-ZA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7"}
+2026-02-02T08:39:44+01:00 [logout] server HTTP_AUTHORIZATION: 
+2026-02-02T08:39:44+01:00 [logout] server REDIRECT_HTTP_AUTHORIZATION: 
+2026-02-02T08:39:44+01:00 [logout] remote_addr: 192.168.1.175 user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+2026-02-02T08:39:44+01:00 [logout] raw_body: {"user_id":3}
+2026-02-02T08:39:44+01:00 [logout] decoded user_id=3
+2026-02-02T08:39:44+01:00 [logout] update result=success
