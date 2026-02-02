@@ -1,6 +1,5 @@
 <?php
 // FILE: backend/routes/nurse.php
-
 require_once __DIR__ . '/../config/database.php';
 
 $database = new Database();
@@ -9,7 +8,6 @@ $db = $database->getConnection();
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
-// OPENING THE SWITCH
 switch ($action) {
 
     // 1. NURSE DASHBOARD STATS
@@ -24,131 +22,113 @@ switch ($action) {
         $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
         echo json_encode([
-            "pending_triage" => $pending,
-            "occupancy" => "$occ/$total",
-            "alerts" => 0
+            "pending_triage" => (int)$pending,
+            "occupancy" => "$occ/$total"
         ]);
         break;
 
-    // 2. GET TRIAGE QUEUE
+    // 2. WARD ANALYTICS (Matches Dashboard Header)
+    case 'ward_stats':
+        $admits = $db->query("SELECT COUNT(*) FROM patient_queue WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+        $discharged = $db->query("SELECT COUNT(*) FROM patient_queue WHERE status = 'Completed' AND DATE(updated_at) = CURDATE()")->fetchColumn();
+
+        echo json_encode([
+            "admits_today" => (int)$admits,
+            "discharged_today" => (int)$discharged
+        ]);
+        break;
+
+    // 3. GET TRIAGE QUEUE (Reception -> Nurse)
     case 'triage_queue':
         if ($method === 'GET') {
-            $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, q.created_at, q.status
+            $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
                       FROM patient_queue q
                       JOIN patients p ON q.patient_id = p.id
                       WHERE q.status = 'Waiting'
                       ORDER BY q.created_at ASC";
-
-            $stmt = $db->prepare($query);
-            $stmt->execute();
+            $stmt = $db->query($query);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         }
         break;
 
-    // 3. SAVE VITALS
+    // 4. SAVE VITALS (Nurse -> Doctor Flow)
     case 'save_vitals':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
-            if(!isset($data->patient_id)) { http_response_code(400); exit; }
 
-            $sql = "INSERT INTO vital_signs (patient_id, temperature, blood_pressure, heart_rate, weight, oxygen_saturation, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $db->prepare($sql);
-            $res = $stmt->execute([
-                $data->patient_id, $data->temperature, $data->bp, $data->heart_rate,
-                $data->weight, $data->spo2, $data->notes
-            ]);
+            if(!isset($data->queue_id) || !isset($data->patient_id)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Missing Patient or Queue ID"]);
+                exit;
+            }
 
-            if($res) {
-                if(isset($data->queue_id)) {
-                    $upd = $db->prepare("UPDATE patient_queue SET status = 'In Triage' WHERE id = ?");
-                    $upd->execute([$data->queue_id]);
-                }
-                echo json_encode(["message" => "Vitals Saved Successfully"]);
-            } else {
+            try {
+                $db->beginTransaction();
+
+                // MATCHING YOUR SQL: patient_vitals (patient_id, queue_id, temperature, pulse, bp, weight, spo2, notes)
+                $sql = "INSERT INTO patient_vitals (patient_id, queue_id, temperature, pulse, bp, weight, spo2, notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                $stmt = $db->prepare($sql);
+                $stmt->execute([
+                    $data->patient_id,
+                    $data->queue_id,
+                    $data->temperature,
+                    $data->pulse,
+                    $data->bp,
+                    $data->weight,
+                    $data->spo2,
+                    $data->notes
+                ]);
+
+                // Update status to 'In Triage' so the patient appears for the Doctor
+                $upd = $db->prepare("UPDATE patient_queue SET status = 'In Triage' WHERE id = ?");
+                $upd->execute([$data->queue_id]);
+
+                $db->commit();
+                echo json_encode(["message" => "Vitals Saved. Patient routed to Doctor."]);
+            } catch (Exception $e) {
+                $db->rollBack();
                 http_response_code(500);
+                echo json_encode(["message" => "Database Error: " . $e->getMessage()]);
             }
         }
         break;
 
-    // 4. GET WARD/BED STATUS
+    // 5. BED MANAGEMENT
     case 'beds':
-        $query = "SELECT b.*, p.full_name as patient_name
+        $query = "SELECT b.*, p.full_name as patient_name, p.national_id
                   FROM beds b
                   LEFT JOIN patients p ON b.current_patient_id = p.id
                   ORDER BY b.ward_name, b.bed_number";
-        $stmt = $db->prepare($query);
-        $stmt->execute();
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        echo json_encode($db->query($query)->fetchAll(PDO::FETCH_ASSOC));
         break;
 
-    // 5. GET PATIENT LIST (For Dropdown)
-    case 'patients':
-        $stmt = $db->prepare("SELECT id, full_name FROM patients ORDER BY full_name ASC");
-        $stmt->execute();
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-        break;
-
-    // 6. ADMIT PATIENT
-    case 'admit':
+    case 'discharge':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
-
-            // Update Bed to Occupied
-            $sql = "UPDATE beds SET status = 'Occupied', current_patient_id = ? WHERE id = ?";
+            $sql = "UPDATE beds SET status = 'Cleaning', current_patient_id = NULL, updated_at = NOW() WHERE id = ?";
             $stmt = $db->prepare($sql);
-
-            if($stmt->execute([$data->patient_id, $data->bed_id])) {
-                echo json_encode(["message" => "Patient Admitted Successfully"]);
-            } else {
-                http_response_code(500);
-            }
+            if($stmt->execute([$data->bed_id])) echo json_encode(["message" => "Discharged"]);
         }
         break;
 
-    // 7. GET SHIFT ROSTER
+    case 'mark_clean':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            $sql = "UPDATE beds SET status = 'Available', updated_at = NOW() WHERE id = ?";
+            if($db->prepare($sql)->execute([$data->bed_id])) echo json_encode(["message" => "Ready"]);
+        }
+        break;
+
     case 'shifts':
         $stmt = $db->query("SELECT * FROM nurse_shifts ORDER BY shift_start ASC");
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         break;
 
-    // 8. DISCHARGE PATIENT (Occupied -> Cleaning)
-    case 'discharge':
-        if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-
-            // Set bed to 'Cleaning' and remove patient link
-            $sql = "UPDATE beds SET status = 'Cleaning', current_patient_id = NULL WHERE id = ?";
-            $stmt = $db->prepare($sql);
-
-            if($stmt->execute([$data->bed_id])) {
-                echo json_encode(["message" => "Patient Discharged. Bed marked for Cleaning."]);
-            } else {
-                http_response_code(500);
-            }
-        }
-        break;
-
-    // 9. MARK BED CLEAN (Cleaning -> Available)
-    case 'mark_clean':
-        if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-
-            $sql = "UPDATE beds SET status = 'Available' WHERE id = ?";
-            $stmt = $db->prepare($sql);
-
-            if($stmt->execute([$data->bed_id])) {
-                echo json_encode(["message" => "Bed is now Available."]);
-            } else {
-                http_response_code(500);
-            }
-        }
-        break;
-
     default:
         http_response_code(404);
-        echo json_encode(["message" => "Nurse endpoint not found"]);
+        echo json_encode(["message" => "Nurse action not found"]);
         break;
 }
-// CLOSING THE SWITCH HERE
 ?>

@@ -2,7 +2,8 @@
 // FILE: backend/config/jwt.php
 
 class JwtConfig {
-    public static $secret_key = "YOUR_SECRET_KEY"; // In production, use env variable
+    // NOTE: HS256 requires a sufficiently long secret key. Replace with a secure value in production.
+    public static $secret_key = "change_this_to_a_long_secure_secret_key_please_2026_!@#";
     public static $issuer = "http://localhost";
     public static $audience = "http://localhost";
     public static $algorithm = 'HS256';

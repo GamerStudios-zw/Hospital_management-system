@@ -20,7 +20,7 @@ const Api = {
     async request(endpoint, method = "GET", body = null) {
         const headers = {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${this.getToken()}`
+            "Authorization": "Bearer " + Api.getToken()
         };
 
         const config = {
@@ -76,15 +76,23 @@ const Api = {
  * Global Logout Function
  * Clears session and redirects to home
  */
-function logout() {
-    if(confirm("Are you sure you want to log out?")) {
-        localStorage.removeItem("hms_token");
-        localStorage.removeItem("hms_user");
-        localStorage.removeItem("hms_role");
-        
-        // Redirect to login page
-        window.location.href = "../../index.html"; 
+async function logout() {
+    if(!confirm("Are you sure you want to log out?")) return;
+
+    try {
+        // Attempt to notify backend; Api.post will attach Authorization header from localStorage
+        await Api.post('/auth/logout', {});
+    } catch (e) {
+        console.warn('Logout API failed', e);
     }
+
+    // Clear client-side session and redirect
+    localStorage.removeItem("hms_token");
+    localStorage.removeItem("hms_user");
+    localStorage.removeItem("hms_role");
+
+    // Redirect to login page
+    window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
 }
 
 /**

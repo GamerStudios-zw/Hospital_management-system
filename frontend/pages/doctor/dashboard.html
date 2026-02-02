@@ -3,231 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Dashboard | HMS</title>
-
+    <title>Doctor Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        
-        /* Navbar & Sidebar */
-        .navbar { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-        .sidebar {
-            min-height: calc(100vh - 60px);
-            background: #0f172a;
-            color: #fff;
-        }
-        .sidebar .nav-link {
-            color: rgba(255,255,255,0.7);
-            padding: 12px 20px;
-            margin-bottom: 4px;
-            border-radius: 8px;
-        }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background: #2563eb;
-            color: #fff;
-        }
-
-        /* Cards */
-        .stat-card {
-            border: none;
-            border-radius: 12px;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-            transition: transform 0.2s;
-        }
-        .stat-card:hover { transform: translateY(-3px); }
-        .icon-box {
-            width: 48px; height: 48px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        /* Tables */
-        .table-custom th {
-            font-weight: 600;
-            color: #64748b;
-            background-color: #f1f5f9;
-            border-top: none;
-        }
-        .avatar-initial {
-            width: 35px; height: 35px;
-            background: #e2e8f0;
-            color: #475569;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
+        .sidebar .nav-link { color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer; display: flex; align-items: center; }
+        .sidebar .nav-link.active { background: #2563eb; color: white; }
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+        .vitals-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; font-weight: 600; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg sticky-top px-4">
-    <a class="navbar-brand fw-bold text-primary" href="#"><i class="bi bi-hospital-fill me-2"></i>HMS Portal</a>
-    <div class="ms-auto d-flex align-items-center">
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
-                <div class="avatar-initial bg-primary text-white me-2">D</div>
-                <span class="fw-medium" id="navUserName">Loading...</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
-                <li><a class="dropdown-item" href="#">Profile</a></li>
-                <li><a class="dropdown-item" href="#">Settings</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><button class="dropdown-item text-danger" onclick="logout()">Logout</button></li>
-            </ul>
-        </div>
-    </div>
-</nav>
-
-<div class="container-fluid">
-    <div class="row">
-
-        <div class="col-md-2 d-none d-md-block sidebar px-3 py-4">
-            <small class="text-uppercase text-secondary fw-bold ms-3" style="font-size: 0.7rem;">Main Menu</small>
-            <ul class="nav flex-column mt-2">
-                <li class="nav-item"><a href="dashboard.html" class="nav-link active"><i class="bi bi-grid-fill me-2"></i> Dashboard</a></li>
-                <li class="nav-item"><a href="my_patients.html" class="nav-link"><i class="bi bi-people me-2"></i> My Patients</a></li>
-                <li class="nav-item"><a href="appointments.html" class="nav-link"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
-                <li class="nav-item"><a href="reports.html" class="nav-link"><i class="bi bi-clipboard-data me-2"></i> Reports</a></li>
-            </ul>
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <div class="col-md-2 sidebar d-flex flex-column">
+            <div class="p-4 text-center"><h4 class="fw-bold text-primary mb-0">HMS DOCTOR</h4></div>
+            <nav class="nav flex-column mt-3 flex-grow-1">
+                <a class="nav-link active" onclick="switchTab('queue', this)"><i class="bi bi-people me-3"></i> Waiting Room</a>
+                <a class="nav-link" onclick="switchTab('directory', this)"><i class="bi bi-journal-medical me-3"></i> Patient History</a>
+            </nav>
+            <div class="p-3 border-top border-secondary">
+                <button onclick="logout()" class="btn btn-outline-danger w-100 border-0 text-start"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
+            </div>
         </div>
 
-        <main class="col-md-10 ms-sm-auto px-4 py-4">
-
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 class="fw-bold mb-0">Doctor Dashboard</h4>
-                    <p class="text-muted mb-0">Here's what's happening today.</p>
+        <main class="col-md-10 p-4">
+            <section id="queue" class="tab-section active">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Waiting Room</h3>
+                    <div class="bg-white py-2 px-4 rounded-4 shadow-sm"><span class="text-primary fw-bold fs-4" id="statWaiting">0</span> <small>Waiting</small></div>
                 </div>
-                <button class="btn btn-primary" onclick="alert('Refresh Queue functionality coming soon!')">
-                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Queue
-                </button>
-            </div>
-
-            <div class="row g-4 mb-5">
-                <div class="col-md-4">
-                    <div class="stat-card p-3 d-flex align-items-center justify-content-between">
-                        <div>
-                            <p class="text-muted mb-1 small fw-bold">PATIENTS WAITING</p>
-                            <h2 class="fw-bold mb-0 text-danger">4</h2>
-                        </div>
-                        <div class="icon-box bg-danger bg-opacity-10 text-danger">
-                            <i class="bi bi-hourglass-split"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card p-3 d-flex align-items-center justify-content-between">
-                        <div>
-                            <p class="text-muted mb-1 small fw-bold">ATTENDED TODAY</p>
-                            <h2 class="fw-bold mb-0 text-success">12</h2>
-                        </div>
-                        <div class="icon-box bg-success bg-opacity-10 text-success">
-                            <i class="bi bi-check-lg"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card p-3 d-flex align-items-center justify-content-between">
-                        <div>
-                            <p class="text-muted mb-1 small fw-bold">TOTAL APPOINTMENTS</p>
-                            <h2 class="fw-bold mb-0 text-primary">16</h2>
-                        </div>
-                        <div class="icon-box bg-primary bg-opacity-10 text-primary">
-                            <i class="bi bi-calendar-event"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card stat-card border-0">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Current Queue</h5>
-                    <span class="badge bg-primary rounded-pill">Priority List</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover table-custom align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Patient Name</th>
-                                <th>Age/Sex</th>
-                                <th>Chief Complaint</th>
-                                <th>Vitals</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="queueTableBody">
-                            <tr>
-                                <td>1</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-initial bg-warning bg-opacity-25 text-warning me-2">JD</div>
-                                        <div>
-                                            <span class="fw-bold d-block">John Doe</span>
-                                            <small class="text-muted">ID: P-2023001</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>32 / M</td>
-                                <td>Severe Headache, Fever</td>
-                                <td><span class="badge bg-light text-dark border">BP: 120/80</span></td>
-                                <td><span class="badge bg-warning text-dark">Waiting</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary" onclick="openConsultation('John Doe', 'P-2023001')">Consult</button>
-                                </td>
-                            </tr>
-                        </tbody>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light"><tr><th class="ps-4">Patient</th><th>Vitals</th><th>Status</th><th class="text-end pe-4">Action</th></tr></thead>
+                        <tbody id="queueTableBody"></tbody>
                     </table>
                 </div>
-            </div>
+            </section>
 
+            <section id="directory" class="tab-section">
+                <h3 class="fw-bold mb-4">Patient Directory</h3>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light"><tr><th class="ps-4">Name</th><th>Gender/DOB</th><th class="text-end pe-4">Action</th></tr></thead>
+                        <tbody id="directoryTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
         </main>
     </div>
 </div>
 
 <div class="modal fade" id="consultModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Consultation Room</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold">Consultation: <span id="modalPatientName" class="text-primary"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="card border-0 shadow-sm p-3">
-                            <h6 class="text-uppercase text-muted fw-bold small">Patient Details</h6>
-                            <h4 id="modalPatientName" class="fw-bold text-primary">John Doe</h4>
-                            <p class="mb-0">ID: <span id="modalPatientID">...</span> | <span class="badge bg-info">Vitals Normal</span></p>
+            <div class="modal-body p-4">
+                <div id="modalVitalsDisplay" class="d-flex flex-wrap gap-2 mb-4"></div>
+                <form id="consultForm" class="needs-validation" novalidate>
+                    <div class="row g-3">
+                        <div class="col-12"><label class="form-label fw-bold">Clinical Notes</label><textarea id="consultDiagnosis" class="form-control" rows="2" required></textarea></div>
+                        <hr>
+                        <div class="col-12 mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="externalMedToggle" onchange="toggleManualMed()">
+                                <label class="form-check-label small fw-bold text-danger">External Medication (Manual Entry)</label>
+                            </div>
                         </div>
+                        <div class="col-md-5" id="medDropdownGroup">
+                            <label class="form-label fw-bold small">Select Medicine</label>
+                            <select id="consultMed" class="form-select form-select-sm"></select>
+                        </div>
+                        <div class="col-md-5 d-none" id="medManualGroup">
+                            <label class="form-label fw-bold small">Medicine Name</label>
+                            <input type="text" id="manualMedName" class="form-control form-control-sm" placeholder="Type name...">
+                        </div>
+                        <div class="col-md-2"><label class="form-label fw-bold small">Qty</label><input type="number" id="consultQty" class="form-control form-control-sm" value="1" min="1"></div>
+                        <div class="col-md-3"><label class="form-label fw-bold small">Dosage</label><input type="text" id="consultDosage" class="form-control form-control-sm" placeholder="1x3"></div>
+                        <div class="col-md-2 d-flex align-items-end"><button type="button" class="btn btn-secondary btn-sm w-100" onclick="addMedicationToList()">Add</button></div>
                     </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Diagnosis</label>
-                        <textarea class="form-control" rows="4" placeholder="Enter clinical diagnosis..."></textarea>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Prescription</label>
-                        <textarea class="form-control" rows="4" placeholder="Rx: Paracetamol 500mg..."></textarea>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold">Lab Tests (Optional)</label>
-                        <input type="text" class="form-control" placeholder="e.g. Full Blood Count, Malaria Slide">
-                    </div>
+                </form>
+                <div class="mt-4" id="prescriptionContainer" style="display:none;">
+                    <table class="table table-sm border small">
+                        <thead class="table-light"><tr><th>Medicine</th><th>Qty</th><th>Dosage</th><th></th></tr></thead>
+                        <tbody id="prescriptionListTable"></tbody>
+                    </table>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" onclick="finishConsultation()">
-                    <i class="bi bi-check-circle-fill me-2"></i>Complete & Prescribe
-                </button>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button onclick="finishConsultation()" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Complete & Print</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header bg-light p-4">
+                <h5 class="fw-bold mb-0">Medical History: <span id="histPatientName" class="text-primary"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row">
+                    <div class="col-md-8 border-end">
+                        <h6 class="fw-bold mb-3">Visit History & Vitals</h6>
+                        <div id="historyTimeline"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-bold mb-3">Documents & Upload</h6>
+                        <form id="uploadForm" class="mb-4">
+                            <input type="hidden" id="uploadPatientId">
+                            <input type="text" id="fileName" class="form-control form-control-sm mb-2" placeholder="Doc Name" required>
+                            <input type="file" id="fileInput" class="form-control form-control-sm mb-2" required>
+                            <button type="button" class="btn btn-sm btn-primary w-100" onclick="handleFileUpload()">Upload</button>
+                        </form>
+                        <div id="fileList" class="list-group list-group-flush small"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -235,113 +136,140 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/js/app.js"></script>
-
 <script>
-    // 1. SECURITY CHECK
     protectPage(['doctor', 'admin']);
-
-    // Global variable to track which patient is currently in the modal
+    let currentPrescriptions = [];
     let activeQueueId = null;
+    let activePatientName = "";
+    const consultModal = new bootstrap.Modal(document.getElementById('consultModal'));
+    const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
 
-    // 2. INITIALIZATION
-    document.addEventListener("DOMContentLoaded", () => {
-        // Load User Name
-        const user = JSON.parse(localStorage.getItem("hms_user"));
-        if (user) document.getElementById("navUserName").innerText = user.full_name || user.username;
-
-        // Load Data
-        loadStats();
-        loadQueue();
-    });
-
-    // 3. LOAD STATS
-    async function loadStats() {
-        const stats = await Api.get('/doctor/stats');
-        if(stats) {
-            // Update the big numbers on the dashboard
-            // Note: We use querySelector to find the elements based on their text color classes in your HTML
-            document.querySelector('.text-danger').innerText = stats.waiting;
-            document.querySelector('.text-success').innerText = stats.attended;
-            document.querySelector('.text-primary').innerText = stats.total;
-        }
+    function switchTab(id, el) {
+        document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+        if(id === 'queue') loadQueue();
+        if(id === 'directory') loadDirectory();
     }
 
-    // 4. LOAD QUEUE TABLE
     async function loadQueue() {
+        const queue = await Api.get('/doctor/waiting_list');
         const tbody = document.getElementById('queueTableBody');
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Loading queue...</td></tr>';
-
-        const queue = await Api.get('/doctor/appointments');
         tbody.innerHTML = '';
-
-        if(queue && queue.length > 0) {
-            queue.forEach((item, index) => {
-                // Calculate Age (Rough estimate from Year)
-                const age = item.dob ? new Date().getFullYear() - new Date(item.dob).getFullYear() : 'N/A';
-
-                const row = `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-initial bg-primary bg-opacity-10 text-primary me-2">
-                                    ${item.full_name.charAt(0)}
-                                </div>
-                                <div>
-                                    <span class="fw-bold d-block">${item.full_name}</span>
-                                    <small class="text-muted">Queue ID: #${item.queue_id}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td>${age} / ${item.gender ? item.gender.charAt(0) : '-'}</td>
-                        <td>General Checkup</td>
-                        <td><span class="badge bg-light text-dark border">Not Recorded</span></td>
-                        <td><span class="badge bg-${item.status === 'With Doctor' ? 'success' : 'warning text-dark'}">${item.status}</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="openConsultation('${item.full_name}', '${item.queue_id}')">
-                                ${item.status === 'With Doctor' ? 'Resume' : 'Consult'}
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
+        if(queue && Array.isArray(queue)) {
+            queue.forEach(p => {
+                const vitals = p.bp ? `<span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}°C</span>` : '<span class="badge bg-light text-muted border">Vitals Pending</span>';
+                tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${vitals}</td><td><span class="badge bg-warning-subtle text-warning">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
             });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No patients in the queue. Good job!</td></tr>';
+            document.getElementById('statWaiting').innerText = queue.length;
         }
     }
 
-    // 5. OPEN MODAL & START CONSULT
-    async function openConsultation(name, queueId) {
-        activeQueueId = queueId; // Store ID for when we click "Complete"
-        document.getElementById('modalPatientName').innerText = name;
-        document.getElementById('modalPatientID').innerText = "QID-" + queueId;
-
-        // Tell backend we started (Changes status to "With Doctor")
-        await Api.post('/doctor/start_consult', { queue_id: queueId });
-
-        // Show Modal
-        var myModal = new bootstrap.Modal(document.getElementById('consultModal'));
-        myModal.show();
-
-        // Refresh background queue to show "With Doctor" status
-        loadQueue();
+    async function loadDirectory() {
+        const patients = await Api.get('/doctor/patients');
+        const tbody = document.getElementById('directoryTableBody');
+        tbody.innerHTML = '';
+        if(patients) patients.forEach(p => {
+            tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${p.gender} | ${p.dob}</td><td class="text-end pe-4"><button class="btn btn-outline-primary btn-sm" onclick="openHistory(${p.id})">View Records</button></td></tr>`;
+        });
     }
 
-    // 6. COMPLETE CONSULTATION
+    async function startConsult(p) {
+        activeQueueId = p.queue_id;
+        activePatientName = p.full_name;
+        currentPrescriptions = [];
+        document.getElementById('prescriptionListTable').innerHTML = '';
+        document.getElementById('prescriptionContainer').style.display = 'none';
+        document.getElementById('modalPatientName').innerText = p.full_name;
+        document.getElementById('modalVitalsDisplay').innerHTML = p.bp ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}°C</div>` : 'Vitals not captured.';
+        await loadMedicines();
+        consultModal.show();
+    }
+
+    async function loadMedicines() {
+        const meds = await Api.get('/doctor/medicines');
+        const select = document.getElementById('consultMed');
+        select.innerHTML = '<option value="">-- Select --</option>';
+        if(meds) meds.forEach(m => select.innerHTML += `<option value="${m.id}">${m.name} (${m.stock_quantity})</option>`);
+    }
+
+    function toggleManualMed() {
+        const isExternal = document.getElementById('externalMedToggle').checked;
+        document.getElementById('medDropdownGroup').classList.toggle('d-none', isExternal);
+        document.getElementById('medManualGroup').classList.toggle('d-none', !isExternal);
+    }
+
+    function addMedicationToList() {
+        const isExternal = document.getElementById('externalMedToggle').checked;
+        const medSelect = document.getElementById('consultMed');
+        const manualName = document.getElementById('manualMedName').value;
+        const qty = document.getElementById('consultQty').value;
+        const dosage = document.getElementById('consultDosage').value;
+
+        if (!isExternal && !medSelect.value) return alert("Select medicine");
+        if (isExternal && !manualName.trim()) return alert("Enter name");
+        if (!dosage.trim()) return alert("Enter dosage");
+
+        currentPrescriptions.push({
+            medicine_id: isExternal ? null : medSelect.value,
+            medicine_name: isExternal ? manualName : medSelect.options[medSelect.selectedIndex].text,
+            manual_name: isExternal ? manualName : null,
+            quantity: qty, dosage: dosage
+        });
+        document.getElementById('prescriptionContainer').style.display = 'block';
+        renderPrescriptionTable();
+        document.getElementById('manualMedName').value = "";
+    }
+
+    function renderPrescriptionTable() {
+        const tbody = document.getElementById('prescriptionListTable');
+        tbody.innerHTML = currentPrescriptions.map((m, idx) => `<tr><td>${m.medicine_name}</td><td>${m.quantity}</td><td>${m.dosage}</td><td class="text-end"><i class="bi bi-trash text-danger" onclick="removeMed(${idx})" style="cursor:pointer"></i></td></tr>`).join('');
+    }
+
+    function removeMed(idx) {
+        currentPrescriptions.splice(idx, 1);
+        if(currentPrescriptions.length === 0) document.getElementById('prescriptionContainer').style.display = 'none';
+        renderPrescriptionTable();
+    }
+
     async function finishConsultation() {
-        if(!activeQueueId) return;
-
-        // In a real app, you would gather the text from the textareas here
-        // const diagnosis = document.querySelector('textarea[placeholder*="diagnosis"]').value;
-
-        const res = await Api.post('/doctor/complete_consult', { queue_id: activeQueueId });
-
-        if(res) {
-            alert("✅ Consultation Completed!");
-            location.reload(); // Refresh page to update stats and remove patient from list
+        const notes = document.getElementById('consultDiagnosis').value;
+        if (!notes.trim()) return alert("Notes required");
+        const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
+        const res = await Api.post('/doctor/complete_multiple', data);
+        if (res) {
+            printThermalReceipt();
+            consultModal.hide();
+            loadQueue();
         }
     }
+
+    function printThermalReceipt() {
+        const win = window.open('', '_blank');
+        const items = currentPrescriptions.map(p => `<div style="border-bottom: 1px dashed #000; padding: 4px 0;"><div style="font-weight: bold;">${p.medicine_name}</div><div style="display: flex; justify-content: space-between;"><span>Qty: ${p.quantity}</span> <span>${p.dosage}</span></div></div>`).join('');
+        win.document.write(`<html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 12px; }</style></head><body><div style="text-align:center;font-weight:bold;">BUSE HOSPITAL</div><hr><div>PATIENT: ${activePatientName}</div><hr>${items}<div style="margin-top:20px;text-align:center;"><p>-------------------</p><b>DOCTOR SIGNATURE</b></div><script>window.onload = function() { window.print(); window.close(); };<\/script></body></html>`);
+    }
+
+    async function openHistory(pid) {
+        const data = await Api.get(`/doctor/history?patient_id=${pid}`);
+        document.getElementById('histPatientName').innerText = data.patient.full_name;
+        document.getElementById('uploadPatientId').value = pid;
+        document.getElementById('historyTimeline').innerHTML = data.vitals.map(v => `<div class="p-3 mb-2 bg-white border rounded shadow-sm"><b>Date: ${new Date(v.created_at).toDateString()}</b><br>BP: ${v.bp} | T: ${v.temperature}°C | Pulse: ${v.pulse}</div>`).join('') || 'No records';
+        document.getElementById('fileList').innerHTML = data.files.map(f => `<a href="${CONFIG.BACKEND_ROOT}/${f.file_path}" target="_blank" class="list-group-item list-group-item-action d-flex justify-content-between"><span>${f.report_name}</span><i class="bi bi-download"></i></a>`).join('') || 'No files';
+        historyModal.show();
+    }
+
+    async function handleFileUpload() {
+        const formData = new FormData();
+        formData.append('patient_id', document.getElementById('uploadPatientId').value);
+        formData.append('report_name', document.getElementById('fileName').value);
+        formData.append('report_file', document.getElementById('fileInput').files[0]);
+        const response = await fetch(`${CONFIG.BASE_URL}/doctor/upload_file`, { method: "POST", headers: { "Authorization": `Bearer ${Api.getToken()}` }, body: formData });
+        if(response.ok) { alert("Success!"); openHistory(document.getElementById('uploadPatientId').value); }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadQueue);
 </script>
 </body>
 </html>

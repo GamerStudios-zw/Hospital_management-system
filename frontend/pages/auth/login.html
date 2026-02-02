@@ -1,235 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login | Hospital Management System</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Staff Login | Hospital Management System</title>
+
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         :root {
-            --primary: #0d6efd;
-            --secondary: #0a58ca;
-            --dark: #0f172a;
-            --light: #f8fafc;
-            --muted: #94a3b8;
-            --error: #dc2626;
-            --success: #16a34a;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "Inter", sans-serif;
+            --primary-color: #294a70;
+            --secondary-color: #0f233a;
+            --accent-color: #e44a3c;
+            --text-color: #212529;
+            --light-bg: #f8f9fa;
         }
 
         body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color);
+            background-color: #f0f2f5;
             min-height: 100vh;
-            background: linear-gradient(
-                rgba(15, 23, 42, 0.85),
-                rgba(15, 23, 42, 0.85)
-            ),
-            url("../../assets/img/hero-hospital.jpg") center/cover no-repeat;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header (Matches Index) */
+        .header {
+            background: #294a70;
+            padding: 12px 0;
+            z-index: 997;
+            box-shadow: 0px 2px 20px rgba(1, 41, 112, 0.1);
+            width: 100%;
+            border-bottom: 3px solid #e44a3c;
+        }
+
+        .logo {
+            color: white;
+            font-weight: 700;
+            font-size: 24px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i { font-size: 28px; }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+        .nav-link:hover { color: white; text-decoration: underline; }
+
+        /* Login Section */
+        .login-wrapper {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 40px 20px;
+            background: url('../../assets/img/hero-bg.jpg') center/cover;
+            position: relative;
         }
 
-        .login-container {
+        .login-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(41, 74, 112, 0.6); /* Primary color overlay */
+            z-index: 1;
+        }
+
+        .login-card {
+            background: white;
             width: 100%;
-            max-width: 420px;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(18px);
-            border-radius: 16px;
+            max-width: 400px;
             padding: 40px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.35);
-            color: white;
+            border-radius: 8px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 2;
         }
 
-        .brand {
+        .login-header {
             text-align: center;
             margin-bottom: 30px;
         }
 
-        .brand h1 {
-            font-size: 1.6rem;
+        .login-header h3 {
+            color: var(--primary-color);
             font-weight: 700;
+            font-size: 24px;
         }
 
-        .brand p {
-            font-size: 0.9rem;
-            color: var(--muted);
+        .login-header p {
+            color: #666;
+            font-size: 14px;
         }
 
-        form {
-            margin-top: 25px;
+        .form-control {
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
         }
 
-        .form-group {
-            margin-bottom: 18px;
-        }
-
-        label {
-            display: block;
-            font-size: 0.85rem;
-            margin-bottom: 6px;
-            color: #e5e7eb;
-        }
-
-        input {
-            width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.12);
-            color: white;
-            outline: none;
-            transition: 0.3s ease;
-        }
-
-        input::placeholder {
-            color: #cbd5f5;
-        }
-
-        input:focus {
-            border-color: var(--primary);
-            background: rgba(255,255,255,0.18);
-        }
-
-        .form-options {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 22px;
-            font-size: 0.85rem;
-        }
-
-        .remember {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .remember input {
-            width: auto;
-        }
-
-        .form-options a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-
-        .form-options a:hover {
-            text-decoration: underline;
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(41, 74, 112, 0.25);
         }
 
         .btn-login {
             width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: var(--primary-color);
             color: white;
-            font-size: 1rem;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
             font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: 0.3s;
+            margin-top: 10px;
         }
 
         .btn-login:hover {
+            background: var(--secondary-color);
             transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(13,110,253,0.4);
         }
 
         .btn-login:disabled {
-            background: #666;
+            background: #6c757d;
             cursor: not-allowed;
             transform: none;
         }
 
-        .divider {
-            text-align: center;
-            margin: 25px 0;
-            color: var(--muted);
-            font-size: 0.85rem;
-        }
-
         .footer-text {
             text-align: center;
-            font-size: 0.8rem;
-            color: var(--muted);
             margin-top: 20px;
+            font-size: 13px;
+            color: #6c757d;
         }
 
-        .footer-text a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-
-        /* Alert Styling */
+        /* Alert Box */
         #alertBox {
             display: none;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 4px;
             margin-bottom: 20px;
-            font-size: 0.9rem;
+            font-size: 14px;
             text-align: center;
         }
-        .alert-error { background: rgba(220, 38, 38, 0.2); color: #fecaca; border: 1px solid #dc2626; }
-        .alert-success { background: rgba(22, 163, 74, 0.2); color: #bbf7d0; border: 1px solid #16a34a; }
+        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 
-        @media (max-width: 480px) {
-            .login-container {
-                padding: 30px 25px;
-            }
-        }
     </style>
 </head>
+
 <body>
 
-    <div class="login-container">
-        <div class="brand">
-            <div style="font-size: 3rem; color: var(--primary); margin-bottom: 10px;">
-                🏥
-            </div>
-            <h1>HMS Portal</h1>
-            <p>Secure access for staff & administrators</p>
+    <header class="header">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="../../index.html" class="logo">
+                <i class="bi bi-hospital"></i>
+                <span>HMS</span>
+            </a>
+            <a href="../../index.html" class="nav-link">
+                <i class="bi bi-arrow-left me-1"></i> Back to Home
+            </a>
         </div>
+    </header>
 
-        <div id="alertBox"></div>
-
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="email">Email / Username</label>
-                <input type="text" id="email" placeholder="e.g. doc1" required>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <h3>Staff Portal</h3>
+                <p>Secure access for authorized personnel</p>
             </div>
 
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="••••••••" required>
-            </div>
+            <div id="alertBox"></div>
 
-            <div class="form-options">
-                <div class="remember">
-                    <input type="checkbox" id="remember">
-                    <label for="remember">Remember me</label>
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Username / Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                        <input type="text" id="email" class="form-control" placeholder="Enter ID" required>
+                    </div>
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
+                        <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4 small">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="remember">
+                        <label class="form-check-label text-muted" for="remember">Remember me</label>
+                    </div>
+                    <a href="#" class="text-decoration-none" style="color: var(--primary-color);">Forgot password?</a>
+                </div>
+
+                <button type="submit" id="loginBtn" class="btn-login">
+                    Sign In <i class="bi bi-box-arrow-in-right ms-2"></i>
+                </button>
+            </form>
+
+            <div class="footer-text">
+                &copy; 2026 Hospital Management System<br>
+                Restricted Access. Monitor Logic Active.
             </div>
-
-            <button type="submit" id="loginBtn" class="btn-login">Sign In</button>
-        </form>
-
-        <div class="divider">Hospital System • Secure Login</div>
-
-        <div class="footer-text">
-            © 2026 Hospital Management System
         </div>
     </div>
 
+    <script src="../../assets/js/app.js"></script>
+
     <script>
-        const API_URL = "http://localhost/Hospital_Management_System/backend/index.php/auth/login";
+        // AUTOMATIC URL DETECTION
+        const BASE_URL = window.location.origin + "/Hospital_Management_System/backend/index.php";
+        const API_URL = `${BASE_URL}/auth/login`;
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -243,80 +242,57 @@
             // 2. Reset UI
             alertBox.style.display = 'none';
             loginBtn.disabled = true;
-            loginBtn.innerText = "Authenticating...";
+            loginBtn.innerHTML = 'Authenticating <span class="spinner-border spinner-border-sm ms-2"></span>';
 
             // 3. Prepare Data
             const loginData = {
-                username: emailInput.value.trim(), // Use trim() to fix accidental spaces
+                username: emailInput.value.trim(),
                 password: passwordInput.value
             };
 
             try {
-                // Debug log to see what we are sending
-                console.log("Sending Login:", loginData);
-
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(loginData)
                 });
 
-                // Handle case where PHP crashes and returns HTML instead of JSON
                 const rawText = await response.text();
                 let result;
                 try {
                     result = JSON.parse(rawText);
                 } catch (err) {
-                    console.error("Backend Error HTML:", rawText);
                     throw new Error("Server Error: " + rawText.substring(0, 50) + "...");
                 }
 
                 if (response.ok) {
                     // --- SUCCESS ---
-                    console.log("Login Success:", result);
-
                     alertBox.className = 'alert-success';
                     alertBox.innerText = "Login Successful! Redirecting...";
                     alertBox.style.display = 'block';
 
-                    // Save Data
                     localStorage.setItem("hms_token", result.token);
                     localStorage.setItem("hms_user", JSON.stringify(result.user));
                     localStorage.setItem("hms_role", result.user.role);
 
-                    // Redirect based on Role
+                    // Redirect based on Role (Wait 1s for better UX)
                     setTimeout(() => {
                         switch(result.user.role) {
                             case 'admin':        window.location.href = "../admin/dashboard.html"; break;
                             case 'doctor':       window.location.href = "../doctor/dashboard.html"; break;
                             case 'nurse':        window.location.href = "../nurse/dashboard.html"; break;
-                            case 'receptionist': window.location.href = "../reception/receptionist.html"; break;
+                            case 'receptionist': window.location.href = "../reception/dashboard.html"; break;
                             case 'pharmacist':   window.location.href = "../pharmacy/dashboard.html"; break;
-                            default:
-                                alert("Unknown Role: " + result.user.role);
+                            default: alert("Unknown Role: " + result.user.role);
                         }
                     }, 1000);
 
                 } else {
                     // --- FAILURE ---
-                    // Build a detailed error message
-                    let msg = result.message || "Invalid credentials";
-
-                    // Append specific reason if available (e.g. "User not found")
-                    if (result.reason) {
-                        msg += " (" + result.reason + ")";
-                    }
-
-                    // Log debug info if available
-                    if (result.debug_info) {
-                        console.warn("Debug Info:", result.debug_info);
-                    }
-
-                    throw new Error(msg);
+                    throw new Error(result.message || "Invalid credentials");
                 }
 
             } catch (error) {
-                // Show Error on Screen
                 console.error("Login Error:", error);
                 alertBox.className = 'alert-error';
                 alertBox.innerText = error.message;
@@ -324,7 +300,7 @@
 
                 // Reset Button
                 loginBtn.disabled = false;
-                loginBtn.innerText = "Sign In";
+                loginBtn.innerHTML = 'Sign In <i class="bi bi-box-arrow-in-right ms-2"></i>';
             }
         });
     </script>

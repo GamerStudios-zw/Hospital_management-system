@@ -2,102 +2,146 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pharmacy | HMS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .sidebar { min-height: 100vh; background: #0f172a; color: white; }
-        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #0ea5e9; color: white; }
-        .btn-logout { color: #ef4444 !important; }
-        .btn-logout:hover { background: rgba(239, 68, 68, 0.1) !important; color: #fca5a5 !important; }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
+        .sidebar .nav-link { color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer; display: flex; align-items: center; }
+        .sidebar .nav-link.active { background: #0ea5e9; color: white; }
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+        .stat-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
+        @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-2 sidebar d-flex flex-column p-3">
-            <h4 class="fw-bold text-center py-3">💊 Pharmacy</h4>
-            <ul class="nav flex-column mb-auto">
-                <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-prescription2 me-2"></i> Dispense</a></li>
-                <li class="nav-item"><a href="../inventory/dashboard.html" class="nav-link"><i class="bi bi-boxes me-2"></i> Inventory</a></li>
-            </ul>
-            <button onclick="logout()" class="nav-link btn-logout border-0 bg-transparent text-start">
-                <i class="bi bi-box-arrow-right me-2"></i> Logout
-            </button>
+<div class="container-fluid p-0 no-print">
+    <div class="row g-0">
+        <div class="col-md-2 sidebar d-flex flex-column">
+            <div class="p-4 text-center">
+                <h4 class="fw-bold text-info mb-0"><i class="bi bi-capsule-pill me-2"></i>HMS PHARMACY</h4>
+            </div>
+            <nav class="nav flex-column mt-3 flex-grow-1">
+                <a class="nav-link active" onclick="switchTab('dispensary', this)"><i class="bi bi-prescription2 me-3"></i> Dispensary</a>
+                <a class="nav-link" onclick="switchTab('inventory', this)"><i class="bi bi-boxes me-3"></i> Inventory</a>
+                <a class="nav-link" onclick="switchTab('history', this)"><i class="bi bi-clock-history me-3"></i> History</a>
+            </nav>
+            <div class="p-3 border-top border-secondary">
+                <button onclick="logout()" class="btn btn-outline-danger w-100 border-0 text-start"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
+            </div>
         </div>
 
-        <main class="col-md-10 bg-light p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">Pharmacy Dispensing</h2>
-                <button class="btn btn-outline-primary btn-sm" onclick="location.reload()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-            </div>
-
-            <div id="alertContainer"></div>
-
-            <div class="card border-0 shadow-sm mt-4">
-                <div class="card-header bg-white py-3 fw-bold d-flex justify-content-between">
-                    <span>Pending Prescriptions</span>
-                    <span class="badge bg-primary" id="pendingCount">0 New</span>
+        <main class="col-md-10 p-4">
+            <section id="dispensary" class="tab-section active">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Active Prescriptions</h3>
+                    <div class="d-flex gap-3">
+                        <div class="stat-card py-2 px-4"><span class="text-warning fw-bold fs-4" id="statPending">0</span> <small>Pending</small></div>
+                        <button class="btn btn-info text-white fw-bold" onclick="loadPending()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Patient</th>
-                                <th>Medication</th>
-                                <th>Dosage</th>
-                                <th>Date</th>
-                                <th>Action</th>
-                            </tr>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr><th class="ps-4">Patient</th><th>Medication</th><th>Dosage</th><th>Doctor</th><th class="text-end pe-4">Actions</th></tr>
                         </thead>
-                        <tbody id="prescTable">
-                            <tr><td colspan="5" class="text-center py-4">Loading prescriptions...</td></tr>
-                        </tbody>
+                        <tbody id="pendingTable"></tbody>
                     </table>
                 </div>
-            </div>
+            </section>
+
+            <section id="inventory" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Medicine Stock</h3>
+                    <div>
+                        <button class="btn btn-outline-dark fw-bold me-2" onclick="printInventoryReport()"><i class="bi bi-printer me-2"></i>Print List</button>
+                        <button class="btn btn-info text-white fw-bold" onclick="openAddModal()"><i class="bi bi-plus-lg"></i> Add Stock</button>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr><th class="ps-4">Drug Name</th><th>Batch</th><th>Stock</th><th>Expiry</th><th class="text-end pe-4">Actions</th></tr>
+                        </thead>
+                        <tbody id="inventoryTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="history" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Dispensing History</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="printHistoryReport()"><i class="bi bi-printer me-2"></i>Print History</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr><th class="ps-4">Date/Time</th><th>Patient</th><th>Medication</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="historyTable"></tbody>
+                    </table>
+                </div>
+            </section>
         </main>
     </div>
 </div>
 
 <div class="modal fade" id="dispenseModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">Dispense Medication</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold">Verify & Dispense</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <p><strong>Patient:</strong> <span id="modalPatient"></span></p>
-
-                <div class="list-group mb-3">
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0" id="modalMed"></h6>
-                                <small class="text-muted" id="modalDosage"></small>
-                            </div>
-                            <span class="badge bg-success rounded-pill">Qty: <span id="modalQty"></span></span>
-                        </div>
-                        <small class="text-danger d-none" id="stockWarning">⚠️ Low Stock!</small>
-                    </div>
-                </div>
-
+            <div class="modal-body p-4">
+                <div class="alert alert-danger d-none" id="stockWarning"></div>
+                <p class="mb-1 text-muted small">PATIENT</p>
+                <h5 class="fw-bold mb-3" id="modalPatient"></h5>
+                <p class="mb-1 text-muted small">MEDICATION</p>
+                <h5 class="fw-bold mb-3 text-info" id="modalMed"></h5>
+                <p class="mb-1 text-muted small">DOSAGE</p>
+                <div class="p-2 bg-light rounded border mb-3" id="modalDosage"></div>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="checkVerify">
-                    <label class="form-check-label" for="checkVerify">
-                        I verified the prescription and dosage.
-                    </label>
+                    <label class="form-check-label fw-bold">I have verified the medicine and dosage.</label>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmDispense()">Confirm Dispense</button>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button class="btn btn-info w-100 py-2 fw-bold text-white shadow-sm" onclick="confirmDispense()">Confirm Dispense</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-info text-white rounded-top-4">
+                <h5 class="modal-title fw-bold">Add New Stock</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="addStockForm">
+                    <div class="mb-3"><label class="form-label fw-bold">Drug Name</label><input type="text" class="form-control" id="drugName" required></div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Batch No</label><input type="text" class="form-control" id="batchNo"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Price ($)</label><input type="number" class="form-control" id="price" step="0.01"></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Quantity</label><input type="number" class="form-control" id="quantity" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Unit</label><input type="text" class="form-control" id="unit" placeholder="Boxes/Tablets"></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label fw-bold">Expiry Date</label><input type="date" class="form-control" id="expiryDate" required></div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-info text-white fw-bold" onclick="saveStock()">Save Stock</button>
             </div>
         </div>
     </div>
@@ -107,102 +151,157 @@
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['pharmacist', 'admin']);
-
     let activePrescriptionId = null;
+    let activePrintData = null;
+    const dispenseModal = new bootstrap.Modal(document.getElementById('dispenseModal'));
 
-    document.addEventListener("DOMContentLoaded", () => {
-        loadLowStock();
-        loadPrescriptions();
-    });
+    function switchTab(id, el) {
+        document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
 
-    // 1. Load Low Stock Alerts
-    async function loadLowStock() {
-        const items = await Api.get('/pharmacy/low_stock');
-        const container = document.getElementById('alertContainer');
-        container.innerHTML = '';
-
-        if(items && items.length > 0) {
-            items.forEach(i => {
-                container.innerHTML += `
-                    <div class="alert alert-warning d-flex align-items-center py-2" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <div>
-                            <strong>Low Stock Warning:</strong> ${i.name} is below threshold (Qty: ${i.stock_quantity}).
-                        </div>
-                    </div>
-                `;
-            });
-        }
+        if(id === 'dispensary') loadPending();
+        if(id === 'inventory') loadInventory();
+        if(id === 'history') loadHistory();
     }
 
-    // 2. Load Pending Prescriptions
-    async function loadPrescriptions() {
+    async function loadPending() {
         const list = await Api.get('/pharmacy/pending');
-        const tbody = document.getElementById('prescTable');
-
+        const tbody = document.getElementById('pendingTable');
         tbody.innerHTML = '';
-        document.getElementById('pendingCount').innerText = (list ? list.length : 0) + " New";
-
-        if(list && list.length > 0) {
-            list.forEach(p => {
-                const dateStr = new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-                // Pass data to modal via data attributes or click handler parameters
-                const btn = `<button class="btn btn-sm btn-primary"
-                    onclick="openDispenseModal(${p.id}, '${p.patient_name}', '${p.med_name}', ${p.quantity}, '${p.dosage}', ${p.stock_quantity})">
-                    Dispense</button>`;
-
+        if(list) {
+            list.forEach(item => {
+                const medName = item.med_name || `<span class="text-danger">${item.manual_name} (External)</span>`;
                 tbody.innerHTML += `
                     <tr>
-                        <td class="fw-bold">${p.patient_name}</td>
-                        <td>${p.med_name}</td>
-                        <td><span class="badge bg-light text-dark border">${p.dosage}</span></td>
-                        <td>${dateStr}</td>
-                        <td>${btn}</td>
-                    </tr>
-                `;
+                        <td class="ps-4 fw-bold">${item.patient_name}</td>
+                        <td>${medName} <small class="text-muted">(Stock: ${item.stock_quantity || 0})</small></td>
+                        <td><span class="badge bg-light text-dark border">${item.dosage}</span></td>
+                        <td>${item.doctor_assigned}</td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-outline-dark btn-sm me-1" onclick='preparePrint(${JSON.stringify(item)})'><i class="bi bi-printer"></i></button>
+                            <button class="btn btn-info text-white btn-sm fw-bold" onclick='openDispenseModal(${JSON.stringify(item)})'>Dispense</button>
+                        </td>
+                    </tr>`;
             });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">No pending prescriptions. All clear!</td></tr>';
+            document.getElementById('statPending').innerText = list.length;
         }
     }
 
-    // 3. Open Modal
-    function openDispenseModal(id, patient, med, qty, dosage, stock) {
-        activePrescriptionId = id;
-        document.getElementById('modalPatient').innerText = patient;
-        document.getElementById('modalMed').innerText = med;
-        document.getElementById('modalQty').innerText = qty;
-        document.getElementById('modalDosage').innerText = dosage;
-        document.getElementById('checkVerify').checked = false;
-
-        const warning = document.getElementById('stockWarning');
-        if(stock < qty) {
-            warning.classList.remove('d-none');
-            warning.innerText = `⚠️ Insufficient Stock! Available: ${stock}`;
-            document.querySelector('.modal-footer .btn-primary').disabled = true;
-        } else {
-            warning.classList.add('d-none');
-            document.querySelector('.modal-footer .btn-primary').disabled = false;
+    async function loadInventory() {
+        const items = await Api.get('/inventory/list');
+        const tbody = document.getElementById('inventoryTableBody');
+        tbody.innerHTML = '';
+        if(items) {
+            items.forEach(item => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 fw-bold">${item.name}</td>
+                        <td>${item.batch_number || '-'}</td>
+                        <td>${item.stock_quantity} ${item.unit || ''}</td>
+                        <td>${new Date(item.expiry_date).toLocaleDateString()}</td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-secondary">Edit</button>
+                        </td>
+                    </tr>`;
+            });
         }
-
-        new bootstrap.Modal(document.getElementById('dispenseModal')).show();
     }
 
-    // 4. Confirm Dispense
+    async function loadHistory() {
+        const history = await Api.get('/pharmacy/history');
+        const tbody = document.getElementById('historyTable');
+        tbody.innerHTML = '';
+        if(history) {
+            history.forEach(h => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 small">${new Date(h.created_at).toLocaleString()}</td>
+                        <td class="fw-bold">${h.patient_name}</td>
+                        <td>${h.med_name} (Qty: ${h.quantity})</td>
+                        <td><span class="badge bg-success-subtle text-success border border-success">Dispensed</span></td>
+                    </tr>`;
+            });
+        }
+    }
+
+    function preparePrint(item) {
+        activePrintData = item;
+        printThermalReceipt();
+    }
+
+    function printThermalReceipt() {
+        const printWindow = window.open('', '_blank', 'width=300,height=600');
+        const date = new Date().toLocaleDateString();
+        const content = `
+            <html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 12px; } .border { border: 1px solid #000; padding: 10px; } .dashed { border-top: 1px dashed #000; margin: 10px 0; }</style></head>
+            <body><div class="border"><div style="text-align:center;font-weight:bold;">HMS PHARMACY</div><div class="dashed"></div>
+            <div>PATIENT: ${activePrintData.patient_name}</div><div>DATE: ${date}</div><div class="dashed"></div>
+            <b>RX: ${activePrintData.med_name || activePrintData.manual_name}</b><br>QTY: ${activePrintData.quantity}<br>SIG: ${activePrintData.dosage}<div class="dashed"></div>
+            <div style="text-align:center;font-size:9px;">Take as directed.</div></div></body></html>`;
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+    }
+
+    async function printInventoryReport() {
+        const items = await Api.get('/inventory/list');
+        const printWindow = window.open('', '_blank', 'width=300,height=600');
+        let rows = items.map(i => `<div>${i.name.substring(0,15)}: ${i.stock_quantity}</div>`).join('');
+        const content = `<html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 11px; }</style></head>
+            <body><div style="text-align:center;font-weight:bold;">STOCK REPORT</div><hr>${rows}<hr><div style="text-align:center;">${new Date().toLocaleString()}</div></body></html>`;
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+    }
+
+    async function printHistoryReport() {
+        const history = await Api.get('/pharmacy/history');
+        const printWindow = window.open('', '_blank', 'width=300,height=600');
+        let rows = history.map(h => `<div>${h.patient_name.substring(0,10)}: ${h.med_name.substring(0,10)}</div>`).join('');
+        const content = `<html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 11px; }</style></head>
+            <body><div style="text-align:center;font-weight:bold;">DISPENSE LOG</div><hr>${rows}<hr><div style="text-align:center;">${new Date().toLocaleDateString()}</div></body></html>`;
+        printWindow.document.write(content);
+        printWindow.document.close();
+        printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+    }
+
+    function openDispenseModal(item) {
+        activePrescriptionId = item.id;
+        document.getElementById('modalPatient').innerText = item.patient_name;
+        document.getElementById('modalMed').innerText = `${item.med_name || item.manual_name} (Qty: ${item.quantity})`;
+        document.getElementById('modalDosage').innerText = item.dosage;
+        dispenseModal.show();
+    }
+
     async function confirmDispense() {
-        if(!document.getElementById('checkVerify').checked) {
-            alert("Please verify the dosage first.");
-            return;
-        }
-
+        if(!document.getElementById('checkVerify').checked) return alert("Please verify the dosage.");
         const res = await Api.post('/pharmacy/dispense', { prescription_id: activePrescriptionId });
+        if(res) { dispenseModal.hide(); loadPending(); }
+    }
 
+    function openAddModal() {
+        new bootstrap.Modal(document.getElementById('addStockModal')).show();
+    }
+
+    async function saveStock() {
+        const data = {
+            name: document.getElementById('drugName').value,
+            batch_number: document.getElementById('batchNo').value,
+            price: document.getElementById('price').value,
+            quantity: document.getElementById('quantity').value,
+            unit: document.getElementById('unit').value,
+            expiry_date: document.getElementById('expiryDate').value
+        };
+        const res = await Api.post('/inventory/add', data);
         if(res) {
-            alert("✅ Medication Dispensed Successfully!");
-            location.reload();
+            bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide();
+            loadInventory();
         }
     }
+
+    document.addEventListener("DOMContentLoaded", loadPending);
 </script>
 </body>
 </html>
