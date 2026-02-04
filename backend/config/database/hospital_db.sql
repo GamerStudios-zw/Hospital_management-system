@@ -22,11 +22,29 @@ CREATE TABLE IF NOT EXISTS `users` (
   `role` enum('admin','doctor','nurse','pharmacist','receptionist') NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
+  `current_session_id` varchar(64) DEFAULT NULL,
+  `session_expires_at` datetime DEFAULT NULL,
   `last_login` timestamp NULL DEFAULT NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- 2A. USER SESSIONS TABLE (Allow up to 3 active sessions per account)
+--
+CREATE TABLE IF NOT EXISTS `user_sessions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `session_id` varchar(64) NOT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `last_seen` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_session_id` (`session_id`),
+  KEY `idx_user_id` (`user_id`),
+  CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --

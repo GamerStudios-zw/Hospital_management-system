@@ -7,6 +7,6 @@ class JwtConfig {
     public static $issuer = "http://localhost";
     public static $audience = "http://localhost";
     public static $algorithm = 'HS256';
-    public static $expiration_time = 3600; // 1 hr
+    public static $expiration_time = 1800; // 30 min
 }
 ?>

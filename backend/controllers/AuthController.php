@@ -3,6 +3,8 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../models/User.php';
+require_once __DIR__ . '/../utils/ActivityLogger.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 // JWT support for issuing tokens
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/jwt.php';
@@ -20,6 +22,13 @@ class AuthController {
     }
 
     public function login() {
+        try {
+            AuthMiddleware::ensureSessionColumns($this->db);
+            AuthMiddleware::ensureSessionTable($this->db);
+        } catch (Exception $e) {
+            // ignore schema ensure errors
+        }
+
         // 1. Get raw input
         $json = file_get_contents("php://input");
         $data = json_decode($json);
@@ -51,6 +60,19 @@ class AuthController {
 
         // CHECK 1: Did we find the user?
         if (!$row) {
+            try {
+                ActivityLogger::log($this->db, $username ?: 'unknown', 'Login Failed', 'Failed', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'user',
+                    'entity_id' => $username ?: null,
+                    'source' => 'auth/login',
+                    'severity' => 'WARN',
+                    'status_code' => 401,
+                    'error_message' => "User not found"
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
             http_response_code(401);
             echo json_encode([
                 "message" => "Login Failed",
@@ -61,6 +83,44 @@ class AuthController {
 
         // CHECK 2: Does the hash verify?
         if (password_verify($password, $row['password_hash'])) {
+            // Clean expired sessions for this user and enforce max 3 active sessions
+            try {
+                $cleanup = $this->db->prepare("DELETE FROM user_sessions WHERE user_id = ? AND expires_at IS NOT NULL AND expires_at < NOW()");
+                $cleanup->execute([$row['id']]);
+            } catch (Exception $e) {
+                // ignore cleanup errors
+            }
+
+            $activeCount = 0;
+            try {
+                $countStmt = $this->db->prepare("SELECT COUNT(*) FROM user_sessions WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW())");
+                $countStmt->execute([$row['id']]);
+                $activeCount = (int)$countStmt->fetchColumn();
+            } catch (Exception $e) {
+                $activeCount = 0;
+            }
+
+            if ($activeCount >= 3) {
+                try {
+                    ActivityLogger::log($this->db, $row['username'], 'Login Blocked (Active Sessions Limit)', 'Failed', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'user',
+                        'entity_id' => (string)$row['id'],
+                        'actor_id' => (string)$row['id'],
+                        'actor_role' => $row['role'],
+                        'source' => 'auth/login',
+                        'severity' => 'WARN',
+                        'status_code' => 409,
+                        'error_message' => 'Active sessions limit reached'
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                http_response_code(409);
+                echo json_encode(["message" => "Login blocked. This account already has 3 active sessions."]);
+                return;
+            }
+
             // OPTIONAL: If you want to prevent login for inactive users, uncomment this block
             // and remove the code that auto-activates the user below.
             // if ((int)$row['is_active'] !== 1) {
@@ -69,22 +129,21 @@ class AuthController {
             //     return;
             // }
 
-            // SUCCESS! Mark the user as active in the DB so the dashboard reflects current session state.
-            try {
-                $upd = $this->db->prepare("UPDATE users SET is_active = 1 WHERE id = ?");
-                $upd->execute([$row['id']]);
-            } catch (Exception $e) {
-                // Non-fatal: continue even if we couldn't update the flag
-            }
+            // SUCCESS! Session info will be updated after token creation.
             // Issue a JWT token containing user data
+            $sessionId = null;
+            $sessionExpiresAt = null;
             try {
                 $issuedAt = time();
                 $expire = $issuedAt + JwtConfig::$expiration_time;
+                $sessionId = bin2hex(random_bytes(16));
+                $sessionExpiresAt = date('Y-m-d H:i:s', $expire);
                 $payload = [
                     'iss' => JwtConfig::$issuer,
                     'aud' => JwtConfig::$audience,
                     'iat' => $issuedAt,
                     'exp' => $expire,
+                    'sid' => $sessionId,
                     'data' => [
                         'id' => $row['id'],
                         'role' => $row['role'],
@@ -95,7 +154,23 @@ class AuthController {
             } catch (Exception $e) {
                 $err = "[login] jwt encode failed: " . $e->getMessage();
                 @file_put_contents(__DIR__ . '/../logs/login_debug.log', date('c') . " " . $err . PHP_EOL, FILE_APPEND);
-                $jwt = "debug-token-bypassed";
+                http_response_code(500);
+                echo json_encode(["message" => "Login failed. Token generation error."]);
+                return;
+            }
+
+            try {
+                $ins = $this->db->prepare("INSERT INTO user_sessions (user_id, session_id, expires_at, last_seen) VALUES (?, ?, ?, NOW())");
+                $ins->execute([$row['id'], $sessionId ?? null, $sessionExpiresAt ?? null]);
+            } catch (Exception $e) {
+                // Non-fatal: continue even if we couldn't insert the session
+            }
+
+            try {
+                $upd = $this->db->prepare("UPDATE users SET is_active = 1, last_login = NOW(), current_session_id = ?, session_expires_at = ? WHERE id = ?");
+                $upd->execute([$sessionId ?? null, $sessionExpiresAt ?? null, $row['id']]);
+            } catch (Exception $e) {
+                // Non-fatal: continue even if we couldn't update the session
             }
 
             http_response_code(200);
@@ -111,8 +186,34 @@ class AuthController {
                     "is_active" => 1
                 ]
             ]);
+            try {
+                ActivityLogger::log($this->db, $row['username'], 'Login', 'Success', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'user',
+                    'entity_id' => (string)$row['id'],
+                    'actor_id' => (string)$row['id'],
+                    'actor_role' => $row['role'],
+                    'source' => 'auth/login',
+                    'session_id' => $sessionId ?? null
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
         } else {
             // FAILURE - PRINT DEBUG INFO
+            try {
+                ActivityLogger::log($this->db, $username ?: 'unknown', 'Login Failed', 'Failed', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'user',
+                    'entity_id' => $username ?: null,
+                    'source' => 'auth/login',
+                    'severity' => 'WARN',
+                    'status_code' => 401,
+                    'error_message' => 'Password mismatch'
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
             http_response_code(401);
             echo json_encode([
                 "message" => "Login Failed",
@@ -128,8 +229,16 @@ class AuthController {
     }
 
     public function logout() {
+        try {
+            AuthMiddleware::ensureSessionColumns($this->db);
+            AuthMiddleware::ensureSessionTable($this->db);
+        } catch (Exception $e) {
+            // ignore schema ensure errors
+        }
+
         // Derive user from Authorization Bearer token (server-side only)
         $user_id = null;
+        $user_role = null;
 
         // Ensure JWT libs are available
         try {
@@ -186,6 +295,17 @@ class AuthController {
             }
         }
 
+        // 4) Fallback: allow token in JSON body for beacon/logout-on-close
+        if (!$token) {
+            $rawBody = @file_get_contents('php://input');
+            if ($rawBody) {
+                $parsed = json_decode($rawBody, true);
+                if (is_array($parsed) && !empty($parsed['token'])) {
+                    $token = $parsed['token'];
+                }
+            }
+        }
+
         if ($token) {
             try {
                 $decoded = \Firebase\JWT\JWT::decode($token, new \Firebase\JWT\Key(JwtConfig::$secret_key, JwtConfig::$algorithm));
@@ -193,7 +313,9 @@ class AuthController {
                     $d = $decoded->data;
                     if (isset($d->id)) $user_id = $d->id;
                     elseif (isset($d->user_id)) $user_id = $d->user_id;
+                    $user_role = $d->role ?? null;
                 }
+                $session_id = $decoded->sid ?? null;
             } catch (Exception $e) {
                 // Log decode error and return 401
                 $msg = "[logout] token decode failed: " . $e->getMessage() . "\n";
@@ -211,12 +333,53 @@ class AuthController {
 
         if ($user_id) {
             try {
+                $check = $this->db->prepare("SELECT expires_at FROM user_sessions WHERE user_id = ? AND session_id = ? LIMIT 1");
+                $check->execute([$user_id, $session_id]);
+                $row = $check->fetch(PDO::FETCH_ASSOC);
+                $dbExpires = $row['expires_at'] ?? null;
+                $dbExpiresTs = $dbExpires ? strtotime($dbExpires) : null;
+                if (!$session_id || !$row || ($dbExpiresTs !== null && $dbExpiresTs < time())) {
+                    http_response_code(401);
+                    echo json_encode(["message" => "Session already invalidated"]);
+                    return;
+                }
+
                 // Log what we are about to do
                 @file_put_contents(__DIR__ . '/../logs/logout_debug.log', date('c') . " [logout] decoded user_id=" . $user_id . PHP_EOL, FILE_APPEND);
-                $stmt = $this->db->prepare("UPDATE users SET is_active = 0 WHERE id = ?");
-                $res = $stmt->execute([$user_id]);
-                @file_put_contents(__DIR__ . '/../logs/logout_debug.log', date('c') . " [logout] update result=" . ($res ? 'success' : 'failure') . PHP_EOL, FILE_APPEND);
+                $stmt = $this->db->prepare("DELETE FROM user_sessions WHERE user_id = ? AND session_id = ?");
+                $res = $stmt->execute([$user_id, $session_id]);
+                @file_put_contents(__DIR__ . '/../logs/logout_debug.log', date('c') . " [logout] delete session result=" . ($res ? 'success' : 'failure') . PHP_EOL, FILE_APPEND);
+
+                // Update user status based on remaining sessions
+                try {
+                    $rem = $this->db->prepare("SELECT session_id, expires_at FROM user_sessions WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY expires_at DESC, created_at DESC LIMIT 1");
+                    $rem->execute([$user_id]);
+                    $remaining = $rem->fetch(PDO::FETCH_ASSOC);
+                    if ($remaining) {
+                        $upd = $this->db->prepare("UPDATE users SET is_active = 1, current_session_id = ?, session_expires_at = ? WHERE id = ?");
+                        $upd->execute([$remaining['session_id'], $remaining['expires_at'], $user_id]);
+                    } else {
+                        $upd = $this->db->prepare("UPDATE users SET is_active = 0, current_session_id = NULL, session_expires_at = NULL WHERE id = ?");
+                        $upd->execute([$user_id]);
+                    }
+                } catch (Exception $e) {
+                    // ignore user status update errors
+                }
+
                 echo json_encode(["message" => "Logged out", "user_id" => $user_id]);
+                try {
+                    ActivityLogger::log($this->db, (string)$user_id, 'Logout', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'user',
+                        'entity_id' => (string)$user_id,
+                        'actor_id' => (string)$user_id,
+                        'actor_role' => $user_role ?? null,
+                        'source' => 'auth/logout',
+                        'session_id' => $session_id ?? null
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
                 return;
             } catch (Exception $e) {
                 @file_put_contents(__DIR__ . '/../logs/logout_debug.log', date('c') . " [logout] update exception: " . $e->getMessage() . PHP_EOL, FILE_APPEND);

@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/theme.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
@@ -165,6 +166,19 @@
 
 <body>
 
+<div class="topbar">
+  <div class="container-fluid d-flex justify-content-between align-items-center">
+    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
+    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
+  </div>
+</div>
+<header class="header">
+  <div class="container-fluid d-flex align-items-center justify-content-between">
+    <a class="logo" href="../../index.html"><i class="bi bi-hospital"></i> HMS</a>
+  </div>
+</header>
+
+
     <header class="header">
         <div class="container d-flex align-items-center justify-content-between">
             <a href="../../index.html" class="logo">
@@ -283,6 +297,7 @@
                             case 'nurse':        window.location.href = "../nurse/dashboard.html"; break;
                             case 'receptionist': window.location.href = "../reception/dashboard.html"; break;
                             case 'pharmacist':   window.location.href = "../pharmacy/dashboard.html"; break;
+                            case 'senior_pharmacist': window.location.href = "../pharmacy/dashboard.html"; break;
                             default: alert("Unknown Role: " + result.user.role);
                         }
                     }, 1000);

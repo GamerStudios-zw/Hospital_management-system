@@ -1,0 +1,10 @@
+{
+  "name": "hms-realtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Realtime server for HMS (WebSocket + HTTP emit).",
+  "main": "server.js",
+  "dependencies": {
+    "ws": "^8.17.0"
+  }
+}

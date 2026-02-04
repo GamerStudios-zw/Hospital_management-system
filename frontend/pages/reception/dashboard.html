@@ -15,11 +15,31 @@
     .section { display:none; animation: fadeIn 0.3s; }
     .section.active { display:block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .chart-compact { height: 170px; }
+    .chart-compact canvas { height: 170px !important; max-height: 170px; }
 
     .top-search { position: relative; width: 100%; max-width: 400px; }
     .search-results { position:absolute; top:100%; left:0; width:100%; background:white; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,.1); z-index: 1000; overflow: hidden; margin-top: 5px; }
     .search-item { padding:12px 15px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition: background 0.2s; }
     .search-item:hover { background:#eff6ff; }
+
+    @media print {
+        body.printing .sidebar,
+        body.printing .topbar,
+        body.printing .header,
+        body.printing .btn,
+        body.printing button,
+        body.printing .nav-link,
+        body.printing .search-results,
+        body.printing .top-search { display: none !important; }
+        body.printing .section { display: none !important; }
+        body.printing .section.active { display: block !important; }
+        body.printing .modal,
+        body.printing .modal.show { position: static !important; display: block !important; }
+        body.printing .modal-backdrop { display: none !important; }
+        body.printing .modal-dialog { max-width: 100% !important; }
+        body.printing .modal-content { box-shadow: none !important; border: none !important; }
+    }
 </style>
 </head>
 <body>
@@ -33,6 +53,13 @@
             <li><a class="nav-link active" onclick="showSection('dashboard')"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a></li>
             <li><a class="nav-link" onclick="showSection('directory')"><i class="bi bi-people me-2"></i> Patient Directory</a></li>
             <li><a class="nav-link" onclick="showSection('register')"><i class="bi bi-person-plus me-2"></i> Register New</a></li>
+            <li><a class="nav-link" onclick="showSection('appointments')"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
+            <li><a class="nav-link" onclick="showSection('queue')"><i class="bi bi-list-check me-2"></i> Queue Manager</a></li>
+            <li><a class="nav-link" onclick="showSection('referrals')"><i class="bi bi-box-arrow-up-right me-2"></i> Referrals</a></li>
+            <li><a class="nav-link" onclick="showSection('documents')"><i class="bi bi-file-earmark-arrow-up me-2"></i> Documents</a></li>
+            <li><a class="nav-link" onclick="showSection('consent')"><i class="bi bi-shield-check me-2"></i> Consent Forms</a></li>
+            <li><a class="nav-link" onclick="showSection('summary')"><i class="bi bi-clipboard-data me-2"></i> Daily Summary</a></li>
+            <li><a class="nav-link" onclick="showSection('handover')"><i class="bi bi-arrow-left-right me-2"></i> Shift Handover</a></li>
             <li><a class="nav-link" onclick="showSection('shifts')"><i class="bi bi-calendar-event me-2"></i> My Shifts</a></li>
         </ul>
         <button onclick="logout()" class="nav-link text-danger text-start border-0 bg-transparent mt-5"><i class="bi bi-power me-2"></i> Logout</button>
@@ -73,6 +100,33 @@
                 </div>
             </div>
 
+            <div class="row g-4 mb-4">
+                <div class="col-lg-6">
+                    <div class="card p-4 border-0 shadow-sm h-100">
+                        <h6 class="fw-bold mb-3">Admissions vs Registrations (Last 7 Days)</h6>
+                        <div class="chart-compact">
+                            <canvas id="receptionAdmissionsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="card p-4 border-0 shadow-sm h-100">
+                        <h6 class="fw-bold mb-3">Queue Status</h6>
+                        <div class="chart-compact">
+                            <canvas id="receptionQueueChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="card p-4 border-0 shadow-sm h-100">
+                        <h6 class="fw-bold mb-3">Appointments Status</h6>
+                        <div class="chart-compact">
+                            <canvas id="receptionApptChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold">Active Patient Flow (Queue)</h5></div>
                 <div class="card-body p-0">
@@ -106,7 +160,7 @@
                         <h4 class="mb-4 fw-bold">Register New Patient</h4>
                         <form id="registrationForm" onsubmit="event.preventDefault(); registerPatient();">
                             <div class="row g-3">
-                                <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" required></div>
+                                <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" placeholder="Al Ali" required></div>
                                 <div class="col-md-3"><label class="form-label small fw-bold">ID (xx-xxxxxx-x-xx)</label><input id="regId" class="form-control" placeholder="00-000000-A-00" required></div>
                                 <div class="col-md-3"><label class="form-label small fw-bold">Date of Birth</label><input id="regDob" type="date" class="form-control" required></div>
 
@@ -129,7 +183,7 @@
 
                                 <hr class="my-4">
                                 <h6 class="fw-bold text-primary">Emergency / Next of Kin</h6>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Full Name</label><input id="kinName" class="form-control" required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Full Name</label><input id="kinName" class="form-control" placeholder="Al Ali" required></div>
                                 <div class="col-md-4"><label class="form-label small fw-bold">Kin Relationship</label><input id="kinRelation" class="form-control" required></div>
                                 <div class="col-md-4"><label class="form-label small fw-bold">Kin Phone</label><input id="kinPhone" class="form-control" placeholder="+263..." required></div>
 
@@ -143,6 +197,203 @@
                             </div>
                         </form>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="appointments" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Appointments</h4>
+                <button class="btn btn-outline-dark btn-sm" onclick="loadAppointments()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+            </div>
+            <div class="card border-0 shadow-sm p-4 mb-4">
+                <h6 class="fw-bold mb-3">Create Appointment</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Patient</label>
+                        <select id="apptPatient" class="form-select"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Doctor (optional)</label>
+                        <select id="apptDoctor" class="form-select"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Date & Time</label>
+                        <input type="datetime-local" id="apptDate" class="form-control">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small fw-bold">Reason</label>
+                        <input type="text" id="apptReason" class="form-control" placeholder="Consultation / Follow-up">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" onclick="createAppointment()">Create</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive p-3">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Patient</th>
+                                <th>Doctor</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appointmentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="queue" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Queue Manager</h4>
+                <button class="btn btn-outline-dark btn-sm" onclick="loadQueueList()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive p-3">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Patient</th>
+                                <th>Doctor</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queueTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="referrals" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Referrals</h4>
+                <button class="btn btn-outline-dark btn-sm" onclick="loadDirectory()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh Patients</button>
+            </div>
+            <div class="card border-0 shadow-sm p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Patient</label>
+                        <select id="refPatient" class="form-select"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Referral Title</label>
+                        <input type="text" id="refTitle" class="form-control" placeholder="Referral to Specialist">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button class="btn btn-primary" onclick="createReferral()">Log Referral</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="documents" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Documents</h4>
+            </div>
+            <div class="card border-0 shadow-sm p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Patient</label>
+                        <select id="docPatient" class="form-select"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Document Name</label>
+                        <input type="text" id="docName" class="form-control" placeholder="National ID / Insurance">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">File</label>
+                        <input type="file" id="docFile" class="form-control">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button class="btn btn-primary" onclick="uploadDocument()">Upload</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="consent" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Consent Forms</h4>
+            </div>
+            <div class="card border-0 shadow-sm p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Patient</label>
+                        <select id="consentPatient" class="form-select"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Consent Title</label>
+                        <input type="text" id="consentTitle" class="form-control" placeholder="General Consent">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button class="btn btn-primary" onclick="createConsent()">Save Consent</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="summary" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Daily Summary</h4>
+                <button class="btn btn-outline-dark btn-sm" onclick="loadSummary()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+            </div>
+            <div class="card border-0 shadow-sm p-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Date</label>
+                        <input type="date" id="summaryDate" class="form-control">
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button class="btn btn-primary" onclick="loadSummary()">Load Summary</button>
+                    </div>
+                </div>
+                <div class="row g-3 mt-3">
+                    <div class="col-md-4"><div class="border rounded p-3"><div class="small text-muted">Registered</div><div class="fw-bold" id="summaryRegistered">--</div></div></div>
+                    <div class="col-md-4"><div class="border rounded p-3"><div class="small text-muted">Admitted</div><div class="fw-bold" id="summaryAdmitted">--</div></div></div>
+                    <div class="col-md-4"><div class="border rounded p-3"><div class="small text-muted">Cancelled</div><div class="fw-bold" id="summaryCancelled">--</div></div></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="handover" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Shift Handover</h4>
+                <button class="btn btn-outline-dark btn-sm" onclick="loadHandover()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+            </div>
+            <div class="card border-0 shadow-sm p-4 mb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Shift Start</label>
+                        <input type="datetime-local" id="handoverStart" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Shift End</label>
+                        <input type="datetime-local" id="handoverEnd" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Notes</label>
+                        <input type="text" id="handoverNotes" class="form-control" placeholder="Pending issues, cash, files...">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button class="btn btn-primary" onclick="createHandover()">Save Handover</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive p-3">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Date</th><th>Staff</th><th>Notes</th></tr>
+                        </thead>
+                        <tbody id="handoverTable"></tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -201,21 +452,116 @@
             </div>
         </div>
 
+        <div class="modal fade" id="historyModal" tabindex="-1">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title fw-bold">Patient History: <span id="historyPatientName" class="text-primary"></span></h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="printCurrentView()"><i class="bi bi-printer me-1"></i>Print</button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="nav nav-tabs mb-3" role="tablist">
+                            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#recTabVitals" role="tab">Vitals</a></li>
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recTabVisits" role="tab">Visits</a></li>
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recTabMeds" role="tab">Prescriptions</a></li>
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recTabDocs" role="tab">Documents</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="recTabVitals" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Temp</th>
+                                                <th>Pulse</th>
+                                                <th>BP</th>
+                                                <th>SpO2</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="historyVitalsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="recTabVisits" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                                <th>Doctor</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="historyVisitsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="recTabMeds" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Medicine</th>
+                                                <th>Qty</th>
+                                                <th>Dosage</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="historyMedsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="recTabDocs" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Report Name</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="historyDocsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['receptionist', 'admin']);
     let currentPatientId = null;
     const modalInstance = new bootstrap.Modal(document.getElementById('admitModal'));
+    const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+    let historySnapshot = null;
+    let cachedPatients = [];
+    let cachedDoctors = [];
 
     document.addEventListener("DOMContentLoaded", () => {
         loadDashboardStats();
         loadDoctors();
         loadDirectory();
+        loadAppointments();
+        loadQueueList();
+        loadSummary();
+        loadHandover();
+        const sd = document.getElementById('summaryDate');
+        if (sd) sd.value = new Date().toISOString().slice(0, 10);
     });
 
     // --- NAVIGATION & UI ---
@@ -231,6 +577,13 @@
 
         if(id === 'directory') loadDirectory();
         if(id === 'dashboard') loadDashboardStats();
+        if(id === 'appointments') loadAppointments();
+        if(id === 'queue') loadQueueList();
+        if(id === 'referrals') populatePatientSelects();
+        if(id === 'documents') populatePatientSelects();
+        if(id === 'consent') populatePatientSelects();
+        if(id === 'summary') loadSummary();
+        if(id === 'handover') loadHandover();
         if(id === 'shifts') loadMyShifts();
     }
 
@@ -243,6 +596,7 @@
     // --- VALIDATION HELPERS ---
     const validateZimID = (id) => /^\d{2}-\d{6,7}-[A-Z]-\d{2}$/.test(id);
     const validatePhone = (phone) => /^\+263\d{9}$/.test(phone);
+    const validateFullName = (name) => /^[A-Za-z]+(?:\s+[A-Za-z]+)+$/.test((name || '').trim());
 
     // --- SEARCH LOGIC ---
     let debounce;
@@ -278,9 +632,12 @@
         const patients = await Api.get('/reception/all_patients');
         const tbody = document.getElementById('directoryTable');
         tbody.innerHTML = '';
-        patients.forEach(p => {
-            let actionBtn = `<button class="btn btn-sm btn-outline-primary" onclick='openAdmitModal(${JSON.stringify(p)})'>Admit <i class="bi bi-arrow-right"></i></button>`;
-            if(p.is_active > 0) actionBtn = `<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> Active Queue</span>`;
+        cachedPatients = patients || [];
+        populatePatientSelects();
+        cachedPatients.forEach(p => {
+            const historyBtn = `<button class="btn btn-sm btn-outline-secondary" onclick='openHistory(${JSON.stringify(p)})'><i class="bi bi-clock-history me-1"></i>History</button>`;
+            let actionBtn = `<div class="d-flex gap-2">${historyBtn}<button class="btn btn-sm btn-outline-primary" onclick='openAdmitModal(${JSON.stringify(p)})'>Admit <i class="bi bi-arrow-right"></i></button></div>`;
+            if(p.is_active > 0) actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> Active Queue</span></div>`;
 
             tbody.innerHTML += `<tr>
                 <td class="ps-4 fw-medium">${p.full_name}</td>
@@ -295,6 +652,297 @@
         currentPatientId = p.id;
         document.getElementById('modalPatientName').innerText = p.full_name;
         modalInstance.show();
+    }
+
+    async function openHistory(p) {
+        const data = await Api.get(`/reception/history?patient_id=${p.id}`);
+        historySnapshot = data || null;
+        document.getElementById('historyPatientName').innerText = p.full_name;
+
+        const vitalsBody = document.getElementById('historyVitalsBody');
+        const visitsBody = document.getElementById('historyVisitsBody');
+        const medsBody = document.getElementById('historyMedsBody');
+        const docsBody = document.getElementById('historyDocsBody');
+        if (vitalsBody) {
+            if (data?.vitals?.length) {
+                vitalsBody.innerHTML = data.vitals.map(v => `
+                    <tr>
+                        <td class="small">${new Date(v.created_at).toLocaleString()}</td>
+                        <td>${v.temperature ?? '-'}</td>
+                        <td>${v.pulse ?? '-'}</td>
+                        <td>${v.bp ?? '-'}</td>
+                        <td>${v.spo2 ?? '-'}</td>
+                    </tr>`).join('');
+            } else {
+                vitalsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No vitals found.</td></tr>';
+            }
+        }
+        if (visitsBody) {
+            if (data?.visits?.length) {
+                visitsBody.innerHTML = data.visits.map(v => `
+                    <tr>
+                        <td class="small">${new Date(v.created_at).toLocaleString()}</td>
+                        <td>${v.status || '-'}</td>
+                        <td>${v.doctor_assigned || '-'}</td>
+                    </tr>`).join('');
+            } else {
+                visitsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No visits found.</td></tr>';
+            }
+        }
+
+        if (medsBody) {
+            if (data?.prescriptions?.length) {
+                medsBody.innerHTML = data.prescriptions.map(p => `
+                    <tr>
+                        <td class="small">${new Date(p.created_at).toLocaleString()}</td>
+                        <td>${p.medicine_name || p.notes || 'External'}</td>
+                        <td>${p.quantity ?? '-'}</td>
+                        <td>${p.dosage ?? '-'}</td>
+                        <td>${p.status ?? '-'}</td>
+                    </tr>`).join('');
+            } else {
+                medsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No prescriptions found.</td></tr>';
+            }
+        }
+
+        if (docsBody) {
+            if (data?.files?.length) {
+                docsBody.innerHTML = data.files.map(f => `
+                    <tr>
+                        <td class="small">${new Date(f.created_at).toLocaleString()}</td>
+                        <td>${f.file_path ? `<a href="${CONFIG.BACKEND_ROOT}/${f.file_path}" target="_blank">${f.report_name || 'Document'}</a>` : (f.report_name || 'Document')}</td>
+                    </tr>`).join('');
+            } else {
+                docsBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No documents found.</td></tr>';
+            }
+        }
+
+        historyModal.show();
+    }
+
+    function printReceptionHistory() {
+        if (!historySnapshot || !historySnapshot.patient) return alert("History not loaded yet.");
+        const patient = historySnapshot.patient || {};
+        const vitals = Array.isArray(historySnapshot.vitals) ? historySnapshot.vitals : [];
+        const visits = Array.isArray(historySnapshot.visits) ? historySnapshot.visits : [];
+
+        const vitalsRows = vitals.map(v => `<tr><td>${new Date(v.created_at).toLocaleString()}</td><td>${v.temperature ?? '-'}</td><td>${v.pulse ?? '-'}</td><td>${v.bp ?? '-'}</td><td>${v.spo2 ?? '-'}</td></tr>`).join('') || '<tr><td colspan="5">No vitals found.</td></tr>';
+        const visitRows = visits.map(v => `<tr><td>${new Date(v.created_at).toLocaleString()}</td><td>${v.status || '-'}</td><td>${v.doctor_assigned || '-'}</td></tr>`).join('') || '<tr><td colspan="3">No visits found.</td></tr>';
+
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html>
+            <head>
+                <title>Patient History</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+                    h1,h2 { margin: 0 0 8px; }
+                    .meta { margin-bottom: 16px; }
+                    table { width: 100%; border-collapse: collapse; margin: 8px 0 20px; }
+                    th, td { border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; text-align: left; }
+                    th { background: #f8fafc; }
+                </style>
+            </head>
+            <body>
+                <h1>Patient History</h1>
+                <div class="meta">
+                    <div><strong>${patient.full_name || 'Unknown Patient'}</strong></div>
+                    <div>${patient.gender || '-'} | ${patient.dob || '-'}</div>
+                    <div>National ID: ${patient.national_id || '-'}</div>
+                </div>
+
+                <h2>Vitals</h2>
+                <table>
+                    <thead><tr><th>Date</th><th>Temp</th><th>Pulse</th><th>BP</th><th>SpO2</th></tr></thead>
+                    <tbody>${vitalsRows}</tbody>
+                </table>
+
+                <h2>Visits</h2>
+                <table>
+                    <thead><tr><th>Date</th><th>Status</th><th>Doctor</th></tr></thead>
+                    <tbody>${visitRows}</tbody>
+                </table>
+
+                <script>window.onload = function(){ window.print(); window.close(); };<\/script>
+            </body>
+            </html>
+        `);
+    }
+
+    function printCurrentView() {
+        document.body.classList.add('printing');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('printing');
+        }, 0);
+    }
+
+    async function loadAppointments() {
+        const tbody = document.getElementById('appointmentsTable');
+        if (!tbody) return;
+        const data = await Api.get('/reception/appointments');
+        tbody.innerHTML = '';
+        if (data && data.length) {
+            data.forEach(a => {
+                const date = a.scheduled_at ? new Date(a.scheduled_at).toLocaleString() : '-';
+                const status = a.status || 'scheduled';
+                tbody.innerHTML += `<tr>
+                    <td>${date}</td>
+                    <td>${a.patient_name || '-'}</td>
+                    <td>${a.doctor_name || '-'}</td>
+                    <td><span class="badge bg-info-subtle text-info">${status}</span></td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success" onclick="updateAppointment(${a.id}, 'confirmed')">Confirm</button>
+                            <button class="btn btn-outline-primary" onclick="checkinAppointment(${a.id}, ${a.patient_id}, '${a.doctor_name || ''}')">Check-in</button>
+                            <button class="btn btn-outline-danger" onclick="updateAppointment(${a.id}, 'cancelled')">Cancel</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No appointments found.</td></tr>';
+        }
+    }
+
+    async function createAppointment() {
+        const patientId = document.getElementById('apptPatient').value;
+        const doctorId = document.getElementById('apptDoctor').value || null;
+        const scheduledAt = document.getElementById('apptDate').value;
+        const reason = document.getElementById('apptReason').value;
+        if (!patientId || !scheduledAt) return alert("Select patient and date/time.");
+        const data = { patient_id: patientId, doctor_id: doctorId, scheduled_at: scheduledAt, reason };
+        if (await Api.post('/reception/create_appointment', data)) {
+            alert("Appointment created.");
+            loadAppointments();
+        }
+    }
+
+    async function updateAppointment(id, status) {
+        if (await Api.post('/reception/appointment_update', { appointment_id: id, status })) {
+            loadAppointments();
+        }
+    }
+
+    async function checkinAppointment(id, patientId, doctorName) {
+        const res = await Api.post('/reception/checkin', { appointment_id: id, queue_patient_id: patientId, doctor_assigned: doctorName || null });
+        if (res) {
+            alert("Checked in and added to queue.");
+            loadAppointments();
+            loadQueueList();
+        }
+    }
+
+    async function loadQueueList() {
+        const tbody = document.getElementById('queueTableBody');
+        if (!tbody) return;
+        const data = await Api.get('/reception/queue_list');
+        tbody.innerHTML = '';
+        if (data && data.length) {
+            data.forEach(q => {
+                tbody.innerHTML += `<tr>
+                    <td>${q.full_name}</td>
+                    <td>${q.doctor_assigned || '-'}</td>
+                    <td><span class="badge bg-warning-subtle text-warning">${q.status}</span></td>
+                    <td>${q.created_at ? new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="queueAction(${q.queue_id}, 'move_top')">Move Top</button>
+                            <button class="btn btn-outline-info" onclick="queueAction(${q.queue_id}, 'reassign')">Reassign</button>
+                            <button class="btn btn-outline-danger" onclick="queueAction(${q.queue_id}, 'cancel')">Cancel</button>
+                            <button class="btn btn-outline-dark" onclick="queueAction(${q.queue_id}, 'no_show')">No-show</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No active queue.</td></tr>';
+        }
+    }
+
+    async function queueAction(queueId, action) {
+        let doctorAssigned = null;
+        if (action === 'reassign') {
+            doctorAssigned = prompt("Enter doctor name to reassign:");
+            if (!doctorAssigned) return;
+        }
+        const res = await Api.post('/reception/queue_update', { queue_id: queueId, action, doctor_assigned: doctorAssigned });
+        if (res) loadQueueList();
+    }
+
+    async function createReferral() {
+        const patientId = document.getElementById('refPatient').value;
+        const title = document.getElementById('refTitle').value;
+        if (!patientId || !title) return alert("Select patient and title.");
+        const res = await Api.post('/reception/create_referral', { patient_id: patientId, report_name: title });
+        if (res) alert("Referral logged.");
+    }
+
+    async function createConsent() {
+        const patientId = document.getElementById('consentPatient').value;
+        const title = document.getElementById('consentTitle').value;
+        if (!patientId || !title) return alert("Select patient and title.");
+        const res = await Api.post('/reception/create_consent', { patient_id: patientId, report_name: title });
+        if (res) alert("Consent saved.");
+    }
+
+    async function uploadDocument() {
+        const patientId = document.getElementById('docPatient').value;
+        const name = document.getElementById('docName').value;
+        const file = document.getElementById('docFile').files[0];
+        if (!patientId || !name || !file) return alert("Select patient, name, and file.");
+        const formData = new FormData();
+        formData.append('patient_id', patientId);
+        formData.append('report_name', name);
+        formData.append('report_file', file);
+        const response = await fetch(`${CONFIG.BASE_URL}/reception/upload_document`, { method: "POST", headers: { "Authorization": `Bearer ${Api.getToken()}` }, body: formData });
+        if (response.ok) alert("Document uploaded.");
+        else alert("Upload failed.");
+    }
+
+    async function loadSummary() {
+        const date = document.getElementById('summaryDate')?.value || '';
+        const params = date ? `?date=${date}` : '';
+        const data = await Api.get('/reception/summary' + params);
+        if (!data) return;
+        document.getElementById('summaryRegistered').innerText = data.registered ?? '--';
+        document.getElementById('summaryAdmitted').innerText = data.admitted ?? '--';
+        document.getElementById('summaryCancelled').innerText = data.cancelled ?? '--';
+    }
+
+    async function createHandover() {
+        const user = JSON.parse(localStorage.getItem("hms_user") || '{}');
+        const notes = document.getElementById('handoverNotes').value;
+        if (!notes) return alert("Enter handover notes.");
+        const data = {
+            user_id: user.id,
+            shift_start: document.getElementById('handoverStart').value,
+            shift_end: document.getElementById('handoverEnd').value,
+            notes
+        };
+        const res = await Api.post('/reception/handover_create', data);
+        if (res) {
+            alert("Handover saved.");
+            loadHandover();
+        }
+    }
+
+    async function loadHandover() {
+        const tbody = document.getElementById('handoverTable');
+        if (!tbody) return;
+        const data = await Api.get('/reception/handover_list');
+        tbody.innerHTML = '';
+        if (data && data.length) {
+            data.forEach(h => {
+                tbody.innerHTML += `<tr>
+                    <td>${new Date(h.created_at).toLocaleString()}</td>
+                    <td>${h.full_name || 'Reception'}</td>
+                    <td>${h.notes}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No handovers yet.</td></tr>';
+        }
     }
 
     async function confirmAdmission() {
@@ -316,13 +964,17 @@
         const phoneVal = document.getElementById('regPhone').value;
         const dobVal = new Date(document.getElementById('regDob').value);
         const hasAid = document.getElementById('hasAidToggle').checked;
+        const nameVal = document.getElementById('regName').value;
+        const kinNameVal = document.getElementById('kinName').value;
 
+        if(!validateFullName(nameVal)) return alert("Full Name must include first and surname (e.g., Al Ali).");
+        if(!validateFullName(kinNameVal)) return alert("Kin Full Name must include first and surname (e.g., Al Ali).");
         if(!validateZimID(idVal)) return alert("ID must be in format: 00-000000-X-00");
         if(!validatePhone(phoneVal)) return alert("Phone must be: +263xxxxxxxxx");
         if(dobVal > new Date()) return alert("Date of Birth cannot be in the future");
 
         const data = {
-            full_name: document.getElementById('regName').value,
+            full_name: nameVal,
             national_id: idVal,
             dob: document.getElementById('regDob').value,
             gender: document.getElementById('regGender').value,
@@ -331,7 +983,7 @@
             has_medical_aid: hasAid ? 1 : 0,
             medical_aid_provider: hasAid ? document.getElementById('aidProvider').value : '',
             medical_aid_number: hasAid ? document.getElementById('aidNumber').value : '',
-            kin_name: document.getElementById('kinName').value,
+            kin_name: kinNameVal,
             kin_relation: document.getElementById('kinRelation').value,
             kin_phone: document.getElementById('kinPhone').value,
             allergies: document.getElementById('regAllergies').value
@@ -362,15 +1014,97 @@
                 </tr>`;
             });
         }
+        loadReceptionAnalytics();
+    }
+
+    let receptionAdmissionsChart = null;
+    let receptionQueueChart = null;
+    let receptionApptChart = null;
+
+    function last7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000);
+            days.push({
+                key: d.toISOString().slice(0, 10),
+                label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+            });
+        }
+        return days;
+    }
+
+    async function loadReceptionAnalytics() {
+        const data = await Api.get('/reception/analytics');
+        if (!data) return;
+
+        const days = last7Days();
+        const admitMap = Object.fromEntries((data.admissions_by_day || []).map(r => [r.day, r.count]));
+        const regMap = Object.fromEntries((data.registrations_by_day || []).map(r => [r.day, r.count]));
+
+        const labels = days.map(d => d.label);
+        const admitSeries = days.map(d => admitMap[d.key] || 0);
+        const regSeries = days.map(d => regMap[d.key] || 0);
+
+        if (receptionAdmissionsChart) receptionAdmissionsChart.destroy();
+        receptionAdmissionsChart = new Chart(document.getElementById('receptionAdmissionsChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Admissions', data: admitSeries, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.2)', tension: 0.3 },
+                    { label: 'Registrations', data: regSeries, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', tension: 0.3 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const statusRows = data.queue_by_status || [];
+        if (receptionQueueChart) receptionQueueChart.destroy();
+        receptionQueueChart = new Chart(document.getElementById('receptionQueueChart'), {
+            type: 'doughnut',
+            data: {
+                labels: statusRows.map(r => r.status),
+                datasets: [{ data: statusRows.map(r => r.count), backgroundColor: ['#f59e0b','#3b82f6','#10b981','#ef4444','#6b7280'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const apptRows = data.appointments_by_status || [];
+        if (receptionApptChart) receptionApptChart.destroy();
+        receptionApptChart = new Chart(document.getElementById('receptionApptChart'), {
+            type: 'doughnut',
+            data: {
+                labels: apptRows.map(r => r.status),
+                datasets: [{ data: apptRows.map(r => r.count), backgroundColor: ['#2563eb','#10b981','#f59e0b','#ef4444'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
     }
 
     async function loadDoctors() {
         const users = await Api.get('/users');
         const select = document.getElementById('admitDoctor');
         select.innerHTML = '<option value="">Any Available</option>';
-        users?.filter(u => u.role === 'doctor').forEach(d => {
+        cachedDoctors = (users || []).filter(u => u.role === 'doctor');
+        cachedDoctors.forEach(d => {
             select.innerHTML += `<option value="${d.full_name}">${d.full_name}</option>`;
         });
+        populateDoctorSelects();
+    }
+
+    function populatePatientSelects() {
+        const patientOptions = cachedPatients.map(p => `<option value="${p.id}">${p.full_name} (${p.national_id || 'N/A'})</option>`).join('');
+        const ids = ['apptPatient', 'refPatient', 'docPatient', 'consentPatient'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<option value="">Select patient...</option>' + patientOptions;
+        });
+    }
+
+    function populateDoctorSelects() {
+        const doctorOptions = cachedDoctors.map(d => `<option value="${d.id}">${d.full_name}</option>`).join('');
+        const el = document.getElementById('apptDoctor');
+        if (el) el.innerHTML = '<option value="">Any available</option>' + doctorOptions;
     }
 
     async function loadMyShifts() {

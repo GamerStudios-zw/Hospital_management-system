@@ -1,16 +1,18 @@
 const CONFIG = {
     // UPDATED: Use your network IP so other devices can connect
     BASE_URL: "http://192.168.1.128/Hospital_Management_System/backend/index.php",
-    BACKEND_ROOT: "http://192.168.1.128/Hospital_Management_System/backend"
+    BACKEND_ROOT: "http://192.168.1.128/Hospital_Management_System/backend",
+    WS_URL: `ws://${window.location.hostname}:8090`
 };
 
 const Api = {
     getToken: () => localStorage.getItem("hms_token"),
 
     async request(endpoint, method = "GET", body = null) {
+        const tokenAtRequest = Api.getToken();
         const headers = {
             "Content-Type": "application/json",
-            "Authorization": "Bearer " + Api.getToken()
+            "Authorization": "Bearer " + tokenAtRequest
         };
 
         const config = { method, headers };
@@ -21,8 +23,24 @@ const Api = {
 
             // Handle Unauthorized (Session Expired)
             if (response.status === 401) {
+                const currentToken = Api.getToken();
+                if (currentToken && tokenAtRequest && currentToken !== tokenAtRequest) {
+                    console.warn("Stale 401 ignored due to newer session token.");
+                    return null;
+                }
                 console.warn("Session expired. Logging out.");
                 logout();
+                return null;
+            }
+            if (response.status === 503) {
+                showMaintenanceOverlay();
+                return null;
+            }
+            if (response.status === 403) {
+                if (!window.__accessDeniedAlertShown) {
+                    window.__accessDeniedAlertShown = true;
+                    alert("Access denied. You do not have permission for this action.");
+                }
                 return null;
             }
 
@@ -45,6 +63,237 @@ const Api = {
     post: (endpoint, data) => Api.request(endpoint, "POST", data)
 };
 
+// Global notification modal (replaces browser alerts)
+const __nativeAlert = window.alert ? window.alert.bind(window) : null;
+function ensureNotificationModal() {
+    if (document.getElementById('appNotifyModal')) return;
+    const modalHtml = `
+<div class="modal fade" id="appNotifyModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title" id="appNotifyTitle">Notification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="appNotifyMessage" class="text-muted"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function showNotification(message, options = {}) {
+    if (typeof bootstrap === 'undefined') {
+        if (__nativeAlert) __nativeAlert(message);
+        return;
+    }
+    ensureNotificationModal();
+    const title = options.title || 'Notification';
+    const type = options.type || 'info';
+    const modalEl = document.getElementById('appNotifyModal');
+    const titleEl = document.getElementById('appNotifyTitle');
+    const msgEl = document.getElementById('appNotifyMessage');
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+
+    titleEl.className = 'modal-title';
+    if (type === 'success') titleEl.classList.add('text-success');
+    if (type === 'error') titleEl.classList.add('text-danger');
+    if (type === 'warning') titleEl.classList.add('text-warning');
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+if (window.alert) {
+    window.alert = (msg) => showNotification(msg);
+}
+
+function ensureChangePasswordModal() {
+    if (document.getElementById('changePasswordModal')) return;
+    const modalHtml = `
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Change Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="changePasswordForm">
+          <div class="mb-3">
+            <label class="form-label">Current Password</label>
+            <input type="password" class="form-control" id="currentPasswordInput" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">New Password</label>
+            <input type="password" class="form-control" id="newPasswordInput" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" class="form-control" id="confirmPasswordInput" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitChangePassword()">Update Password</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function openChangePasswordModal() {
+    ensureChangePasswordModal();
+    document.getElementById('currentPasswordInput').value = '';
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+    modal.show();
+}
+
+async function submitChangePassword() {
+    const current = document.getElementById('currentPasswordInput').value;
+    const next = document.getElementById('newPasswordInput').value;
+    const confirm = document.getElementById('confirmPasswordInput').value;
+
+    if (!current || !next) return alert("Please fill in all fields.");
+    if (next !== confirm) return alert("New passwords do not match.");
+    if (next.length < 6) return alert("New password must be at least 6 characters.");
+
+    const result = await Api.post('/users', {
+        action: 'change_password',
+        current_password: current,
+        new_password: next
+    });
+    if (result) {
+        alert("Password updated successfully.");
+        const modalEl = document.getElementById('changePasswordModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+    }
+}
+
+// Auto-refresh helper: calls known page loaders if present
+const AUTO_REFRESH_INTERVAL_MS = 10000;
+let __autoRefreshTimers = [];
+
+function getRefreshCandidates() {
+    return [
+        "loadUsers",
+        "loadAllShifts",
+        "loadQueue",
+        "loadDirectory",
+        "loadStaffTable",
+        "loadLogs",
+        "loadSettings",
+        "loadPending",
+        "loadInventory",
+        "loadHistory",
+        "loadRoster",
+        "loadBeds",
+        "loadTriageQueue",
+        "loadMyShifts",
+        "loadMyPatients",
+        "loadReports",
+        "loadMonitorData",
+        "loadAdminStats",
+        "loadStaffPerformance",
+        "loadTasks",
+        "loadEscalations",
+        "loadDischarges",
+        "loadHandover",
+        "loadTimeline",
+        "loadReceptionAnalytics",
+        "loadNurseAnalytics",
+        "loadDoctorAnalytics",
+        "loadPharmacyAnalytics",
+        "loadLogAnalytics",
+        "loadInteractionRules",
+        "loadControlled",
+        "loadRefills",
+        "loadSuppliers",
+        "loadPOs",
+        "loadQuarantine",
+        "loadAdjustments",
+        "loadClaims",
+        "loadQueue",
+        "loadDirectory"
+    ];
+}
+
+function triggerAutoRefresh() {
+    const candidates = getRefreshCandidates();
+    candidates.forEach((name) => {
+        const fn = window[name];
+        if (typeof fn === "function") {
+            try { fn(); } catch (e) { /* ignore */ }
+        }
+    });
+}
+
+function setupAutoRefresh() {
+    const candidates = getRefreshCandidates();
+
+    const start = () => {
+        if (__autoRefreshTimers.length) return;
+        candidates.forEach((name) => {
+            const fn = window[name];
+            if (typeof fn === "function") {
+                __autoRefreshTimers.push(setInterval(fn, AUTO_REFRESH_INTERVAL_MS));
+            }
+        });
+        triggerAutoRefresh();
+    };
+
+    const stop = () => {
+        __autoRefreshTimers.forEach((t) => clearInterval(t));
+        __autoRefreshTimers = [];
+    };
+
+    document.addEventListener("visibilitychange", () => {
+        document.hidden ? stop() : start();
+    });
+
+    start();
+}
+
+function setupRealtime() {
+    if (!CONFIG.WS_URL) return;
+    let socket = null;
+    let retryMs = 1000;
+
+    const connect = () => {
+        socket = new WebSocket(CONFIG.WS_URL);
+
+        socket.addEventListener("open", () => {
+            retryMs = 1000;
+        });
+
+        socket.addEventListener("message", () => {
+            triggerAutoRefresh();
+        });
+
+        socket.addEventListener("close", () => {
+            setTimeout(connect, retryMs);
+            retryMs = Math.min(retryMs * 2, 10000);
+        });
+    };
+
+    connect();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setupAutoRefresh();
+    setupRealtime();
+});
 /**
  * 3. GLOBAL LOGOUT
  * Clears local session and redirects to the login page.
@@ -57,11 +306,12 @@ async function logout(event) {
 
     try {
         const userJson = localStorage.getItem('hms_user');
+        const token = localStorage.getItem('hms_token');
         if (userJson) {
             const user = JSON.parse(userJson);
             if (user && user.id) {
                 // Fire-and-forget logout POST
-                await Api.post('/auth/logout', { user_id: user.id });
+                await Api.post('/auth/logout', { user_id: user.id, token });
             }
         }
     } catch (e) {
@@ -75,6 +325,31 @@ async function logout(event) {
     window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
 }
 
+// Graceful logout on tab close / navigation away
+function setupAutoLogoutOnClose() {
+    const sendLogoutBeacon = () => {
+        try {
+            const token = localStorage.getItem('hms_token');
+            const userJson = localStorage.getItem('hms_user');
+            const user = userJson ? JSON.parse(userJson) : null;
+            if (!token || !user || !user.id) return;
+            const url = `${CONFIG.BASE_URL}/auth/logout`;
+            const payload = JSON.stringify({ user_id: user.id, token });
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+            } else {
+                fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true });
+            }
+        } catch (e) {
+            // ignore
+        }
+    };
+
+    window.addEventListener('pagehide', sendLogoutBeacon);
+    window.addEventListener('beforeunload', sendLogoutBeacon);
+}
+
+document.addEventListener("DOMContentLoaded", setupAutoLogoutOnClose);
 /**
  * 4. PAGE SECURITY (The "Bouncer")
  * Ensures only authorized users can access specific pages.
@@ -147,4 +422,28 @@ async function submitNewUser() {
         alert("✅ User Created Successfully!\nUsername: " + userData.username + "\nPassword: " + password);
         location.reload();
     }
+}
+
+function showMaintenanceOverlay() {
+    if (document.getElementById('maintenanceOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'maintenanceOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(15, 35, 58, 0.85)';
+    overlay.style.color = '#fff';
+    overlay.style.zIndex = '2000';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.innerHTML = `
+        <div style="max-width: 520px; text-align: center; padding: 24px; background: #1f3c5c; border-radius: 12px;">
+            <h4 style="margin-bottom: 10px;">Maintenance Mode</h4>
+            <p style="margin-bottom: 16px;">The system is temporarily unavailable. Please try again later.</p>
+            <button id="maintenanceLogoutBtn" style="border: 0; padding: 10px 16px; border-radius: 8px; background: #e44a3c; color: #fff;">Logout</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    const btn = document.getElementById('maintenanceLogoutBtn');
+    if (btn) btn.onclick = () => logout();
 }

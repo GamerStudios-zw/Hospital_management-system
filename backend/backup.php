@@ -1,5 +1,11 @@
 <?php
 require_once 'config/database.php';
+require_once __DIR__ . '/middleware/AuthMiddleware.php';
+require_once __DIR__ . '/middleware/RoleMiddleware.php';
+
+// Require admin
+$user = AuthMiddleware::isAuthenticated();
+RoleMiddleware::allow(['admin'], $user);
 
 // Set headers to force download
 header('Content-Type: text/csv');

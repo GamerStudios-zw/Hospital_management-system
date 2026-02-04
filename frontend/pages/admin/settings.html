@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <title>System Settings | Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
         .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
@@ -15,6 +16,19 @@
     </style>
 </head>
 <body>
+
+<div class="topbar">
+  <div class="container-fluid d-flex justify-content-between align-items-center">
+    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
+    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
+  </div>
+</div>
+<header class="header">
+  <div class="container-fluid d-flex align-items-center justify-content-between">
+    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
+  </div>
+</header>
+
 
 <div class="container-fluid">
     <div class="row">
@@ -40,11 +54,11 @@
                             <form>
                                 <div class="mb-3">
                                     <label class="form-label">Hospital Name</label>
-                                    <input type="text" class="form-control" value="City General Hospital">
+                                    <input type="text" class="form-control" id="hospitalNameInput" value="">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Contact Email</label>
-                                    <input type="email" class="form-control" value="admin@cityhospital.co.zw">
+                                    <input type="email" class="form-control" id="contactEmailInput" value="">
                                 </div>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="maintenanceMode">
@@ -80,42 +94,72 @@
 <script>
     protectPage('admin');
 
-    // 1. Download Backup Function
-    function downloadBackup() {
-        // Direct link to the PHP script we just made
-        window.location.href = "http://localhost/Hospital_Management_System/backend/backup.php";
+    async function loadSettings() {
+        const data = await Api.get('/settings/load');
+        if (!data) return;
+        document.getElementById('hospitalNameInput').value = data.hospital_name || '';
+        document.getElementById('contactEmailInput').value = data.contact_email || '';
+        document.getElementById('maintenanceMode').checked = !!data.maintenance_mode;
     }
 
-    // 2. Save Settings Simulation (Visual Feedback)
-    function saveSettings() {
-        const btn = document.querySelector('.btn-primary'); // The Save button
-        const originalText = btn.innerText;
-
-        // Show loading state
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-
-        // Fake a 1-second delay to look professional
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.innerText = originalText;
-            alert("✅ System Settings Saved Successfully!");
-        }, 1000);
-    }
-
-    // 3. Reset Passwords Simulation
-    function resetPasswords() {
-        if(confirm("⚠️ DANGER: This will reset EVERY staff member's password to 'Staff123!'.\n\nAre you sure?")) {
-            alert("Request sent to server. All passwords have been reset.");
+    async function downloadBackup() {
+        try {
+            const res = await fetch(`${CONFIG.BACKEND_ROOT}/backup.php`, {
+                headers: { "Authorization": "Bearer " + Api.getToken() }
+            });
+            if (!res.ok) {
+                alert("Backup failed. Please try again.");
+                return;
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hms_users_backup_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("Backup failed. Please try again.");
         }
     }
 
-    // 4. Attach Functions to Buttons (Wait for page load)
+    async function saveSettings() {
+        const btn = document.querySelector('.btn-primary');
+        const originalText = btn.innerText;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+        const payload = {
+            hospital_name: document.getElementById('hospitalNameInput').value.trim(),
+            contact_email: document.getElementById('contactEmailInput').value.trim(),
+            maintenance_mode: document.getElementById('maintenanceMode').checked
+        };
+
+        const result = await Api.post('/settings/update', payload);
+        btn.disabled = false;
+        btn.innerText = originalText;
+
+        if (result) {
+            alert('System settings saved.');
+        }
+    }
+
+    async function resetPasswords() {
+        if (!confirm("DANGER: This will reset EVERY staff member's password to 'Staff123!'.\n\nAre you sure?")) return;
+        const result = await Api.post('/settings/reset_passwords', {});
+        if (result) {
+            alert('All passwords have been reset.');
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
-        // Find buttons and attach events
-        document.querySelector(".btn-outline-success").onclick = downloadBackup; // Download Button
-        document.querySelector(".btn-primary").onclick = saveSettings;     // Save Changes button
-        document.querySelector(".btn-outline-danger").onclick = resetPasswords; // Reset button
+        document.querySelector(".btn-outline-success").onclick = downloadBackup;
+        document.querySelector(".btn-primary").onclick = saveSettings;
+        document.querySelector(".btn-outline-danger").onclick = resetPasswords;
+        loadSettings();
     });
 </script>
 </body>

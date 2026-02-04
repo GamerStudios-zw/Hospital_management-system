@@ -1,6 +1,8 @@
 <?php
 // FILE: backend/routes/inventory.php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../middleware/RoleMiddleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -8,11 +10,22 @@ $db = $database->getConnection();
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
+$user = AuthMiddleware::isAuthenticated();
+RoleMiddleware::allow(['pharmacist', 'admin'], $user);
+
 switch ($action) {
     // 1. GET ALL STOCK
     case 'list':
         if ($method === 'GET') {
-            $stmt = $db->query("SELECT * FROM medicines ORDER BY name ASC");
+            $stmt = $db->query("SELECT *,
+                DATEDIFF(expiry_date, CURDATE()) AS days_to_expiry,
+                CASE
+                    WHEN expiry_date IS NULL THEN 0
+                    WHEN expiry_date < CURDATE() THEN 1
+                    WHEN expiry_date <= DATE_ADD(CURDATE(), INTERVAL 60 DAY) THEN 2
+                    ELSE 0
+                END AS expiry_alert
+            FROM medicines ORDER BY name ASC");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         }
         break;
@@ -64,7 +77,7 @@ switch ($action) {
                 $stats = [
                     "total_value" => $db->query("SELECT SUM(stock_quantity * price) FROM medicines")->fetchColumn() ?: 0,
                     "low_stock_count" => $db->query("SELECT COUNT(*) FROM medicines WHERE stock_quantity < 20")->fetchColumn(),
-                    "expiring_soon" => $db->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)")->fetchColumn()
+                    "expiring_soon" => $db->query("SELECT COUNT(*) FROM medicines WHERE expiry_date <= DATE_ADD(CURDATE(), INTERVAL 60 DAY)")->fetchColumn()
                 ];
                 echo json_encode($stats);
             }

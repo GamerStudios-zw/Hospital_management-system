@@ -15,8 +15,11 @@ class RoleMiddleware {
             exit();
         }
 
+        $userRole = strtolower(trim((string)$user_data->role));
+        $allowed = array_map(function ($r) { return strtolower(trim((string)$r)); }, $allowed_roles);
+
         // Check if the user's role exists in the allowed list
-        if (!in_array($user_data->role, $allowed_roles)) {
+        if (!in_array($userRole, $allowed, true)) {
             http_response_code(403); // 403 Forbidden
             echo json_encode([
                 "message" => "Access Denied. You do not have permission to perform this action.",

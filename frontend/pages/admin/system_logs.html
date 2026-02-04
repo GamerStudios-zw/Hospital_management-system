@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>System Logs | Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
 
@@ -20,9 +21,24 @@
             .sidebar { min-height: auto; } /* Reset height for mobile menu */
             main { padding-top: 20px; }
         }
+        .chart-compact { height: 170px; }
+        .chart-compact canvas { height: 170px !important; max-height: 170px; }
     </style>
 </head>
 <body>
+
+<div class="topbar">
+  <div class="container-fluid d-flex justify-content-between align-items-center">
+    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
+    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
+  </div>
+</div>
+<header class="header">
+  <div class="container-fluid d-flex align-items-center justify-content-between">
+    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
+  </div>
+</header>
+
 
 <nav class="navbar navbar-dark bg-dark d-md-none p-3 mb-3">
     <div class="container-fluid">
@@ -66,10 +82,112 @@
         <main class="col-md-10 ms-sm-auto p-4">
             <h2 class="fw-bold mb-4">Activity Audit Logs</h2>
 
+            <div class="row g-3 mb-4">
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <h6 class="fw-bold mb-3">Logs by Severity</h6>
+                        <div class="chart-compact">
+                            <canvas id="logSeverityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <h6 class="fw-bold mb-3">Top Sources</h6>
+                        <div class="chart-compact">
+                            <canvas id="logSourceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <h6 class="fw-bold mb-3">Log Volume (Last 7 Days)</h6>
+                        <div class="chart-compact">
+                            <canvas id="logDayChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                    <h5 class="mb-0 fw-bold">Recent Activities</h5>
-                    <button class="btn btn-sm btn-outline-secondary w-100 w-md-auto"><i class="bi bi-download me-1"></i> Export CSV</button>
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                        <h5 class="mb-0 fw-bold">Audit & Activity Logs</h5>
+                        <div class="d-flex gap-2 w-100 w-lg-auto">
+                            <button class="btn btn-sm btn-outline-secondary w-100 w-lg-auto" onclick="exportLogs()">
+                                <i class="bi bi-download me-1"></i> Export CSV
+                            </button>
+                            <button class="btn btn-sm btn-primary w-100 w-lg-auto" onclick="loadLogs()">
+                                <i class="bi bi-funnel me-1"></i> Apply Filters
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-3">
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Start</label>
+                            <input type="date" class="form-control form-control-sm" id="filterStart">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">End</label>
+                            <input type="date" class="form-control form-control-sm" id="filterEnd">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">User</label>
+                            <input type="text" class="form-control form-control-sm" id="filterUser" placeholder="username">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Event Type</label>
+                            <input type="text" class="form-control form-control-sm" id="filterEventType" placeholder="audit, activity">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Entity</label>
+                            <input type="text" class="form-control form-control-sm" id="filterEntityType" placeholder="user, patient">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Entity ID</label>
+                            <input type="text" class="form-control form-control-sm" id="filterEntityId" placeholder="123">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Status</label>
+                            <select class="form-select form-select-sm" id="filterStatus">
+                                <option value="">Any</option>
+                                <option value="Success">Success</option>
+                                <option value="Failed">Failed</option>
+                                <option value="Warning">Warning</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Severity</label>
+                            <select class="form-select form-select-sm" id="filterSeverity">
+                                <option value="">Any</option>
+                                <option value="INFO">INFO</option>
+                                <option value="WARN">WARN</option>
+                                <option value="ERROR">ERROR</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Source</label>
+                            <input type="text" class="form-control form-control-sm" id="filterSource" placeholder="route">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Request ID</label>
+                            <input type="text" class="form-control form-control-sm" id="filterRequestId" placeholder="req id">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Search</label>
+                            <input type="text" class="form-control form-control-sm" id="filterQuery" placeholder="action, error">
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <label class="form-label small mb-1">Limit</label>
+                            <input type="number" min="1" max="500" class="form-control form-control-sm" id="filterLimit" value="100">
+                        </div>
+                        <div class="col-12 col-md-3 col-lg-2 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="filterIncludeAudit" checked>
+                                <label class="form-check-label small" for="filterIncludeAudit">Include audit</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 text-nowrap">
@@ -77,41 +195,18 @@
                             <tr>
                                 <th>Timestamp</th>
                                 <th>User</th>
+                                <th>Role</th>
+                                <th>Event</th>
                                 <th>Action</th>
-                                <th>IP Address</th>
+                                <th>Entity</th>
                                 <th>Status</th>
+                                <th>Severity</th>
+                                <th>IP</th>
+                                <th>Request</th>
+                                <th>Duration</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td class="text-muted">Jan 26, 10:42 AM</td>
-                                <td class="fw-bold">Dr. Sarah Moyo</td>
-                                <td>Login</td>
-                                <td>192.168.1.15</td>
-                                <td><span class="badge bg-success">Success</span></td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted">Jan 26, 10:30 AM</td>
-                                <td class="fw-bold">Admin</td>
-                                <td>Create User (Nurse Chipo)</td>
-                                <td>192.168.1.5</td>
-                                <td><span class="badge bg-info text-dark">Created</span></td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted">Jan 26, 09:15 AM</td>
-                                <td class="fw-bold">Unknown</td>
-                                <td>Failed Login Attempt</td>
-                                <td>192.168.1.102</td>
-                                <td><span class="badge bg-danger">Failed</span></td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted">Jan 26, 08:00 AM</td>
-                                <td class="fw-bold">System</td>
-                                <td>Daily Backup</td>
-                                <td>localhost</td>
-                                <td><span class="badge bg-success">Completed</span></td>
-                            </tr>
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -120,47 +215,179 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['admin']);
 
-    document.addEventListener("DOMContentLoaded", loadLogs);
+    document.addEventListener("DOMContentLoaded", () => {
+        loadLogs();
+        loadLogAnalytics();
+    });
+
+    let logSeverityChart = null;
+    let logSourceChart = null;
+    let logDayChart = null;
+
+    function last7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000);
+            days.push({
+                key: d.toISOString().slice(0, 10),
+                label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+            });
+        }
+        return days;
+    }
+
+    async function loadLogAnalytics() {
+        const data = await Api.get('/logs/analytics');
+        if (!data) return;
+
+        const severityRows = data.by_severity || [];
+        if (logSeverityChart) logSeverityChart.destroy();
+        logSeverityChart = new Chart(document.getElementById('logSeverityChart'), {
+            type: 'doughnut',
+            data: {
+                labels: severityRows.map(r => r.severity),
+                datasets: [{ data: severityRows.map(r => r.count), backgroundColor: ['#10b981','#f59e0b','#ef4444','#6b7280'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const sourceRows = data.by_source || [];
+        if (logSourceChart) logSourceChart.destroy();
+        logSourceChart = new Chart(document.getElementById('logSourceChart'), {
+            type: 'bar',
+            data: {
+                labels: sourceRows.map(r => r.source || 'unknown'),
+                datasets: [{ data: sourceRows.map(r => r.count), backgroundColor: '#2563eb' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
+        const days = last7Days();
+        const dayMap = Object.fromEntries((data.by_day || []).map(r => [r.day, r.count]));
+        if (logDayChart) logDayChart.destroy();
+        logDayChart = new Chart(document.getElementById('logDayChart'), {
+            type: 'line',
+            data: {
+                labels: days.map(d => d.label),
+                datasets: [{ label: 'Logs', data: days.map(d => dayMap[d.key] || 0), borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.2)', tension: 0.3 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function getFilters() {
+        return {
+            start: document.getElementById('filterStart').value,
+            end: document.getElementById('filterEnd').value,
+            username: document.getElementById('filterUser').value.trim(),
+            event_type: document.getElementById('filterEventType').value.trim(),
+            entity_type: document.getElementById('filterEntityType').value.trim(),
+            entity_id: document.getElementById('filterEntityId').value.trim(),
+            status: document.getElementById('filterStatus').value,
+            severity: document.getElementById('filterSeverity').value,
+            source: document.getElementById('filterSource').value.trim(),
+            request_id: document.getElementById('filterRequestId').value.trim(),
+            q: document.getElementById('filterQuery').value.trim(),
+            limit: document.getElementById('filterLimit').value,
+            include_audit: document.getElementById('filterIncludeAudit').checked ? '1' : '0'
+        };
+    }
+
+    function buildQueryString(filters) {
+        const params = new URLSearchParams();
+        Object.keys(filters).forEach((key) => {
+            const value = filters[key];
+            if (value !== null && value !== undefined && value !== '') {
+                params.append(key, value);
+            }
+        });
+        return params.toString();
+    }
+
+    function badgeClassForStatus(status) {
+        if (status === 'Failed') return 'danger';
+        if (status === 'Warning') return 'warning text-dark';
+        return 'success';
+    }
+
+    function badgeClassForSeverity(severity) {
+        if (severity === 'ERROR') return 'danger';
+        if (severity === 'WARN') return 'warning text-dark';
+        return 'secondary';
+    }
+
+    function fmt(value, fallback = '-') {
+        if (value === null || value === undefined || value === '') return fallback;
+        return value;
+    }
 
     async function loadLogs() {
         const tbody = document.querySelector('tbody');
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Loading system logs...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">Loading system logs...</td></tr>';
 
-        const logs = await Api.get('/logs/list');
+        const filters = getFilters();
+        const query = buildQueryString(filters);
+        const logs = await Api.get('/logs/list' + (query ? `?${query}` : ''));
         tbody.innerHTML = '';
 
-        if(logs && logs.length > 0) {
+        if (logs && logs.length > 0) {
             logs.forEach(log => {
-                // Color Logic
-                let badge = 'success';
-                if(log.status === 'Failed') badge = 'danger';
-                if(log.status === 'Warning') badge = 'warning text-dark';
-
-                // Format Date
                 const dateObj = new Date(log.created_at);
                 const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const statusBadge = badgeClassForStatus(log.status);
+                const severityBadge = badgeClassForSeverity(log.severity);
+                const entity = [log.entity_type, log.entity_id].filter(Boolean).join(':') || '-';
+                const duration = log.duration_ms ? `${log.duration_ms} ms` : '-';
+                const requestId = log.request_id ? log.request_id : '-';
 
                 const row = `
                     <tr>
                         <td class="text-muted small">${dateStr}</td>
-                        <td class="fw-bold">${log.username}</td>
-                        <td>${log.action}</td>
-                        <td class="font-monospace small">${log.ip_address}</td>
-                        <td><span class="badge bg-${badge}">${log.status}</span></td>
+                        <td class="fw-bold">${fmt(log.username)}</td>
+                        <td class="small">${fmt(log.actor_role)}</td>
+                        <td class="small">${fmt(log.event_type)}</td>
+                        <td>${fmt(log.action)}</td>
+                        <td class="small">${fmt(entity)}</td>
+                        <td><span class="badge bg-${statusBadge}">${fmt(log.status)}</span></td>
+                        <td><span class="badge bg-${severityBadge}">${fmt(log.severity)}</span></td>
+                        <td class="font-monospace small">${fmt(log.ip_address)}</td>
+                        <td class="font-monospace small">${fmt(requestId)}</td>
+                        <td class="small">${fmt(duration)}</td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No activity logs found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">No activity logs found.</td></tr>';
         }
     }
+
+    async function exportLogs() {
+        const filters = getFilters();
+        const query = buildQueryString(filters);
+        const url = `${CONFIG.BASE_URL}/logs/export${query ? '?' + query : ''}`;
+        const headers = {
+            "Authorization": "Bearer " + Api.getToken()
+        };
+
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+            alert("Export failed");
+            return;
+        }
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'system_logs.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
-</body>
-</html>
 </body>
 </html>

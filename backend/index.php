@@ -41,10 +41,47 @@ $requestUri = trim($requestUri, '/');
 $segments = explode('/', $requestUri);
 $module = isset($segments[0]) ? $segments[0] : '';
 
+// 4.5 Maintenance Mode Gate
+try {
+    $db = (new Database())->getConnection();
+    if ($db) {
+        $stmt = $db->prepare("SELECT maintenance_mode FROM system_settings WHERE id = 1 LIMIT 1");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $maintenance = false;
+        if ($row && array_key_exists('maintenance_mode', $row)) {
+            $maintenance = ((int)$row['maintenance_mode'] === 1);
+        }
+        if ($maintenance) {
+            $action = $segments[1] ?? '';
+            $isAuthLogin = ($module === 'auth' && $action === 'login');
+            $isAuthLogout = ($module === 'auth' && $action === 'logout');
+            $isHealth = ($module === '' || $module === 'health');
+            if (!$isAuthLogin && !$isAuthLogout && !$isHealth) {
+                require_once __DIR__ . '/middleware/AuthMiddleware.php';
+                require_once __DIR__ . '/middleware/RoleMiddleware.php';
+                $user = AuthMiddleware::isAuthenticated();
+                $role = strtolower(trim((string)($user->role ?? '')));
+                if ($role !== 'admin') {
+                    http_response_code(503);
+                    echo json_encode(["message" => "System in maintenance mode."]);
+                    exit();
+                }
+            }
+        }
+    }
+} catch (Exception $e) {
+    // If settings table is missing, skip maintenance gating.
+}
+
 // 5. Route Switcher
 switch ($module) {
     case 'auth':
         require_once 'routes/auth.php';
+        break;
+
+    case 'admin':
+        require_once 'routes/admin.php';
         break;
 
     case 'users':
@@ -88,6 +125,14 @@ switch ($module) {
         require_once 'routes/logs.php';
         break;
 
+    case 'shifts':
+        require_once 'routes/shifts.php';
+        break;
+
+    case 'settings':
+        require_once 'routes/settings.php';
+        break;
+
     case '':
     case 'health':
         echo json_encode(["status" => "active", "message" => "API Running"]);
@@ -97,10 +142,5 @@ switch ($module) {
         http_response_code(404);
         echo json_encode(["message" => "Endpoint not found: " . $module]);
         break;
-
-        // Add this to your backend/index.php
-     case 'shifts':
-      require_once 'routes/shifts.php';
-      break;
 }
 ?>

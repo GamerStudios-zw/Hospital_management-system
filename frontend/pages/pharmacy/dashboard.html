@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pharmacy Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; }
         .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
@@ -15,10 +16,28 @@
         .tab-section { display: none; }
         .tab-section.active { display: block; }
         .stat-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
+        .inventory-metrics { background: #ffffff; border-radius: 16px; padding: 18px; border: 1px solid #e2e8f0; box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.35); }
+        .inventory-chart { background: #f8fafc; border-radius: 14px; padding: 14px; border: 1px solid #e2e8f0; }
+        .inventory-chart h6 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+        .chart-compact { height: 170px; }
+        .chart-compact canvas { height: 170px !important; max-height: 170px; }
         @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body>
+
+<div class="topbar">
+  <div class="container-fluid d-flex justify-content-between align-items-center">
+    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
+    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
+  </div>
+</div>
+<header class="header">
+  <div class="container-fluid d-flex align-items-center justify-content-between">
+    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
+  </div>
+</header>
+
 
 <div class="container-fluid p-0 no-print">
     <div class="row g-0">
@@ -30,7 +49,15 @@
                 <a class="nav-link active" onclick="switchTab('dispensary', this)"><i class="bi bi-prescription2 me-3"></i> Dispensary</a>
                 <a class="nav-link" onclick="switchTab('inventory', this)"><i class="bi bi-boxes me-3"></i> Inventory</a>
                 <a class="nav-link" onclick="switchTab('history', this)"><i class="bi bi-clock-history me-3"></i> History</a>
+                <a class="nav-link" onclick="switchTab('interactions', this)"><i class="bi bi-bezier2 me-3"></i> Interactions</a>
+                <a class="nav-link" onclick="switchTab('controlled', this)"><i class="bi bi-shield-lock me-3"></i> Controlled</a>
+                <a class="nav-link" onclick="switchTab('refills', this)"><i class="bi bi-arrow-repeat me-3"></i> Refills</a>
+                <a class="nav-link" onclick="switchTab('suppliers', this)"><i class="bi bi-truck me-3"></i> Suppliers & PO</a>
+                <a class="nav-link" onclick="switchTab('quarantine', this)"><i class="bi bi-exclamation-octagon me-3"></i> Quarantine</a>
+                <a class="nav-link" onclick="switchTab('adjustments', this)"><i class="bi bi-sliders me-3"></i> Adjustments</a>
+                <a class="nav-link" onclick="switchTab('claims', this)"><i class="bi bi-receipt-cutoff me-3"></i> Insurance</a>
                 <a class="nav-link" onclick="switchTab('roster', this)"><i class="bi bi-calendar-event me-3"></i> My Shifts</a>
+                <a class="nav-link" onclick="openChangePasswordModal()"><i class="bi bi-key me-3"></i> Change Password</a>
             </nav>
             <div class="p-3 border-top border-secondary">
                 <button onclick="logout()" class="btn btn-outline-danger w-100 border-0 text-start"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
@@ -43,7 +70,33 @@
                     <h3 class="fw-bold">Active Prescriptions</h3>
                     <div class="d-flex gap-3">
                         <div class="stat-card py-2 px-4"><span class="text-warning fw-bold fs-4" id="statPending">0</span> <small>Pending</small></div>
+                        <div class="form-check form-switch align-self-center">
+                            <input class="form-check-input" type="checkbox" id="thermalModeToggle">
+                            <label class="form-check-label small" for="thermalModeToggle">Thermal Mode</label>
+                        </div>
                         <button class="btn btn-info text-white fw-bold" onclick="loadPending()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-4">
+                        <div class="inventory-metrics h-100">
+                            <h6 class="mb-3">Prescription Status</h6>
+                            <div class="inventory-chart">
+                                <div class="chart-compact">
+                                    <canvas id="pharmacyStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="inventory-metrics h-100">
+                            <h6 class="mb-3">Dispensed vs Pending (Last 7 Days)</h6>
+                            <div class="inventory-chart">
+                                <div class="chart-compact">
+                                    <canvas id="pharmacyVolumeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -62,6 +115,25 @@
                     <div>
                         <button class="btn btn-outline-dark fw-bold me-2" onclick="printInventoryReport()"><i class="bi bi-printer me-2"></i>Print List</button>
                         <button class="btn btn-info text-white fw-bold" onclick="openAddModal()"><i class="bi bi-plus-lg"></i> Add Stock</button>
+                    </div>
+                </div>
+                <div id="inventoryExpiryAlert" class="alert alert-warning d-none" role="alert"></div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-7">
+                        <div class="inventory-metrics h-100">
+                            <h6 class="mb-3">Stock by Category</h6>
+                            <div class="inventory-chart">
+                                <canvas id="inventoryCategoryChart" height="160"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="inventory-metrics h-100">
+                            <h6 class="mb-3">Expiry Risk</h6>
+                            <div class="inventory-chart">
+                                <canvas id="inventoryExpiryChart" height="160"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -86,6 +158,367 @@
                         </thead>
                         <tbody id="historyTable"></tbody>
                     </table>
+                </div>
+            </section>
+
+            <section id="interactions" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Drug Interactions</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadInteractionRules()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Check Interactions (Rule Based)</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Patient</label>
+                                    <select id="interactionPatient" class="form-select"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Medicine</label>
+                                    <input id="interactionMed" class="form-control" placeholder="Type medicine name">
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button class="btn btn-primary" onclick="checkInteractions()">Check</button>
+                                </div>
+                            </div>
+                            <div id="interactionResult" class="mt-3 small text-muted">No checks yet.</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Add Interaction Rule</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Drug A</label>
+                                    <input id="ruleDrugA" class="form-control" placeholder="Drug A">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Drug B</label>
+                                    <input id="ruleDrugB" class="form-control" placeholder="Drug B">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Severity</label>
+                                    <select id="ruleSeverity" class="form-select">
+                                        <option value="mild">Mild</option>
+                                        <option value="moderate" selected>Moderate</option>
+                                        <option value="severe">Severe</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small fw-bold">Notes</label>
+                                    <input id="ruleNotes" class="form-control" placeholder="Notes">
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button class="btn btn-info text-white" onclick="addInteractionRule()">Save Rule</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Drug A</th><th>Drug B</th><th>Severity</th><th>Notes</th><th>Date</th></tr>
+                            </thead>
+                            <tbody id="interactionTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="controlled" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Controlled Substances</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadControlled()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-5">
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Register Controlled Medicine</h6>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Medicine</label>
+                                    <select id="controlledMed" class="form-select"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Schedule</label>
+                                    <input id="controlledSchedule" class="form-control" placeholder="Schedule II">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Requires Approval</label>
+                                    <select id="controlledApproval" class="form-select">
+                                        <option value="1" selected>Yes</option>
+                                        <option value="0">No</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Notes</label>
+                                    <input id="controlledNotes" class="form-control" placeholder="Extra notes">
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button class="btn btn-primary" onclick="addControlled()">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-7">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                            <h6 class="fw-bold mb-3">Approval Requests</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr><th>Patient</th><th>Medicine</th><th>Status</th><th class="text-end">Action</th></tr>
+                                    </thead>
+                                    <tbody id="controlledRequests"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Medicine</th><th>Schedule</th><th>Approval</th><th>Notes</th><th>Date</th></tr>
+                            </thead>
+                            <tbody id="controlledTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="refills" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Refill Requests</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadRefills()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Patient</th><th>Medicine</th><th>Qty</th><th>Status</th><th>Date</th><th class="text-end">Action</th></tr>
+                            </thead>
+                            <tbody id="refillTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="suppliers" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Suppliers & Purchase Orders</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadSuppliers(); loadPOs();"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Add Supplier</h6>
+                            <div class="row g-3">
+                                <div class="col-12"><input id="supplierName" class="form-control" placeholder="Supplier name"></div>
+                                <div class="col-12"><input id="supplierContact" class="form-control" placeholder="Contact name"></div>
+                                <div class="col-12"><input id="supplierPhone" class="form-control" placeholder="Phone"></div>
+                                <div class="col-12"><input id="supplierEmail" class="form-control" placeholder="Email"></div>
+                                <div class="col-12"><input id="supplierAddress" class="form-control" placeholder="Address"></div>
+                                <div class="col-12 text-end"><button class="btn btn-primary" onclick="addSupplier()">Save</button></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Create Purchase Order</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Supplier</label>
+                                    <select id="poSupplier" class="form-select"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Order Date</label>
+                                    <input type="date" id="poDate" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Medicine</label>
+                                    <input id="poMed" class="form-control" placeholder="Medicine name">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Qty</label>
+                                    <input type="number" id="poQty" class="form-control" value="1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Unit Cost</label>
+                                    <input type="number" step="0.01" id="poCost" class="form-control" value="0">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button class="btn btn-outline-secondary w-100" onclick="addPoItem()">Add</button>
+                                </div>
+                                <div class="col-12">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead><tr><th>Medicine</th><th>Qty</th><th>Cost</th><th></th></tr></thead>
+                                            <tbody id="poItemsTable"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button class="btn btn-info text-white" onclick="createPO()">Create PO</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Purchase Orders</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr><th>Supplier</th><th>Date</th><th>Total</th><th>Status</th><th class="text-end">Action</th></tr>
+                                    </thead>
+                                    <tbody id="poTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                            <h6 class="fw-bold mb-3">Record GRN</h6>
+                            <div class="row g-3">
+                                <div class="col-12"><input id="grnOrderId" class="form-control" placeholder="PO ID"></div>
+                                <div class="col-12"><input type="date" id="grnDate" class="form-control"></div>
+                                <div class="col-12"><input id="grnNotes" class="form-control" placeholder="Notes"></div>
+                                <div class="col-12 text-end"><button class="btn btn-outline-primary" onclick="createGRN()">Save GRN</button></div>
+                            </div>
+                        </div>
+                        <div class="card border-0 shadow-sm rounded-4 p-4">
+                            <h6 class="fw-bold mb-3">Record Invoice</h6>
+                            <div class="row g-3">
+                                <div class="col-12"><input id="invOrderId" class="form-control" placeholder="PO ID"></div>
+                                <div class="col-12"><input id="invNumber" class="form-control" placeholder="Invoice #"></div>
+                                <div class="col-12"><input type="number" step="0.01" id="invAmount" class="form-control" placeholder="Amount"></div>
+                                <div class="col-12"><input type="date" id="invDate" class="form-control"></div>
+                                <div class="col-12 text-end"><button class="btn btn-outline-dark" onclick="createInvoice()">Save Invoice</button></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="quarantine" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Quarantine / Returns</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadQuarantine()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Medicine</label>
+                            <select id="quarantineMed" class="form-select"></select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Batch</label>
+                            <input id="quarantineBatch" class="form-control" placeholder="Batch #">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Qty</label>
+                            <input type="number" id="quarantineQty" class="form-control" value="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Reason</label>
+                            <input id="quarantineReason" class="form-control" placeholder="Expired / Damaged">
+                        </div>
+                        <div class="col-12 text-end">
+                            <button class="btn btn-danger" onclick="addQuarantine()">Quarantine</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Medicine</th><th>Batch</th><th>Qty</th><th>Reason</th><th>Status</th><th class="text-end">Action</th></tr>
+                            </thead>
+                            <tbody id="quarantineTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="adjustments" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Stock Adjustments</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadAdjustments()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Medicine</label>
+                            <select id="adjustMed" class="form-select"></select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Adjustment</label>
+                            <input type="number" id="adjustQty" class="form-control" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Reason</label>
+                            <input id="adjustReason" class="form-control" placeholder="Stock count correction">
+                        </div>
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary" onclick="addAdjustment()">Apply</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Medicine</th><th>Adjustment</th><th>Reason</th><th>Date</th></tr>
+                            </thead>
+                            <tbody id="adjustTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="claims" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Insurance Claims</h3>
+                    <button class="btn btn-outline-dark fw-bold" onclick="loadClaims()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Prescription</label>
+                            <select id="claimPrescription" class="form-select"></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select id="claimStatus" class="form-select">
+                                <option value="Submitted">Submitted</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" onclick="createClaim()">Submit</button>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Notes</label>
+                            <input id="claimNotes" class="form-control" placeholder="Notes">
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Patient</th><th>Medicine</th><th>Status</th><th>Date</th><th class="text-end">Action</th></tr>
+                            </thead>
+                            <tbody id="claimTable"></tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -171,13 +604,53 @@
     </div>
 </div>
 
+<div class="modal fade" id="editStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-dark text-white rounded-top-4">
+                <h5 class="modal-title fw-bold">Edit Stock</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="editStockForm">
+                    <input type="hidden" id="editId">
+                    <div class="mb-3"><label class="form-label fw-bold">Drug Name</label><input type="text" class="form-control" id="editName" required></div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Batch No</label><input type="text" class="form-control" id="editBatch"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Price ($)</label><input type="number" class="form-control" id="editPrice" step="0.01"></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Quantity</label><input type="number" class="form-control" id="editQuantity" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Unit</label><input type="text" class="form-control" id="editUnit" placeholder="Boxes/Tablets"></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label fw-bold">Expiry Date</label><input type="date" class="form-control" id="editExpiryDate"></div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-dark text-white fw-bold" onclick="saveEditStock()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     protectPage(['pharmacist', 'admin']);
     let activePrescriptionId = null;
     let activePrintData = null;
     const dispenseModal = new bootstrap.Modal(document.getElementById('dispenseModal'));
+    const editStockModal = new bootstrap.Modal(document.getElementById('editStockModal'));
+    let inventoryCategoryChart = null;
+    let inventoryExpiryChart = null;
+    let pharmacyStatusChart = null;
+    let pharmacyVolumeChart = null;
+    let cachedPatients = [];
+    let cachedMeds = [];
+    let poItems = [];
+    let thermalModeEnabled = false;
 
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
@@ -188,7 +661,35 @@
         if(id === 'dispensary') loadPending();
         if(id === 'inventory') loadInventory();
         if(id === 'history') loadHistory();
+        if(id === 'interactions') loadInteractionRules();
+        if(id === 'controlled') loadControlled();
+        if(id === 'refills') loadRefills();
+        if(id === 'suppliers') { loadSuppliers(); loadPOs(); }
+        if(id === 'quarantine') loadQuarantine();
+        if(id === 'adjustments') loadAdjustments();
+        if(id === 'claims') loadClaims();
         if(id === 'roster') loadPharmacistShifts();
+    }
+
+    async function loadPharmacyPatients() {
+        cachedPatients = await Api.get('/pharmacy/patients') || [];
+        const options = cachedPatients.map(p => `<option value="${p.id}">${p.full_name} (${p.national_id || 'N/A'})</option>`).join('');
+        const selects = ['interactionPatient'];
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<option value="">Select patient</option>' + options;
+        });
+    }
+
+    async function loadPharmacyMeds() {
+        const meds = await Api.get('/inventory/list') || [];
+        cachedMeds = meds;
+        const options = meds.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+        const selects = ['controlledMed', 'quarantineMed', 'adjustMed'];
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<option value="">Select medicine</option>' + options;
+        });
     }
 
     async function loadPharmacistShifts() {
@@ -228,12 +729,14 @@
                         <td>${item.doctor_assigned}</td>
                         <td class="text-end pe-4">
                             <button class="btn btn-outline-dark btn-sm me-1" onclick='preparePrint(${JSON.stringify(item)})'><i class="bi bi-printer"></i></button>
+                            ${item.controlled_requires_approval ? `<button class="btn btn-warning btn-sm me-1" onclick="requestControlled(${item.id})">Request Approval</button>` : ''}
                             <button class="btn btn-info text-white btn-sm fw-bold" onclick='openDispenseModal(${JSON.stringify(item)})'>Dispense</button>
                         </td>
                     </tr>`;
             });
             document.getElementById('statPending').innerText = list.length;
         }
+        loadPharmacyAnalytics();
     }
 
     async function loadInventory() {
@@ -241,18 +744,45 @@
         const tbody = document.getElementById('inventoryTableBody');
         tbody.innerHTML = '';
         if(items) {
+            let expiringSoon = 0;
+            let expired = 0;
             items.forEach(item => {
+                const days = Number(item.days_to_expiry);
+                const hasExpiry = item.expiry_date && !Number.isNaN(days);
+                const isExpired = hasExpiry && days < 0;
+                const isExpiringSoon = hasExpiry && days >= 0 && days <= 60;
+                if (isExpired) expired += 1;
+                else if (isExpiringSoon) expiringSoon += 1;
+
+                let expiryBadge = '';
+                if (isExpired) {
+                    expiryBadge = `<span class="badge bg-danger-subtle text-danger border border-danger ms-2">Expired</span>`;
+                } else if (isExpiringSoon) {
+                    expiryBadge = `<span class="badge bg-warning-subtle text-warning border border-warning ms-2">Expiring ≤60d</span>`;
+                }
+
                 tbody.innerHTML += `
                     <tr>
                         <td class="ps-4 fw-bold">${item.name}</td>
                         <td>${item.batch_number || '-'}</td>
                         <td>${item.stock_quantity} ${item.unit || ''}</td>
-                        <td>${new Date(item.expiry_date).toLocaleDateString()}</td>
+                        <td>${item.expiry_date ? new Date(item.expiry_date).toLocaleDateString() : '-'} ${expiryBadge}</td>
                         <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary">Edit</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick='openEditModal(${JSON.stringify(item)})'>Edit</button>
                         </td>
                     </tr>`;
             });
+            const alertEl = document.getElementById('inventoryExpiryAlert');
+            if (alertEl) {
+                if (expired > 0 || expiringSoon > 0) {
+                    alertEl.classList.remove('d-none');
+                    alertEl.innerHTML = `Expiry alert: <strong>${expired}</strong> expired, <strong>${expiringSoon}</strong> expiring within 60 days.`;
+                } else {
+                    alertEl.classList.add('d-none');
+                    alertEl.innerHTML = '';
+                }
+            }
+            renderInventoryCharts(items);
         }
     }
 
@@ -278,17 +808,487 @@
     function printThermalReceipt() {
         const printWindow = window.open('', '_blank', 'width=300,height=600');
         const date = new Date().toLocaleDateString();
-        const content = `<html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 12px; } .border { border: 1px solid #000; padding: 10px; } .dashed { border-top: 1px dashed #000; margin: 10px 0; }</style></head><body><div class="border"><div style="text-align:center;font-weight:bold;">HMS PHARMACY</div><div class="dashed"></div><div>PATIENT: ${activePrintData.patient_name}</div><div>DATE: ${date}</div><div class="dashed"></div><b>RX: ${activePrintData.med_name || activePrintData.manual_name}</b><br>QTY: ${activePrintData.quantity}<br>SIG: ${activePrintData.dosage}<div class="dashed"></div><div style="text-align:center;font-size:9px;">Take as directed.</div></div></body></html>`;
+        if (!thermalModeEnabled) {
+            const content = `<html><head><style>body{font-family:Arial,sans-serif;font-size:12px;padding:12px;}h3{margin:0 0 8px 0;}hr{border:0;border-top:1px solid #ccc;margin:8px 0;}</style></head><body>
+<h3>HMS Pharmacy</h3>
+<div><b>Date:</b> ${date}</div>
+<div><b>Patient:</b> ${activePrintData.patient_name}</div>
+<hr>
+<div><b>RX:</b> ${activePrintData.med_name || activePrintData.manual_name}</div>
+<div><b>QTY:</b> ${activePrintData.quantity}</div>
+<div><b>SIG:</b> ${activePrintData.dosage}</div>
+</body></html>`;
+            printWindow.document.write(content);
+            printWindow.document.close();
+            printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+            return;
+        }
+        const content = `<html><head><style>
+@page { size: 58mm auto; margin: 0; }
+body { width: 48mm; margin: 0; padding: 5mm; font-family: "Courier New", monospace; font-size: 11px; line-height: 1.2; color: #000; }
+.center { text-align: center; }
+.small { font-size: 9px; }
+hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+.row { display: flex; justify-content: space-between; gap: 6px; }
+</style></head><body>
+<div class="center">
+  <div style="font-weight:bold;">HMS PHARMACY</div>
+  <div class="small">MHT-P11 • 58mm</div>
+</div>
+<hr>
+<div class="row"><span>Date</span><span>${date}</span></div>
+<div class="row"><span>Patient</span><span>${activePrintData.patient_name}</span></div>
+<hr>
+<div><b>RX:</b> ${activePrintData.med_name || activePrintData.manual_name}</div>
+<div>QTY: ${activePrintData.quantity}</div>
+<div>SIG: ${activePrintData.dosage}</div>
+<hr>
+<div class="center small">Take as directed.</div>
+</body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
         printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+    }
+
+    // Interactions
+    async function loadInteractionRules() {
+        const rows = await Api.get('/pharmacy/interactions_list');
+        const tbody = document.getElementById('interactionTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                tbody.innerHTML += `<tr>
+                    <td>${r.drug_a}</td>
+                    <td>${r.drug_b}</td>
+                    <td><span class="badge bg-info-subtle text-info border">${r.severity}</span></td>
+                    <td>${r.notes || '-'}</td>
+                    <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No rules added.</td></tr>';
+        }
+    }
+
+    async function addInteractionRule() {
+        const drugA = document.getElementById('ruleDrugA').value.trim();
+        const drugB = document.getElementById('ruleDrugB').value.trim();
+        if (!drugA || !drugB) return alert("Enter both drugs");
+        const res = await Api.post('/pharmacy/interactions_add', {
+            drug_a: drugA,
+            drug_b: drugB,
+            severity: document.getElementById('ruleSeverity').value,
+            notes: document.getElementById('ruleNotes').value.trim()
+        });
+        if (res) {
+            document.getElementById('ruleDrugA').value = '';
+            document.getElementById('ruleDrugB').value = '';
+            document.getElementById('ruleNotes').value = '';
+            loadInteractionRules();
+        }
+    }
+
+    async function checkInteractions() {
+        const patientId = document.getElementById('interactionPatient').value;
+        const med = document.getElementById('interactionMed').value.trim();
+        const result = document.getElementById('interactionResult');
+        if (!patientId || !med) return alert("Select patient and medicine");
+        const rows = await Api.get(`/pharmacy/interactions_check?patient_id=${patientId}&medicine=${encodeURIComponent(med)}`);
+        if (rows && rows.length) {
+            result.innerHTML = rows.map(r => `<div class="alert alert-warning py-2 mb-2">Interaction with <b>${r.with}</b> (${r.severity}) ${r.notes ? ' - ' + r.notes : ''}</div>`).join('');
+        } else {
+            result.innerHTML = '<div class="text-success small">No known interactions found.</div>';
+        }
+    }
+
+    // Controlled substances
+    async function loadControlled() {
+        const rows = await Api.get('/pharmacy/controlled_list');
+        const tbody = document.getElementById('controlledTable');
+        if (tbody) {
+            tbody.innerHTML = '';
+            if (rows && rows.length) {
+                rows.forEach(r => {
+                    tbody.innerHTML += `<tr>
+                        <td>${r.med_name || r.medicine_id}</td>
+                        <td>${r.schedule}</td>
+                        <td>${r.requires_approval ? 'Yes' : 'No'}</td>
+                        <td>${r.notes || '-'}</td>
+                        <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                    </tr>`;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No controlled substances.</td></tr>';
+            }
+        }
+        const req = await Api.get('/pharmacy/controlled_requests');
+        const reqBody = document.getElementById('controlledRequests');
+        if (reqBody) {
+            reqBody.innerHTML = '';
+            const user = JSON.parse(localStorage.getItem("hms_user"));
+            const canApprove = user && ['admin', 'senior_pharmacist'].includes((user.role || '').toLowerCase());
+            if (req && req.length) {
+                req.forEach(r => {
+                    const action = canApprove && r.status === 'Pending'
+                        ? `<button class="btn btn-sm btn-success me-1" onclick="approveControlled(${r.id}, 'Approved')">Approve</button>
+                           <button class="btn btn-sm btn-outline-danger" onclick="approveControlled(${r.id}, 'Rejected')">Reject</button>`
+                        : `<span class="badge bg-secondary">${r.status}</span>`;
+                    reqBody.innerHTML += `<tr>
+                        <td>${r.patient_name}</td>
+                        <td>${r.med_name || '-'}</td>
+                        <td>${r.status}</td>
+                        <td class="text-end">${action}</td>
+                    </tr>`;
+                });
+            } else {
+                reqBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No requests.</td></tr>';
+            }
+        }
+    }
+
+    async function addControlled() {
+        const medId = document.getElementById('controlledMed').value;
+        const schedule = document.getElementById('controlledSchedule').value.trim();
+        if (!medId || !schedule) return alert("Select medicine and schedule");
+        const res = await Api.post('/pharmacy/controlled_add', {
+            medicine_id: medId,
+            schedule,
+            requires_approval: document.getElementById('controlledApproval').value === '1',
+            notes: document.getElementById('controlledNotes').value.trim()
+        });
+        if (res) {
+            document.getElementById('controlledSchedule').value = '';
+            document.getElementById('controlledNotes').value = '';
+            loadControlled();
+        }
+    }
+
+    async function requestControlled(prescriptionId) {
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/pharmacy/controlled_request', {
+            prescription_id: prescriptionId,
+            requested_by: user?.id || null,
+            notes: 'Approval requested'
+        });
+        if (res) {
+            alert("Approval requested.");
+            loadControlled();
+        }
+    }
+
+    async function approveControlled(id, status) {
+        const res = await Api.post('/pharmacy/controlled_approve', { request_id: id, status });
+        if (res) loadControlled();
+    }
+
+    // Refills
+    async function loadRefills() {
+        const rows = await Api.get('/pharmacy/refill_list');
+        const tbody = document.getElementById('refillTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const action = r.status === 'Requested'
+                    ? `<button class="btn btn-sm btn-success" onclick="updateRefill(${r.id}, 'Approved')">Approve</button>`
+                    : `<span class="badge bg-secondary">${r.status}</span>`;
+                tbody.innerHTML += `<tr>
+                    <td>${r.patient_name}</td>
+                    <td>${r.medicine_name}</td>
+                    <td>${r.quantity}</td>
+                    <td>${r.status}</td>
+                    <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                    <td class="text-end">${action}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No refill requests.</td></tr>';
+        }
+    }
+
+    async function updateRefill(id, status) {
+        const res = await Api.post('/pharmacy/refill_update', { request_id: id, status });
+        if (res) loadRefills();
+    }
+
+    // Suppliers & PO
+    async function loadSuppliers() {
+        const rows = await Api.get('/pharmacy/supplier_list');
+        const select = document.getElementById('poSupplier');
+        if (select) {
+            select.innerHTML = '<option value="">Select supplier</option>' +
+                (rows || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+    }
+
+    async function addSupplier() {
+        const name = document.getElementById('supplierName').value.trim();
+        if (!name) return alert("Enter supplier name");
+        const res = await Api.post('/pharmacy/supplier_create', {
+            name,
+            contact_name: document.getElementById('supplierContact').value.trim(),
+            phone: document.getElementById('supplierPhone').value.trim(),
+            email: document.getElementById('supplierEmail').value.trim(),
+            address: document.getElementById('supplierAddress').value.trim()
+        });
+        if (res) {
+            document.getElementById('supplierName').value = '';
+            document.getElementById('supplierContact').value = '';
+            document.getElementById('supplierPhone').value = '';
+            document.getElementById('supplierEmail').value = '';
+            document.getElementById('supplierAddress').value = '';
+            loadSuppliers();
+        }
+    }
+
+    function addPoItem() {
+        const med = document.getElementById('poMed').value.trim();
+        const qty = Number(document.getElementById('poQty').value || 0);
+        const cost = Number(document.getElementById('poCost').value || 0);
+        if (!med || qty <= 0) return alert("Enter medicine and quantity");
+        poItems.push({ medicine_name: med, quantity: qty, unit_cost: cost });
+        document.getElementById('poMed').value = '';
+        document.getElementById('poQty').value = 1;
+        document.getElementById('poCost').value = 0;
+        renderPoItems();
+    }
+
+    function renderPoItems() {
+        const tbody = document.getElementById('poItemsTable');
+        if (!tbody) return;
+        tbody.innerHTML = poItems.map((i, idx) => `
+            <tr>
+                <td>${i.medicine_name}</td>
+                <td>${i.quantity}</td>
+                <td>${i.unit_cost}</td>
+                <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="removePoItem(${idx})">Remove</button></td>
+            </tr>`).join('') || '<tr><td colspan="4" class="text-center text-muted">No items</td></tr>';
+    }
+
+    function removePoItem(idx) {
+        poItems.splice(idx, 1);
+        renderPoItems();
+    }
+
+    async function createPO() {
+        const supplierId = document.getElementById('poSupplier').value;
+        if (!supplierId || poItems.length === 0) return alert("Select supplier and add items");
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/pharmacy/po_create', {
+            supplier_id: supplierId,
+            order_date: document.getElementById('poDate').value || null,
+            items: poItems,
+            created_by: user?.id || null
+        });
+        if (res) {
+            poItems = [];
+            renderPoItems();
+            loadPOs();
+        }
+    }
+
+    async function loadPOs() {
+        const rows = await Api.get('/pharmacy/po_list');
+        const tbody = document.getElementById('poTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                tbody.innerHTML += `<tr>
+                    <td>${r.supplier_name || r.supplier_id}</td>
+                    <td>${r.order_date}</td>
+                    <td>${r.total_amount}</td>
+                    <td>${r.status}</td>
+                    <td class="text-end">PO #${r.id}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No purchase orders.</td></tr>';
+        }
+    }
+
+    async function createGRN() {
+        const orderId = document.getElementById('grnOrderId').value;
+        if (!orderId) return alert("Enter PO ID");
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/pharmacy/grn_create', {
+            order_id: orderId,
+            received_by: user?.id || null,
+            received_date: document.getElementById('grnDate').value || null,
+            notes: document.getElementById('grnNotes').value.trim()
+        });
+        if (res) loadPOs();
+    }
+
+    async function createInvoice() {
+        const orderId = document.getElementById('invOrderId').value;
+        const invNumber = document.getElementById('invNumber').value.trim();
+        if (!orderId || !invNumber) return alert("PO ID and invoice number required");
+        const res = await Api.post('/pharmacy/invoice_create', {
+            order_id: orderId,
+            invoice_number: invNumber,
+            amount: document.getElementById('invAmount').value || 0,
+            invoice_date: document.getElementById('invDate').value || null,
+            status: 'Open'
+        });
+        if (res) loadPOs();
+    }
+
+    // Quarantine
+    async function loadQuarantine() {
+        const rows = await Api.get('/pharmacy/quarantine_list');
+        const tbody = document.getElementById('quarantineTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const action = r.status === 'Quarantined'
+                    ? `<button class="btn btn-sm btn-outline-success" onclick="updateQuarantine(${r.id}, 'Released')">Release</button>`
+                    : `<span class="badge bg-secondary">${r.status}</span>`;
+                tbody.innerHTML += `<tr>
+                    <td>${r.med_name || r.medicine_id}</td>
+                    <td>${r.batch_number || '-'}</td>
+                    <td>${r.quantity}</td>
+                    <td>${r.reason}</td>
+                    <td>${r.status}</td>
+                    <td class="text-end">${action}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No quarantined stock.</td></tr>';
+        }
+    }
+
+    async function addQuarantine() {
+        const medId = document.getElementById('quarantineMed').value;
+        const reason = document.getElementById('quarantineReason').value.trim();
+        if (!medId || !reason) return alert("Select medicine and reason");
+        const res = await Api.post('/pharmacy/quarantine_add', {
+            medicine_id: medId,
+            batch_number: document.getElementById('quarantineBatch').value.trim(),
+            quantity: document.getElementById('quarantineQty').value || 0,
+            reason
+        });
+        if (res) {
+            document.getElementById('quarantineBatch').value = '';
+            document.getElementById('quarantineQty').value = 1;
+            document.getElementById('quarantineReason').value = '';
+            loadQuarantine();
+        }
+    }
+
+    async function updateQuarantine(id, status) {
+        const res = await Api.post('/pharmacy/quarantine_update', { id, status });
+        if (res) loadQuarantine();
+    }
+
+    // Adjustments
+    async function loadAdjustments() {
+        const rows = await Api.get('/pharmacy/adjustment_list');
+        const tbody = document.getElementById('adjustTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                tbody.innerHTML += `<tr>
+                    <td>${r.med_name || r.medicine_id}</td>
+                    <td>${r.adjustment}</td>
+                    <td>${r.reason}</td>
+                    <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No adjustments.</td></tr>';
+        }
+    }
+
+    async function addAdjustment() {
+        const medId = document.getElementById('adjustMed').value;
+        const adj = Number(document.getElementById('adjustQty').value || 0);
+        const reason = document.getElementById('adjustReason').value.trim();
+        if (!medId || !reason) return alert("Select medicine and reason");
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/pharmacy/adjustment_add', {
+            medicine_id: medId,
+            adjustment: adj,
+            reason,
+            adjusted_by: user?.id || null
+        });
+        if (res) {
+            document.getElementById('adjustQty').value = 0;
+            document.getElementById('adjustReason').value = '';
+            loadAdjustments();
+            loadInventory();
+        }
+    }
+
+    // Claims
+    async function loadClaims() {
+        const claimable = await Api.get('/pharmacy/claimable');
+        const claimSel = document.getElementById('claimPrescription');
+        if (claimSel) {
+            claimSel.innerHTML = '<option value="">Select prescription</option>' +
+                (claimable || []).map(c => `<option value="${c.id}" data-patient="${c.patient_id}">${c.patient_name} - ${c.med_name} (${c.status})</option>`).join('');
+        }
+
+        const rows = await Api.get('/pharmacy/claim_list');
+        const tbody = document.getElementById('claimTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const action = `<button class="btn btn-sm btn-outline-success" onclick="updateClaim(${r.id}, 'Approved')">Approve</button>`;
+                tbody.innerHTML += `<tr>
+                    <td>${r.patient_name}</td>
+                    <td>${r.med_name || '-'}</td>
+                    <td>${r.status}</td>
+                    <td>${r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '-'}</td>
+                    <td class="text-end">${action}</td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No claims.</td></tr>';
+        }
+    }
+
+    async function createClaim() {
+        const sel = document.getElementById('claimPrescription');
+        const prescId = sel.value;
+        if (!prescId) return alert("Select prescription");
+        const patientId = sel.options[sel.selectedIndex].dataset.patient;
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/pharmacy/claim_create', {
+            prescription_id: prescId,
+            patient_id: patientId,
+            status: document.getElementById('claimStatus').value,
+            submitted_by: user?.id || null,
+            notes: document.getElementById('claimNotes').value.trim()
+        });
+        if (res) {
+            document.getElementById('claimNotes').value = '';
+            loadClaims();
+        }
+    }
+
+    async function updateClaim(id, status) {
+        const res = await Api.post('/pharmacy/claim_update', { claim_id: id, status });
+        if (res) loadClaims();
     }
 
     async function printInventoryReport() {
         const items = await Api.get('/inventory/list');
         const printWindow = window.open('', '_blank', 'width=300,height=600');
         let rows = items.map(i => `<div>${i.name.substring(0,15)}: ${i.stock_quantity}</div>`).join('');
-        const content = `<html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 11px; }</style></head><body><div style="text-align:center;font-weight:bold;">STOCK REPORT</div><hr>${rows}<hr><div style="text-align:center;">${new Date().toLocaleString()}</div></body></html>`;
+        const content = `<html><head><style>
+@page { size: 58mm auto; margin: 0; }
+body { width: 48mm; margin: 0; padding: 5mm; font-family: "Courier New", monospace; font-size: 11px; line-height: 1.2; }
+hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+.center { text-align: center; }
+.small { font-size: 9px; }
+</style></head><body>
+<div class="center"><div style="font-weight:bold;">STOCK REPORT</div><div class="small">MHT-P11 • 58mm</div></div>
+<hr>${rows}<hr><div class="center small">${new Date().toLocaleString()}</div></body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
         printWindow.onload = () => { printWindow.print(); printWindow.close(); };
@@ -298,7 +1298,15 @@
         const history = await Api.get('/pharmacy/history');
         const printWindow = window.open('', '_blank', 'width=300,height=600');
         let rows = history.map(h => `<div>${h.patient_name.substring(0,10)}: ${h.med_name.substring(0,10)}</div>`).join('');
-        const content = `<html><head><style>@page { size: 58mm auto; margin: 0; } body { width: 48mm; margin: 0; padding: 5mm; font-family: 'Courier New', monospace; font-size: 11px; }</style></head><body><div style="text-align:center;font-weight:bold;">DISPENSE LOG</div><hr>${rows}<hr><div style="text-align:center;">${new Date().toLocaleDateString()}</div></body></html>`;
+        const content = `<html><head><style>
+@page { size: 58mm auto; margin: 0; }
+body { width: 48mm; margin: 0; padding: 5mm; font-family: "Courier New", monospace; font-size: 11px; line-height: 1.2; }
+hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+.center { text-align: center; }
+.small { font-size: 9px; }
+</style></head><body>
+<div class="center"><div style="font-weight:bold;">DISPENSE LOG</div><div class="small">MHT-P11 • 58mm</div></div>
+<hr>${rows}<hr><div class="center small">${new Date().toLocaleDateString()}</div></body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
         printWindow.onload = () => { printWindow.print(); printWindow.close(); };
@@ -320,6 +1328,34 @@
 
     function openAddModal() { new bootstrap.Modal(document.getElementById('addStockModal')).show(); }
 
+    function openEditModal(item) {
+        document.getElementById('editId').value = item.id;
+        document.getElementById('editName').value = item.name || '';
+        document.getElementById('editBatch').value = item.batch_number || '';
+        document.getElementById('editPrice').value = item.price || 0;
+        document.getElementById('editQuantity').value = item.stock_quantity || 0;
+        document.getElementById('editUnit').value = item.unit || '';
+        document.getElementById('editExpiryDate').value = item.expiry_date ? item.expiry_date.substring(0, 10) : '';
+        editStockModal.show();
+    }
+
+    async function saveEditStock() {
+        const data = {
+            id: document.getElementById('editId').value,
+            name: document.getElementById('editName').value,
+            batch_number: document.getElementById('editBatch').value,
+            price: document.getElementById('editPrice').value,
+            quantity: document.getElementById('editQuantity').value,
+            unit: document.getElementById('editUnit').value,
+            expiry_date: document.getElementById('editExpiryDate').value
+        };
+        const res = await Api.post('/inventory/update', data);
+        if (res) {
+            editStockModal.hide();
+            loadInventory();
+        }
+    }
+
     async function saveStock() {
         const data = {
             name: document.getElementById('drugName').value,
@@ -333,7 +1369,142 @@
         if(res) { bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide(); loadInventory(); }
     }
 
-    document.addEventListener("DOMContentLoaded", loadPending);
+    function renderInventoryCharts(items) {
+        const categoryMap = {};
+        const expiryBuckets = { expired: 0, soon: 0, mid: 0, safe: 0 };
+        const now = new Date();
+
+        items.forEach(item => {
+            const category = (item.category || 'General').trim();
+            const qty = Number(item.stock_quantity) || 0;
+            categoryMap[category] = (categoryMap[category] || 0) + qty;
+
+            const exp = item.expiry_date ? new Date(item.expiry_date) : null;
+            if (!exp || isNaN(exp)) {
+                expiryBuckets.safe += qty;
+                return;
+            }
+            const diffDays = Math.floor((exp - now) / (1000 * 60 * 60 * 24));
+            if (diffDays < 0) expiryBuckets.expired += qty;
+            else if (diffDays <= 60) expiryBuckets.soon += qty;
+            else if (diffDays <= 120) expiryBuckets.mid += qty;
+            else expiryBuckets.safe += qty;
+        });
+
+        const categoryLabels = Object.keys(categoryMap);
+        const categoryValues = Object.values(categoryMap);
+
+        const categoryCtx = document.getElementById('inventoryCategoryChart');
+        if (categoryCtx) {
+            if (inventoryCategoryChart) inventoryCategoryChart.destroy();
+            inventoryCategoryChart = new Chart(categoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        data: categoryValues,
+                        backgroundColor: '#0ea5e9',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    }
+                }
+            });
+        }
+
+        const expiryCtx = document.getElementById('inventoryExpiryChart');
+        if (expiryCtx) {
+            if (inventoryExpiryChart) inventoryExpiryChart.destroy();
+            inventoryExpiryChart = new Chart(expiryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Expired', '≤ 60 Days', '61–120 Days', '120+ Days'],
+                    datasets: [{
+                        data: [expiryBuckets.expired, expiryBuckets.soon, expiryBuckets.mid, expiryBuckets.safe],
+                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#22c55e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    cutout: '60%'
+                }
+            });
+        }
+    }
+
+    function last7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000);
+            days.push({
+                key: d.toISOString().slice(0, 10),
+                label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+            });
+        }
+        return days;
+    }
+
+    async function loadPharmacyAnalytics() {
+        const data = await Api.get('/pharmacy/analytics');
+        if (!data) return;
+
+        const statusRows = data.status_counts || [];
+        if (pharmacyStatusChart) pharmacyStatusChart.destroy();
+        pharmacyStatusChart = new Chart(document.getElementById('pharmacyStatusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: statusRows.map(r => r.status),
+                datasets: [{ data: statusRows.map(r => r.count), backgroundColor: ['#f59e0b','#10b981','#3b82f6','#ef4444','#6b7280'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const days = last7Days();
+        const dispMap = Object.fromEntries((data.dispensed_by_day || []).map(r => [r.day, r.count]));
+        const pendMap = Object.fromEntries((data.pending_by_day || []).map(r => [r.day, r.count]));
+        const labels = days.map(d => d.label);
+
+        if (pharmacyVolumeChart) pharmacyVolumeChart.destroy();
+        pharmacyVolumeChart = new Chart(document.getElementById('pharmacyVolumeChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Dispensed', data: days.map(d => dispMap[d.key] || 0), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', tension: 0.3 },
+                    { label: 'Pending', data: days.map(d => pendMap[d.key] || 0), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.2)', tension: 0.3 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadPending();
+        loadInventory();
+        loadHistory();
+        loadPharmacistShifts();
+        loadPharmacyAnalytics();
+        loadPharmacyPatients();
+        loadPharmacyMeds();
+        renderPoItems();
+        thermalModeEnabled = localStorage.getItem('hms_thermal_mode') === '1';
+        const toggle = document.getElementById('thermalModeToggle');
+        if (toggle) {
+            toggle.checked = thermalModeEnabled;
+            toggle.addEventListener('change', (e) => {
+                thermalModeEnabled = e.target.checked;
+                localStorage.setItem('hms_thermal_mode', thermalModeEnabled ? '1' : '0');
+            });
+        }
+    });
 </script>
 </body>
 </html>

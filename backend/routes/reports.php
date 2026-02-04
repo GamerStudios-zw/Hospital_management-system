@@ -2,6 +2,8 @@
 // FILE: backend/routes/reports.php
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../middleware/RoleMiddleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -9,6 +11,9 @@ $db = $database->getConnection();
 // Expecting $segments from index.php router
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
+
+$user = AuthMiddleware::isAuthenticated();
+RoleMiddleware::allow(['doctor', 'admin'], $user);
 
 switch ($action) {
 

@@ -1,0 +1,139 @@
+/* HMS unified theme based on index.html */
+:root {
+    --primary-color: #294a70;
+    --secondary-color: #0f233a;
+    --accent-color: #e44a3c;
+    --text-color: #212529;
+    --light-bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --border-color: #e5e7eb;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Poppins", "Roboto", sans-serif;
+    color: var(--text-color);
+    background: var(--light-bg);
+    padding-top: 112px;
+}
+
+/* Topbar + Header */
+.topbar {
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 13px;
+    padding: 8px 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 999;
+}
+
+.topbar a {
+    color: #fff;
+    text-decoration: none;
+}
+
+.header {
+    background: var(--primary-color);
+    border-bottom: 3px solid var(--accent-color);
+    position: fixed;
+    top: 32px;
+    width: 100%;
+    z-index: 998;
+    box-shadow: 0 2px 20px rgba(1, 41, 112, 0.1);
+}
+
+.header .logo {
+    color: #fff;
+    font-weight: 700;
+    font-size: 24px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+}
+
+.header .logo i {
+    font-size: 26px;
+}
+
+/* Sidebar */
+.sidebar,
+.app-sidebar {
+    background: var(--secondary-color);
+    color: #fff;
+    min-height: 100vh;
+}
+
+.sidebar .nav-link,
+.app-sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+}
+
+.sidebar .nav-link:hover,
+.app-sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.sidebar .nav-link.active,
+.app-sidebar .nav-link.active {
+    background: #1f3c5c;
+    color: #fff;
+}
+
+/* Cards, tables, buttons */
+.card,
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #475569;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background: #233f60;
+    border-color: #233f60;
+}
+
+.btn-outline-danger {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-outline-danger:hover {
+    background: var(--accent-color);
+    color: #fff;
+}
+
+/* Forms */
+.form-control,
+.form-select {
+    border-radius: 10px;
+    border-color: var(--border-color);
+}
+
+/* Page titles */
+h2, h3, h4, h5 {
+    color: #0f172a;
+}

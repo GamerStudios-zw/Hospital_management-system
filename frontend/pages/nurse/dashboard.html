@@ -37,6 +37,37 @@
         .form-control:valid { border-color: #10b981; }
 
         .stat-widget { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; }
+
+        /* Modern Ward Monitor */
+        .ward-toolbar { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 14px 16px; box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.35); }
+        .ward-toolbar .btn { border-radius: 999px; }
+        .ward-metric { background: linear-gradient(135deg, rgba(15, 23, 42, 0.06), rgba(148, 163, 184, 0.18)); border-radius: 14px; padding: 10px 14px; border: 1px solid rgba(148, 163, 184, 0.35); }
+        .ward-metric .label { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+        .ward-metric .value { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+        .ward-card {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 18px; padding: 18px; border: 1px solid rgba(148, 163, 184, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            position: relative; overflow: hidden;
+        }
+        .ward-card::after { content: ''; position: absolute; inset: auto -30% -45% -30%; height: 60%; background: radial-gradient(circle at top, rgba(16, 185, 129, 0.18), transparent 70%); opacity: 0; transition: opacity 0.2s ease; }
+        .ward-card:hover { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 18px 35px -20px rgba(15, 23, 42, 0.35); transform: translateY(-2px); }
+        .ward-card:hover::after { opacity: 1; }
+        .bed-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; background: rgba(15, 23, 42, 0.06); }
+        .ward-pill { border-radius: 999px; font-size: 0.72rem; letter-spacing: 0.04em; }
+        .ward-meta { font-size: 0.8rem; color: #64748b; }
+        .ward-patient { font-weight: 600; color: #0f172a; }
+
+        @media print {
+            body.printing .sidebar,
+            body.printing .btn,
+            body.printing button,
+            body.printing .nav-link { display: none !important; }
+            body.printing .tab-section { display: none !important; }
+            body.printing .tab-section.active { display: block !important; }
+        }
+        .chart-compact { height: 170px; }
+        .chart-compact canvas { height: 170px !important; max-height: 170px; }
     </style>
 </head>
 <body>
@@ -52,6 +83,12 @@
             <nav class="nav flex-column mt-3 flex-grow-1">
                 <a class="nav-link active" onclick="switchTab('triage', this)"><i class="bi bi-clipboard2-pulse me-3"></i> Triage Station</a>
                 <a class="nav-link" onclick="switchTab('wards', this)"><i class="bi bi-hospital me-3"></i> Ward Monitor</a>
+                <a class="nav-link" onclick="switchTab('history', this)"><i class="bi bi-clock-history me-3"></i> Patient History</a>
+                <a class="nav-link" onclick="switchTab('timeline', this)"><i class="bi bi-diagram-3 me-3"></i> Patient Timeline</a>
+                <a class="nav-link" onclick="switchTab('tasks', this)"><i class="bi bi-list-check me-3"></i> Task Board</a>
+                <a class="nav-link" onclick="switchTab('escalations', this)"><i class="bi bi-exclamation-triangle me-3"></i> Escalations</a>
+                <a class="nav-link" onclick="switchTab('discharge', this)"><i class="bi bi-box-arrow-right me-3"></i> Discharge Summary</a>
+                <a class="nav-link" onclick="switchTab('handover', this)"><i class="bi bi-arrow-left-right me-3"></i> Shift Handover</a>
                 <a class="nav-link" onclick="switchTab('roster', this)"><i class="bi bi-calendar3 me-3"></i> Shift Roster</a>
             </nav>
 
@@ -78,6 +115,33 @@
                     </div>
                 </div>
 
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                            <h6 class="fw-bold mb-3">Triage Volume (Last 7 Days)</h6>
+                            <div class="chart-compact">
+                                <canvas id="nurseTriageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                            <h6 class="fw-bold mb-3">Bed Status</h6>
+                            <div class="chart-compact">
+                                <canvas id="nurseBedChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                            <h6 class="fw-bold mb-3">Escalations</h6>
+                            <div class="chart-compact">
+                                <canvas id="nurseEscalationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
@@ -95,15 +159,232 @@
             </section>
 
             <section id="wards" class="tab-section">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold">Ward Occupancy</h3>
-                    <div class="btn-group shadow-sm">
-                        <button class="btn btn-white border bg-white active">All Wards</button>
-                        <button class="btn btn-white border bg-white" onclick="loadBeds()">Refresh</button>
+                <div class="ward-toolbar d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+                    <div>
+                        <h3 class="fw-bold mb-1">Ward Monitor</h3>
+                        <p class="text-muted mb-0">Real-time bed occupancy and urgent admissions.</p>
                     </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="ward-metric">
+                            <div class="label">Total</div>
+                            <div class="value" id="wardTotal">--</div>
+                        </div>
+                        <div class="ward-metric">
+                            <div class="label">Occupied</div>
+                            <div class="value text-danger" id="wardOccupied">--</div>
+                        </div>
+                        <div class="ward-metric">
+                            <div class="label">Available</div>
+                            <div class="value text-success" id="wardAvailable">--</div>
+                        </div>
+                        <div class="ward-metric">
+                            <div class="label">Other</div>
+                            <div class="value text-warning" id="wardOther">--</div>
+                        </div>
+                        <button class="btn btn-outline-dark btn-sm px-3" onclick="loadBeds()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <small class="ward-meta">Last updated: <span id="wardUpdated">--</span></small>
                 </div>
                 <div id="wardContainer" class="row g-4">
                     </div>
+            </section>
+
+            <section id="history" class="tab-section">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+                    <div>
+                        <h3 class="fw-bold mb-1">Patient History</h3>
+                        <p class="text-muted mb-0">Recent vitals entries.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-dark btn-sm px-3" onclick="loadHistory()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                        <button class="btn btn-outline-primary btn-sm px-3" onclick="printCurrentView()"><i class="bi bi-printer me-1"></i> Print</button>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Time</th>
+                                    <th>Patient</th>
+                                    <th>Temp</th>
+                                    <th>Pulse</th>
+                                    <th>BP</th>
+                                    <th>SpO2</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Load history to view entries.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="timeline" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="fw-bold mb-1">Patient Timeline</h3>
+                        <p class="text-muted mb-0">Combined events (vitals, visits, meds, docs).</p>
+                    </div>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadTimeline()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4">
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Patient</label>
+                            <select id="timelinePatient" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-primary" onclick="loadTimeline()">Load Timeline</button>
+                        </div>
+                    </div>
+                    <ul class="list-group" id="timelineList"></ul>
+                </div>
+            </section>
+
+            <section id="tasks" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="fw-bold">Task Board</h3>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadTasks()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Patient (optional)</label>
+                            <select id="taskPatient" class="form-select"></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Task</label>
+                            <input type="text" id="taskText" class="form-control" placeholder="IV check / wound dressing">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Priority</label>
+                            <select id="taskPriority" class="form-select">
+                                <option value="low">Low</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" onclick="createTask()">Add Task</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Patient</th><th>Task</th><th>Priority</th><th>Status</th><th class="text-end">Action</th></tr>
+                            </thead>
+                            <tbody id="tasksTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="escalations" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="fw-bold">Escalations</h3>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadEscalations()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Patient</label>
+                            <select id="escPatient" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Reason</label>
+                            <input type="text" id="escReason" class="form-control" placeholder="Severe pain / low SpO2">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-danger w-100" onclick="createEscalation()">Escalate</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Patient</th><th>Reason</th><th>Severity</th><th>Status</th><th>Time</th></tr>
+                            </thead>
+                            <tbody id="escalationsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="discharge" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="fw-bold">Discharge Summary</h3>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadDischarges()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Patient</label>
+                            <select id="dischargePatient" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Summary</label>
+                            <input type="text" id="dischargeSummary" class="form-control" placeholder="Vitals stable, follow-up in 2 weeks">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" onclick="createDischarge()">Save</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Patient</th><th>Summary</th><th>Status</th><th>Time</th></tr>
+                            </thead>
+                            <tbody id="dischargeTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="handover" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="fw-bold">Shift Handover</h3>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadHandover()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Shift Start</label>
+                            <input type="datetime-local" id="handoverStart" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Shift End</label>
+                            <input type="datetime-local" id="handoverEnd" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Notes</label>
+                            <input type="text" id="handoverNotes" class="form-control" placeholder="Pending triage, unstable patient...">
+                        </div>
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary" onclick="createHandover()">Save Handover</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Staff</th><th>Notes</th></tr>
+                            </thead>
+                            <tbody id="handoverTable"></tbody>
+                        </table>
+                    </div>
+                </div>
             </section>
 
             <section id="roster" class="tab-section">
@@ -167,13 +448,45 @@
     </div>
 </div>
 
+<div class="modal fade" id="bedAdmitModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Admit to Bed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="small text-muted">Bed</label>
+                    <div class="fw-bold" id="bedAdmitLabel">--</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select Urgent Patient</label>
+                    <select id="urgentPatientSelect" class="form-select"></select>
+                </div>
+                <div class="alert alert-info small mb-0">
+                    Only patients marked as <b>Urgent Care</b> by a doctor appear here.
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="confirmBedAdmission()">Admit Patient</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['nurse', 'admin']);
     let activeQueueId = null;
     let activePatientId = null;
+    let activeBedId = null;
     const vitalsModal = new bootstrap.Modal(document.getElementById('vitalsModal'));
+    const bedAdmitModal = new bootstrap.Modal(document.getElementById('bedAdmitModal'));
+    let historySnapshot = null;
 
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
@@ -182,7 +495,14 @@
         el.classList.add('active');
 
         if(id === 'triage') loadTriageQueue();
+        if(id === 'triage') loadNurseAnalytics();
         if(id === 'wards') loadBeds();
+        if(id === 'history') loadHistory();
+        if(id === 'timeline') loadTimeline();
+        if(id === 'tasks') loadTasks();
+        if(id === 'escalations') loadEscalations();
+        if(id === 'discharge') loadDischarges();
+        if(id === 'handover') loadHandover();
         if(id === 'roster') loadShifts();
     }
 
@@ -194,13 +514,15 @@
 
         if (queue && Array.isArray(queue)) {
             queue.forEach(q => {
+                const status = q.status || 'Waiting';
+                const badgeClass = status.toLowerCase().includes('urgent') ? 'bg-danger' : (status.toLowerCase().includes('triage') ? 'bg-info text-dark' : 'bg-warning text-dark');
                 // Safer onclick: pass the object by stringifying it with single quotes
                 tbody.innerHTML += `
                     <tr>
                         <td class="ps-4 small">${new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                         <td><div class="fw-bold">${q.full_name}</div><small class="text-muted">${q.gender}, ${q.dob}</small></td>
                         <td class="small fw-medium">${q.national_id || 'N/A'}</td>
-                        <td><span class="badge bg-warning text-dark">${q.status}</span></td>
+                        <td><span class="badge ${badgeClass}">${status}</span></td>
                         <td class="text-end pe-4">
                             <button class="btn btn-success btn-sm rounded-pill px-3" onclick='openVitalsModal(${JSON.stringify(q)})'>
                                 Capture
@@ -216,6 +538,7 @@
         activeQueueId = q.queue_id;
         activePatientId = q.patient_id;
         document.getElementById('modalPatientName').innerText = q.full_name;
+        Api.post('/nurse/start_triage', { queue_id: activeQueueId });
         vitalsModal.show();
     }
 
@@ -246,21 +569,53 @@
         container.innerHTML = '';
 
         if(beds) {
+            let total = 0;
+            let occupied = 0;
+            let available = 0;
+            let other = 0;
+            const cards = [];
+
             beds.forEach(bed => {
+                total += 1;
+                if (bed.status === 'Occupied') occupied += 1;
+                else if (bed.status === 'Available') available += 1;
+                else other += 1;
+
                 const color = bed.status === 'Occupied' ? 'danger' : (bed.status === 'Available' ? 'success' : 'warning');
-                container.innerHTML += `
+                const patientLabel = bed.patient_name ? bed.patient_name : 'Empty';
+                const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
+                const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
+
+                let actionBtn = '';
+                if (bed.status === 'Occupied') {
+                    actionBtn = `<button onclick="discharge(${bed.id})" class="btn btn-sm btn-outline-danger w-100 rounded-pill">Discharge</button>`;
+                } else if (bed.status === 'Available') {
+                    actionBtn = `<button onclick='openBedAdmitModal(${JSON.stringify(bed)})' class="btn btn-sm btn-outline-success w-100 rounded-pill">Admit</button>`;
+                } else {
+                    actionBtn = `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Unavailable</button>`;
+                }
+
+                cards.push(`
                     <div class="col-md-3">
-                        <div class="ward-card shadow-sm h-100">
-                            <div class="d-flex justify-content-between mb-3">
-                                <div class="bed-icon bg-${color} bg-opacity-10 text-${color}"><i class="bi bi-hospital"></i></div>
-                                <span class="badge bg-${color}-subtle text-${color} border border-${color}">${bed.status}</span>
+                        <div class="ward-card h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="bed-icon text-${color}"><i class="bi bi-hospital"></i></div>
+                                <span class="badge ward-pill bg-${color}-subtle text-${color} border border-${color}">${bed.status}</span>
                             </div>
-                            <h6 class="fw-bold mb-1">${bed.bed_number}</h6>
-                            <p class="small text-muted mb-3">${bed.patient_name || 'Empty'}</p>
-                            ${bed.status === 'Occupied' ? `<button onclick="discharge(${bed.id})" class="btn btn-sm btn-outline-danger w-100 rounded-pill">Discharge</button>` : ''}
+                            <div class="ward-meta mb-1">${wardLabel}</div>
+                            <h6 class="fw-bold mb-1">${bedNumber}</h6>
+                            <div class="ward-patient mb-3">${patientLabel}</div>
+                            ${actionBtn}
                         </div>
-                    </div>`;
+                    </div>`);
             });
+
+            container.innerHTML = cards.join('');
+            document.getElementById('wardTotal').innerText = total;
+            document.getElementById('wardOccupied').innerText = occupied;
+            document.getElementById('wardAvailable').innerText = available;
+            document.getElementById('wardOther').innerText = other;
+            document.getElementById('wardUpdated').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
         }
     }
 
@@ -268,6 +623,39 @@
         if(confirm("Are you sure you want to discharge this patient?")) {
             const res = await Api.post('/nurse/discharge', { bed_id: bedId });
             if(res) loadBeds();
+        }
+    }
+
+    function openBedAdmitModal(bed) {
+        activeBedId = bed.id;
+        const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
+        const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
+        document.getElementById('bedAdmitLabel').innerText = `${wardLabel} • ${bedNumber}`;
+        loadUrgentPatients();
+        bedAdmitModal.show();
+    }
+
+    async function loadUrgentPatients() {
+        const select = document.getElementById('urgentPatientSelect');
+        select.innerHTML = '<option value="">Loading...</option>';
+        const patients = await Api.get('/nurse/urgent_patients');
+        if (patients && patients.length) {
+            select.innerHTML = '<option value="">-- Select Patient --</option>';
+            patients.forEach(p => {
+                select.innerHTML += `<option value="${p.patient_id}">${p.full_name} (${p.national_id || 'N/A'})</option>`;
+            });
+        } else {
+            select.innerHTML = '<option value="">No urgent patients</option>';
+        }
+    }
+
+    async function confirmBedAdmission() {
+        const patientId = document.getElementById('urgentPatientSelect').value;
+        if (!patientId) return alert("Select an urgent patient");
+        const res = await Api.post('/nurse/assign_bed', { bed_id: activeBedId, patient_id: patientId });
+        if (res) {
+            bedAdmitModal.hide();
+            loadBeds();
         }
     }
 
@@ -288,10 +676,338 @@
         }
     }
 
+    async function loadHistory() {
+        const data = await Api.get('/nurse/history');
+        if (!data) return;
+        historySnapshot = data;
+
+        const tbody = document.getElementById('historyTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (Array.isArray(data.recent) && data.recent.length) {
+            data.recent.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 small text-muted">${timeStr}</td>
+                        <td class="fw-semibold">${r.patient_name || 'Unknown'}</td>
+                        <td>${r.temperature ?? '-'}</td>
+                        <td>${r.pulse ?? '-'}</td>
+                        <td>${r.bp ?? '-'}</td>
+                        <td>${r.spo2 ?? '-'}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No history found.</td></tr>';
+        }
+    }
+
+    function printCurrentView() {
+        document.body.classList.add('printing');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('printing');
+        }, 0);
+    }
+
+    function printHistoryReport() {
+        if (!historySnapshot) return alert("History not loaded yet.");
+        const rows = (historySnapshot.recent || []).map(r => {
+            const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+            return `<tr>
+                <td>${timeStr}</td>
+                <td>${r.patient_name || 'Unknown'}</td>
+                <td>${r.temperature ?? '-'}</td>
+                <td>${r.pulse ?? '-'}</td>
+                <td>${r.bp ?? '-'}</td>
+                <td>${r.spo2 ?? '-'}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="6">No history found.</td></tr>';
+
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html>
+            <head>
+                <title>Patient History</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+                    h1 { margin-bottom: 8px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                    th, td { border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; text-align: left; }
+                    th { background: #f8fafc; }
+                </style>
+            </head>
+            <body>
+                <h1>Patient History - Recent Vitals</h1>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Patient</th>
+                            <th>Temp</th>
+                            <th>Pulse</th>
+                            <th>BP</th>
+                            <th>SpO2</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <script>window.onload = function(){ window.print(); window.close(); };<\/script>
+            </body>
+            </html>
+        `);
+    }
+
+    let nurseTriageChart = null;
+    let nurseBedChart = null;
+    let nurseEscalationChart = null;
+
+    function last7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000);
+            days.push({
+                key: d.toISOString().slice(0, 10),
+                label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+            });
+        }
+        return days;
+    }
+
+    async function loadNurseAnalytics() {
+        const data = await Api.get('/nurse/analytics');
+        if (!data) return;
+
+        const days = last7Days();
+        const triageMap = Object.fromEntries((data.triage_by_day || []).map(r => [r.day, r.count]));
+        const labels = days.map(d => d.label);
+        const triageSeries = days.map(d => triageMap[d.key] || 0);
+
+        if (nurseTriageChart) nurseTriageChart.destroy();
+        nurseTriageChart = new Chart(document.getElementById('nurseTriageChart'), {
+            type: 'line',
+            data: { labels, datasets: [{ label: 'Vitals Captured', data: triageSeries, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const bedRows = data.beds_by_status || [];
+        if (nurseBedChart) nurseBedChart.destroy();
+        nurseBedChart = new Chart(document.getElementById('nurseBedChart'), {
+            type: 'doughnut',
+            data: { labels: bedRows.map(r => r.status), datasets: [{ data: bedRows.map(r => r.count), backgroundColor: ['#10b981','#f59e0b','#ef4444','#6b7280'] }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const escRows = data.escalations_by_status || [];
+        if (nurseEscalationChart) nurseEscalationChart.destroy();
+        nurseEscalationChart = new Chart(document.getElementById('nurseEscalationChart'), {
+            type: 'doughnut',
+            data: { labels: escRows.map(r => r.status), datasets: [{ data: escRows.map(r => r.count), backgroundColor: ['#ef4444','#f59e0b','#6b7280'] }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function renderPatientOptions(select, patients, placeholder) {
+        if (!select) return;
+        const current = select.value;
+        const options = [`<option value="">${placeholder}</option>`]
+            .concat(patients.map(p => `<option value="${p.id}">${p.full_name} (${p.national_id || 'N/A'})</option>`));
+        select.innerHTML = options.join('');
+        if (current) select.value = current;
+    }
+
+    async function loadPatientOptions() {
+        const patients = await Api.get('/nurse/patients');
+        if (!patients) return;
+        renderPatientOptions(document.getElementById('timelinePatient'), patients, '-- Select Patient --');
+        renderPatientOptions(document.getElementById('taskPatient'), patients, '-- Optional --');
+        renderPatientOptions(document.getElementById('escPatient'), patients, '-- Select Patient --');
+        renderPatientOptions(document.getElementById('dischargePatient'), patients, '-- Select Patient --');
+    }
+
+    async function loadTimeline() {
+        const patientId = document.getElementById('timelinePatient')?.value;
+        const list = document.getElementById('timelineList');
+        if (!list) return;
+        if (!patientId) {
+            list.innerHTML = '<li class="list-group-item text-muted">Select a patient to load their timeline.</li>';
+            return;
+        }
+        const items = await Api.get(`/nurse/timeline?patient_id=${patientId}`);
+        if (items && items.length) {
+            list.innerHTML = items.map(item => `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">${item.note || 'Update'}</div>
+                        <small class="text-muted">${item.created_at ? new Date(item.created_at).toLocaleString() : ''}</small>
+                    </div>
+                </li>
+            `).join('');
+        } else {
+            list.innerHTML = '<li class="list-group-item text-muted">No timeline entries.</li>';
+        }
+    }
+
+    async function loadTasks() {
+        const tasks = await Api.get('/nurse/task_list');
+        const tbody = document.getElementById('tasksTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (tasks && tasks.length) {
+            tasks.forEach(t => {
+                const status = t.status || 'open';
+                const badge = status === 'done' ? 'success' : (status === 'in_progress' ? 'warning' : 'secondary');
+                const patient = t.patient_name || 'Unassigned';
+                const action = status === 'done'
+                    ? '<span class="text-muted small">Done</span>'
+                    : `<button class="btn btn-sm btn-outline-success" onclick="updateTask(${t.id}, 'done')">Mark Done</button>`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${patient}</td>
+                        <td>${t.task}</td>
+                        <td><span class="badge bg-${badge}-subtle text-${badge}">${t.priority || 'normal'}</span></td>
+                        <td><span class="badge bg-${badge}-subtle text-${badge}">${status.replace('_',' ')}</span></td>
+                        <td class="text-end">${action}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No tasks yet.</td></tr>';
+        }
+    }
+
+    async function createTask() {
+        const task = document.getElementById('taskText').value.trim();
+        if (!task) return alert("Enter task details");
+        const patientId = document.getElementById('taskPatient').value || null;
+        const priority = document.getElementById('taskPriority').value || 'normal';
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/nurse/task_create', {
+            patient_id: patientId,
+            assigned_to: user?.id || null,
+            task,
+            priority
+        });
+        if (res) {
+            document.getElementById('taskText').value = '';
+            loadTasks();
+        }
+    }
+
+    async function updateTask(taskId, status) {
+        const res = await Api.post('/nurse/task_update', { task_id: taskId, status });
+        if (res) loadTasks();
+    }
+
+    async function loadEscalations() {
+        const rows = await Api.get('/nurse/escalation_list');
+        const tbody = document.getElementById('escalationsTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                const sev = r.severity || 'urgent';
+                const badge = sev === 'urgent' ? 'danger' : 'warning';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${r.patient_name}</td>
+                        <td>${r.reason}</td>
+                        <td><span class="badge bg-${badge}-subtle text-${badge}">${sev}</span></td>
+                        <td>${r.status}</td>
+                        <td>${timeStr}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No escalations yet.</td></tr>';
+        }
+    }
+
+    async function createEscalation() {
+        const patientId = document.getElementById('escPatient').value;
+        const reason = document.getElementById('escReason').value.trim();
+        if (!patientId || !reason) return alert("Select a patient and add a reason");
+        const res = await Api.post('/nurse/escalation_create', { patient_id: patientId, reason, severity: 'urgent' });
+        if (res) {
+            document.getElementById('escReason').value = '';
+            loadEscalations();
+        }
+    }
+
+    async function loadDischarges() {
+        const rows = await Api.get('/nurse/discharge_list');
+        const tbody = document.getElementById('dischargeTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${r.patient_name}</td>
+                        <td>${r.summary}</td>
+                        <td>${r.status}</td>
+                        <td>${timeStr}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No discharge summaries yet.</td></tr>';
+        }
+    }
+
+    async function createDischarge() {
+        const patientId = document.getElementById('dischargePatient').value;
+        const summary = document.getElementById('dischargeSummary').value.trim();
+        if (!patientId || !summary) return alert("Select a patient and add a summary");
+        const res = await Api.post('/nurse/discharge_create', { patient_id: patientId, summary, status: 'pending' });
+        if (res) {
+            document.getElementById('dischargeSummary').value = '';
+            loadDischarges();
+        }
+    }
+
+    async function loadHandover() {
+        const rows = await Api.get('/nurse/handover_list');
+        const tbody = document.getElementById('handoverTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const dateStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${dateStr}</td>
+                        <td>${r.full_name || 'Nurse'}</td>
+                        <td>${r.notes}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No handovers yet.</td></tr>';
+        }
+    }
+
+    async function createHandover() {
+        const notes = document.getElementById('handoverNotes').value.trim();
+        if (!notes) return alert("Add handover notes");
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        const res = await Api.post('/nurse/handover_create', {
+            user_id: user?.id,
+            shift_start: document.getElementById('handoverStart').value || null,
+            shift_end: document.getElementById('handoverEnd').value || null,
+            notes
+        });
+        if (res) {
+            document.getElementById('handoverNotes').value = '';
+            loadHandover();
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         const user = JSON.parse(localStorage.getItem("hms_user"));
         if(user) document.getElementById('navUserName').innerText = user.full_name;
         loadTriageQueue();
+        loadPatientOptions();
+        loadNurseAnalytics();
     });
 </script>
 </body>
