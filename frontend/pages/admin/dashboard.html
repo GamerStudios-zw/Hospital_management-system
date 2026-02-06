@@ -36,20 +36,6 @@
     </style>
 </head>
 <body>
-
-<div class="topbar">
-  <div class="container-fluid d-flex justify-content-between align-items-center">
-    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
-    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
-  </div>
-</div>
-<header class="header">
-  <div class="container-fluid d-flex align-items-center justify-content-between">
-    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
-  </div>
-</header>
-
-
 <div class="container-fluid">
     <div class="row">
         <nav class="col-md-2 d-none d-md-block sidebar px-3">
@@ -142,63 +128,25 @@
                     </div>
                 </div>
 
+
                 <div class="row g-3 mb-4">
-                    <div class="col-lg-6">
-                        <div class="soft-panel h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div>
-                                    <div class="panel-title">Staff Performance</div>
-                                    <div class="panel-sub">Active shifts and attendance overview.</div>
-                                </div>
-                                <button class="btn btn-sm btn-light border" onclick="loadStaffPerformance()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Staff</th>
-                                            <th>Role</th>
-                                            <th>Shift</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="performanceShiftTable"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
+                    <div class="col-lg-4">
                         <div class="chart-card h-100">
                             <div class="panel-title mb-2">No of Staff by Shift Type</div>
                             <canvas id="shiftTypeChart" height="180"></canvas>
                         </div>
                     </div>
-                    <div class="col-lg-3">
+                    <div class="col-lg-4">
                         <div class="chart-card h-100">
                             <div class="panel-title mb-2">Staff Present by Role</div>
                             <canvas id="presentRoleChart" height="180"></canvas>
                         </div>
                     </div>
-                </div>
-
-                <div class="chart-card mb-4">
-                    <div class="panel-title mb-2">Staff Utilization by Department</div>
-                    <canvas id="deptUtilChart" height="120"></canvas>
-                </div>
-
-                <div class="card stat-card">
-                    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
-                        <h5 class="fw-bold mb-0">Staff Directory</h5>
-                        <button class="btn btn-sm btn-light border" onclick="loadUsers()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                    </div>
-                    <div class="table-responsive p-3">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
-                                <tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr>
-                            </thead>
-                            <tbody id="usersTableBody"></tbody>
-                        </table>
+                    <div class="col-lg-4">
+                        <div class="chart-card h-100">
+                            <div class="panel-title mb-2" id="deptUtilTitle">Staff Utilization by Department</div>
+                            <canvas id="deptUtilChart" height="180"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -348,9 +296,11 @@
                             <select id="addRole" class="form-select" required>
                                 <option value="doctor">Doctor</option>
                                 <option value="nurse">Nurse</option>
+                                <option value="nurse_aid">Nurse Aid</option>
                                 <option value="receptionist">Receptionist</option>
                                 <option value="pharmacist">Pharmacist</option>
                                 <option value="senior_pharmacist">Senior Pharmacist</option>
+                                <option value="it_support">IT Support</option>
                                 <option value="admin">Admin</option>
                             </select>
                         </div>
@@ -417,7 +367,7 @@
         const users = await Api.get('/users');
         cachedUsers = users || [];
         const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
         let doctors = 0, nurses = 0, receptionists = 0;
 
         cachedUsers.forEach(u => {
@@ -426,14 +376,20 @@
             else if(role === 'nurse') nurses++;
             else if(role === 'receptionist') receptionists++;
 
-            let badge = role === 'doctor' ? 'bg-primary' : role === 'nurse' ? 'bg-success' : role === 'receptionist' ? 'bg-warning text-dark' : 'bg-info text-dark';
+            let badge = role === 'doctor' ? 'bg-primary'
+                : role === 'nurse' ? 'bg-success'
+                : role === 'receptionist' ? 'bg-warning text-dark'
+                : role === 'it_support' ? 'bg-dark'
+                : 'bg-info text-dark';
             const expiresTs = parseSqlDate(u.session_expires_at);
             const hasValidLegacySession = expiresTs !== null && expiresTs > Date.now();
             const activeSessions = Number(u.active_sessions || 0);
             const isActive = activeSessions > 0 || (Number(u.is_active) === 1 && hasValidLegacySession);
             const statusBadge = isActive ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary';
             const statusLabel = isActive ? 'Online' : 'Offline';
-            tbody.innerHTML += `<tr><td class="fw-bold">${u.full_name}</td><td>${u.username}</td><td><span class="badge ${badge}">${u.role.toUpperCase()}</span></td><td><span class="badge ${statusBadge}">${statusLabel}</span></td><td><button class="btn btn-sm btn-warning me-1" onclick="forceLogoutUser(${u.id}, '${(u.full_name || '').replace(/'/g, "\\'")}')"><i class="bi bi-box-arrow-right"></i></button><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+            if (tbody) {
+                tbody.innerHTML += `<tr><td class="fw-bold">${u.full_name}</td><td>${u.username}</td><td><span class="badge ${badge}">${u.role.toUpperCase()}</span></td><td><span class="badge ${statusBadge}">${statusLabel}</span></td><td><button class="btn btn-sm btn-warning me-1" onclick="forceLogoutUser(${u.id}, '${(u.full_name || '').replace(/'/g, "\\'")}')"><i class="bi bi-box-arrow-right"></i></button><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+            }
         });
         const totalDoctorsEl = document.getElementById('totalDoctors');
         const activeNursesEl = document.getElementById('activeNurses');
@@ -560,39 +516,9 @@
         document.getElementById('activeNurses').innerText = perf.nurses ?? '--';
         document.getElementById('statStaffPresent').innerText = perf.present ?? '--';
         document.getElementById('statUtilization').innerText = (perf.utilization_percent ?? 0) + '%';
-
-        await loadPerformanceShifts();
         renderShiftTypeChart(perf.shift_types || []);
         renderPresentRoleChart(perf.present_by_role || []);
-        renderDeptUtilChart(perf.utilization_by_department || []);
-    }
-
-    async function loadPerformanceShifts() {
-        const tbody = document.getElementById('performanceShiftTable');
-        if (!tbody) return;
-        const shifts = await Api.get('/shifts/list');
-        if (!shifts || shifts.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No shifts found.</td></tr>';
-            return;
-        }
-
-        const today = new Date().toDateString();
-        const rows = shifts.filter(s => new Date(s.shift_start).toDateString() === today).slice(0, 12);
-        const list = rows.length ? rows : shifts.slice(0, 12);
-
-        tbody.innerHTML = list.map(s => {
-            const date = new Date(s.shift_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            const shift = s.shift_type || 'General';
-            const status = s.status || 'Scheduled';
-            const statusBadge = status.toLowerCase() === 'cancelled' ? 'bg-danger' : 'bg-success-subtle text-success';
-            return `<tr>
-                <td>${date}</td>
-                <td class="fw-semibold">${s.full_name || 'Staff'}</td>
-                <td><span class="badge bg-secondary">${(s.role || '').toUpperCase()}</span></td>
-                <td>${shift}</td>
-                <td><span class="badge ${statusBadge}">${status}</span></td>
-            </tr>`;
-        }).join('');
+        renderDeptUtilChart(perf.utilization_by_department || [], perf.utilization_by_role || []);
     }
 
     function renderShiftTypeChart(rows) {
@@ -627,11 +553,19 @@
         });
     }
 
-    function renderDeptUtilChart(rows) {
+    function renderDeptUtilChart(rows, roleRows) {
         const ctx = document.getElementById('deptUtilChart');
         if (!ctx) return;
-        const labels = rows.map(r => r.department);
-        const data = rows.map(r => Number(r.percent));
+        const titleEl = document.getElementById('deptUtilTitle');
+        const hasOnlyGeneralDepartment = rows.length === 1 && String(rows[0].department || '').toLowerCase() === 'general';
+        const useRoleData = hasOnlyGeneralDepartment && Array.isArray(roleRows) && roleRows.length > 0;
+        const labels = useRoleData
+            ? roleRows.map(r => String(r.role || '').replace(/_/g, ' '))
+            : rows.map(r => r.department);
+        const data = useRoleData
+            ? roleRows.map(r => Number(r.percent))
+            : rows.map(r => Number(r.percent));
+        if (titleEl) titleEl.innerText = useRoleData ? 'Staff Utilization by Role' : 'Staff Utilization by Department';
         if (deptUtilChart) deptUtilChart.destroy();
         deptUtilChart = new Chart(ctx, {
             type: 'bar',
@@ -685,3 +619,4 @@
 </script>
 </body>
 </html>
+

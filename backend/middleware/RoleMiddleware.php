@@ -15,8 +15,11 @@ class RoleMiddleware {
             exit();
         }
 
-        $userRole = strtolower(trim((string)$user_data->role));
-        $allowed = array_map(function ($r) { return strtolower(trim((string)$r)); }, $allowed_roles);
+        $normalizeRole = function ($r) {
+            return str_replace([' ', '-'], '_', strtolower(trim((string)$r)));
+        };
+        $userRole = $normalizeRole($user_data->role);
+        $allowed = array_map($normalizeRole, $allowed_roles);
 
         // Check if the user's role exists in the allowed list
         if (!in_array($userRole, $allowed, true)) {

@@ -164,12 +164,16 @@
             document.getElementById('histName').innerText = data.patient.full_name;
             document.getElementById('histDob').innerText = data.patient.dob || 'N/A';
             document.getElementById('histGender').innerText = data.patient.gender || 'N/A';
+            const visits = Array.isArray(data.visits) ? data.visits : [];
+            const vitals = Array.isArray(data.vitals) ? data.vitals : [];
+            const prescriptions = Array.isArray(data.prescriptions) ? data.prescriptions : [];
+            const reports = Array.isArray(data.reports) ? data.reports : [];
 
             // 1. Visits Timeline
             const visitBox = document.getElementById('listVisits');
             visitBox.innerHTML = '';
-            if(data.visits.length > 0) {
-                data.visits.forEach(v => {
+            if(visits.length > 0) {
+                visits.forEach(v => {
                     visitBox.innerHTML += `
                         <div class="timeline-item">
                             <p class="mb-0 fw-bold">${new Date(v.created_at).toDateString()}</p>
@@ -183,11 +187,11 @@
             // 2. Vitals Table
             const vitalBox = document.getElementById('listVitals');
             vitalBox.innerHTML = '';
-            if(data.vitals.length > 0) {
-                data.vitals.forEach(v => {
+            if(vitals.length > 0) {
+                vitals.forEach(v => {
                     vitalBox.innerHTML += `
                         <tr>
-                            <td>${new Date(v.recorded_at).toLocaleDateString()}</td>
+                            <td>${(v.recorded_at || v.created_at || v.date_recorded) ? new Date(v.recorded_at || v.created_at || v.date_recorded).toLocaleDateString() : 'N/A'}</td>
                             <td>${v.blood_pressure || '-'}</td>
                             <td>${v.temperature ? v.temperature + '°C' : '-'}</td>
                             <td>${v.heart_rate || '-'} bpm</td>
@@ -199,8 +203,8 @@
             // 3. Prescriptions Table
             const medBox = document.getElementById('listMeds');
             medBox.innerHTML = '';
-            if(data.prescriptions.length > 0) {
-                data.prescriptions.forEach(p => {
+            if(prescriptions.length > 0) {
+                prescriptions.forEach(p => {
                     medBox.innerHTML += `
                         <tr>
                             <td>${new Date(p.created_at).toLocaleDateString()}</td>
@@ -215,8 +219,8 @@
             // 4. Documents
             const docBox = document.getElementById('listDocs');
             docBox.innerHTML = '';
-            if(data.reports.length > 0) {
-                data.reports.forEach(r => {
+            if(reports.length > 0) {
+                reports.forEach(r => {
                     docBox.innerHTML += `
                         <a href="${CONFIG.BACKEND_ROOT}/${r.file_path}" target="_blank" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                             <div>

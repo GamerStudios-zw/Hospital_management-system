@@ -25,20 +25,6 @@
     </style>
 </head>
 <body>
-
-<div class="topbar">
-  <div class="container-fluid d-flex justify-content-between align-items-center">
-    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
-    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
-  </div>
-</div>
-<header class="header">
-  <div class="container-fluid d-flex align-items-center justify-content-between">
-    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
-  </div>
-</header>
-
-
 <div class="container-fluid p-0 no-print">
     <div class="row g-0">
         <div class="col-md-2 sidebar d-flex flex-column">
@@ -638,7 +624,7 @@
 <script src="../../assets/js/app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-    protectPage(['pharmacist', 'admin']);
+    protectPage(['pharmacist', 'admin', 'senior_pharmacist']);
     let activePrescriptionId = null;
     let activePrintData = null;
     const dispenseModal = new bootstrap.Modal(document.getElementById('dispenseModal'));
@@ -651,8 +637,18 @@
     let cachedMeds = [];
     let poItems = [];
     let thermalModeEnabled = false;
+    const isSeniorPharmacyRole = () => {
+        const user = JSON.parse(localStorage.getItem("hms_user") || "{}");
+        const role = String(user.role || '').toLowerCase().replace(/[\s-]+/g, '_');
+        return role === 'senior_pharmacist';
+    };
+    const restrictedSeniorTabs = ['inventory', 'refills', 'suppliers', 'adjustments'];
 
     function switchTab(id, el) {
+        if (restrictedSeniorTabs.includes(id) && !isSeniorPharmacyRole()) {
+            alert("This section is only available to Senior Pharmacist.");
+            return;
+        }
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -740,6 +736,7 @@
     }
 
     async function loadInventory() {
+        if (!isSeniorPharmacyRole()) return [];
         const items = await Api.get('/inventory/list');
         const tbody = document.getElementById('inventoryTableBody');
         tbody.innerHTML = '';
@@ -948,6 +945,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function addControlled() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can register controlled medicines.");
         const medId = document.getElementById('controlledMed').value;
         const schedule = document.getElementById('controlledSchedule').value.trim();
         if (!medId || !schedule) return alert("Select medicine and schedule");
@@ -984,6 +982,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 
     // Refills
     async function loadRefills() {
+        if (!isSeniorPharmacyRole()) return;
         const rows = await Api.get('/pharmacy/refill_list');
         const tbody = document.getElementById('refillTable');
         if (!tbody) return;
@@ -1008,12 +1007,14 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function updateRefill(id, status) {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can process refills.");
         const res = await Api.post('/pharmacy/refill_update', { request_id: id, status });
         if (res) loadRefills();
     }
 
     // Suppliers & PO
     async function loadSuppliers() {
+        if (!isSeniorPharmacyRole()) return [];
         const rows = await Api.get('/pharmacy/supplier_list');
         const select = document.getElementById('poSupplier');
         if (select) {
@@ -1023,6 +1024,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function addSupplier() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can add suppliers.");
         const name = document.getElementById('supplierName').value.trim();
         if (!name) return alert("Enter supplier name");
         const res = await Api.post('/pharmacy/supplier_create', {
@@ -1072,6 +1074,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function createPO() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can create purchase orders.");
         const supplierId = document.getElementById('poSupplier').value;
         if (!supplierId || poItems.length === 0) return alert("Select supplier and add items");
         const user = JSON.parse(localStorage.getItem("hms_user"));
@@ -1089,6 +1092,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function loadPOs() {
+        if (!isSeniorPharmacyRole()) return [];
         const rows = await Api.get('/pharmacy/po_list');
         const tbody = document.getElementById('poTable');
         if (!tbody) return;
@@ -1109,6 +1113,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function createGRN() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can record GRN.");
         const orderId = document.getElementById('grnOrderId').value;
         if (!orderId) return alert("Enter PO ID");
         const user = JSON.parse(localStorage.getItem("hms_user"));
@@ -1122,6 +1127,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function createInvoice() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can record invoices.");
         const orderId = document.getElementById('invOrderId').value;
         const invNumber = document.getElementById('invNumber').value.trim();
         if (!orderId || !invNumber) return alert("PO ID and invoice number required");
@@ -1204,6 +1210,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function addAdjustment() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can create stock adjustments.");
         const medId = document.getElementById('adjustMed').value;
         const adj = Number(document.getElementById('adjustQty').value || 0);
         const reason = document.getElementById('adjustReason').value.trim();
@@ -1238,7 +1245,9 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
         tbody.innerHTML = '';
         if (rows && rows.length) {
             rows.forEach(r => {
-                const action = `<button class="btn btn-sm btn-outline-success" onclick="updateClaim(${r.id}, 'Approved')">Approve</button>`;
+                const action = isSeniorPharmacyRole()
+                    ? `<button class="btn btn-sm btn-outline-success" onclick="updateClaim(${r.id}, 'Approved')">Approve</button>`
+                    : `<span class="badge bg-secondary">View Only</span>`;
                 tbody.innerHTML += `<tr>
                     <td>${r.patient_name}</td>
                     <td>${r.med_name || '-'}</td>
@@ -1272,8 +1281,28 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function updateClaim(id, status) {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can approve claims.");
         const res = await Api.post('/pharmacy/claim_update', { claim_id: id, status });
         if (res) loadClaims();
+    }
+
+    function applyRoleBasedPharmacyAccess() {
+        if (isSeniorPharmacyRole()) return;
+        restrictedSeniorTabs.forEach((tabId) => {
+            const section = document.getElementById(tabId);
+            if (section) section.classList.remove('active');
+            const link = document.querySelector(`.nav-link[onclick*="switchTab('${tabId}'"]`);
+            if (link) {
+                link.classList.add('d-none');
+            }
+        });
+        const dispensaryLink = document.querySelector(`.nav-link[onclick*="switchTab('dispensary'"]`);
+        const dispensarySection = document.getElementById('dispensary');
+        if (dispensarySection) dispensarySection.classList.add('active');
+        if (dispensaryLink) {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            dispensaryLink.classList.add('active');
+        }
     }
 
     async function printInventoryReport() {
@@ -1329,6 +1358,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     function openAddModal() { new bootstrap.Modal(document.getElementById('addStockModal')).show(); }
 
     function openEditModal(item) {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can edit inventory.");
         document.getElementById('editId').value = item.id;
         document.getElementById('editName').value = item.name || '';
         document.getElementById('editBatch').value = item.batch_number || '';
@@ -1340,6 +1370,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function saveEditStock() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can edit inventory.");
         const data = {
             id: document.getElementById('editId').value,
             name: document.getElementById('editName').value,
@@ -1357,6 +1388,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function saveStock() {
+        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can add inventory.");
         const data = {
             name: document.getElementById('drugName').value,
             batch_number: document.getElementById('batchNo').value,
@@ -1487,13 +1519,14 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+        applyRoleBasedPharmacyAccess();
         loadPending();
-        loadInventory();
+        if (isSeniorPharmacyRole()) loadInventory();
         loadHistory();
         loadPharmacistShifts();
         loadPharmacyAnalytics();
         loadPharmacyPatients();
-        loadPharmacyMeds();
+        if (isSeniorPharmacyRole()) loadPharmacyMeds();
         renderPoItems();
         thermalModeEnabled = localStorage.getItem('hms_thermal_mode') === '1';
         const toggle = document.getElementById('thermalModeToggle');

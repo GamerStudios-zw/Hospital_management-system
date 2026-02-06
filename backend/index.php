@@ -23,6 +23,7 @@ if (file_exists('vendor/autoload.php')) {
 }
 
 require_once 'config/database.php';
+require_once 'utils/DbSchema.php';
 
 // 4. Router Logic
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -44,6 +45,7 @@ $module = isset($segments[0]) ? $segments[0] : '';
 // 4.5 Maintenance Mode Gate
 try {
     $db = (new Database())->getConnection();
+    DbSchema::ensureUserRole($db, 'it_support');
     if ($db) {
         $stmt = $db->prepare("SELECT maintenance_mode FROM system_settings WHERE id = 1 LIMIT 1");
         $stmt->execute();
@@ -103,6 +105,10 @@ switch ($module) {
     case 'nurse':
         require_once 'routes/nurse.php';
         break;
+    
+    case 'nurse_aid':
+        require_once 'routes/nurse_aid.php';
+        break;
 
     case 'logs':
     require_once 'routes/logs.php';
@@ -131,6 +137,9 @@ switch ($module) {
 
     case 'settings':
         require_once 'routes/settings.php';
+        break;
+    case 'it':
+        require_once 'routes/it.php';
         break;
 
     case '':

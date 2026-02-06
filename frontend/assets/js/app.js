@@ -350,6 +350,13 @@ function setupAutoLogoutOnClose() {
 }
 
 document.addEventListener("DOMContentLoaded", setupAutoLogoutOnClose);
+document.addEventListener("DOMContentLoaded", ensureItTicketWidget);
+function normalizeRole(role) {
+    return String(role || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+}
 /**
  * 4. PAGE SECURITY (The "Bouncer")
  * Ensures only authorized users can access specific pages.
@@ -373,18 +380,100 @@ function protectPage(allowedRoles) {
         return;
     }
 
-    const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    const normalizedUserRole = normalizeRole(user.role);
+    const rolesArray = (Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]).map(normalizeRole);
 
-    if (!rolesArray.includes(user.role)) {
+    if (!rolesArray.includes(normalizedUserRole)) {
         alert("⛔ Access Denied: You do not have permission.");
 
         // Redirect to their correct dashboard based on role
-        if(user.role === 'doctor') window.location.href = "../doctor/dashboard.html";
-        else if(user.role === 'nurse') window.location.href = "../nurse/dashboard.html";
-        else if(user.role === 'admin') window.location.href = "../admin/dashboard.html";
-        else if(user.role === 'receptionist') window.location.href = "../reception/dashboard.html";
-        else if(user.role === 'pharmacist') window.location.href = "../pharmacy/dashboard.html";
+        if(normalizedUserRole === 'doctor') window.location.href = "../doctor/dashboard.html";
+        else if(normalizedUserRole === 'nurse') window.location.href = "../nurse/dashboard.html";
+        else if(normalizedUserRole === 'nurse_aid') window.location.href = "../nurse_aid/dashboard.html";
+        else if(normalizedUserRole === 'admin') window.location.href = "../admin/dashboard.html";
+        else if(normalizedUserRole === 'receptionist') window.location.href = "../reception/dashboard.html";
+        else if(normalizedUserRole === 'pharmacist' || normalizedUserRole === 'senior_pharmacist') window.location.href = "../pharmacy/dashboard.html";
+        else if(normalizedUserRole === 'it_support') window.location.href = "../it/itdashboard.html";
         else logout();
+    }
+}
+
+/**
+ * 4B. IT TICKET WIDGET (All authenticated users)
+ */
+function ensureItTicketWidget() {
+    const token = localStorage.getItem("hms_token");
+    const userJson = localStorage.getItem("hms_user");
+    if (!token || !userJson) return;
+    if (document.getElementById("itTicketFab")) return;
+
+    const fab = document.createElement("button");
+    fab.id = "itTicketFab";
+    fab.className = "btn btn-primary shadow";
+    fab.style.position = "fixed";
+    fab.style.right = "20px";
+    fab.style.bottom = "20px";
+    fab.style.zIndex = "999";
+    fab.innerHTML = '<i class="bi bi-life-preserver me-1"></i>IT Ticket';
+    fab.addEventListener("click", openItTicketModal);
+    document.body.appendChild(fab);
+
+    const modalHtml = `
+<div class="modal fade" id="itTicketModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Submit IT Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Title</label>
+          <input type="text" class="form-control" id="itTicketTitle" placeholder="Short summary">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" id="itTicketDesc" rows="4" placeholder="Describe the issue"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="itTicketPriority">
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitItTicket()">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function openItTicketModal() {
+    const modalEl = document.getElementById('itTicketModal');
+    if (!modalEl || typeof bootstrap === 'undefined') return;
+    new bootstrap.Modal(modalEl).show();
+}
+
+async function submitItTicket() {
+    const title = (document.getElementById('itTicketTitle') || {}).value || '';
+    const description = (document.getElementById('itTicketDesc') || {}).value || '';
+    const priority = (document.getElementById('itTicketPriority') || {}).value || 'normal';
+    if (!title.trim() || !description.trim()) return alert("Title and description are required.");
+    const res = await Api.post('/it/ticket_create', { title: title.trim(), description: description.trim(), priority });
+    if (res) {
+        document.getElementById('itTicketTitle').value = '';
+        document.getElementById('itTicketDesc').value = '';
+        const modalEl = document.getElementById('itTicketModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        alert("Ticket submitted to IT Support.");
     }
 }
 

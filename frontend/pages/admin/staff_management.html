@@ -17,20 +17,6 @@
     </style>
 </head>
 <body>
-
-<div class="topbar">
-  <div class="container-fluid d-flex justify-content-between align-items-center">
-    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
-    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
-  </div>
-</div>
-<header class="header">
-  <div class="container-fluid d-flex align-items-center justify-content-between">
-    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
-  </div>
-</header>
-
-
 <div class="container-fluid">
     <div class="row">
         <nav class="col-md-2 d-none d-md-block sidebar px-3">
@@ -45,88 +31,17 @@
         </nav>
 
         <main class="col-md-10 ms-sm-auto p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="fw-bold">Staff Directory</h2>
-
-            </div>
-
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control" placeholder="Search by name or email...">
-                        </div>
-                        <div class="col-md-3">
-                            <select class="form-select">
-                                <option>All Roles</option>
-                                <option>Doctor</option>
-                                <option>Nurse</option>
-                                <option>Receptionist</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <select class="form-select">
-                                <option>Active</option>
-                                <option>Inactive</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <button class="btn btn-outline-secondary w-100">Filter</button>
-                        </div>
-                    </div>
+            <div class="card stat-card">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
+                    <h5 class="fw-bold mb-0">Staff Directory</h5>
+                    <button class="btn btn-sm btn-light border" onclick="loadUsers()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
                 </div>
-            </div>
-
-            <div class="card border-0 shadow-sm">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                <div class="table-responsive p-3">
+                    <table class="table table-hover align-middle">
                         <thead class="table-light">
-                            <tr>
-                                <th class="ps-4">Staff Member</th>
-                                <th>Role</th>
-                                <th>Department</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
+                            <tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-initial bg-primary text-white me-3">SM</div>
-                                        <div>
-                                            <div class="fw-bold">Dr. Sarah Moyo</div>
-                                            <div class="small text-muted">sarah.moyo@hospital.com</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">Doctor</span></td>
-                                <td>Cardiology</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></button>
-                                    <button class="btn btn-sm btn-light border text-danger"><i class="bi bi-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-initial bg-success text-white me-3">TB</div>
-                                        <div>
-                                            <div class="fw-bold">Nurse T. Banda</div>
-                                            <div class="small text-muted">banda.t@hospital.com</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge bg-success-subtle text-success border border-success-subtle">Nurse</span></td>
-                                <td>General Ward</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></button>
-                                    <button class="btn btn-sm btn-light border text-danger"><i class="bi bi-trash"></i></button>
-                                </td>
-                            </tr>
-                        </tbody>
+                        <tbody id="usersTableBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -136,73 +51,68 @@
 
 <script src="../../assets/js/app.js"></script>
 
-<script src="../../assets/js/app.js"></script>
-
-<script src="../../assets/js/app.js"></script>
-
 <script>
-    // 1. Security Check
     protectPage('admin');
+    document.addEventListener("DOMContentLoaded", loadUsers);
 
-    // 2. Load Data when page opens
-    document.addEventListener("DOMContentLoaded", loadStaffTable);
+    function parseSqlDate(value) {
+        if (!value) return null;
+        if (typeof value !== 'string') {
+            const d = new Date(value);
+            return Number.isNaN(d.getTime()) ? null : d.getTime();
+        }
+        const normalized = value.replace(' ', 'T');
+        let d = new Date(normalized);
+        if (!Number.isNaN(d.getTime())) return d.getTime();
+        const m = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+        if (!m) return null;
+        d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+        return Number.isNaN(d.getTime()) ? null : d.getTime();
+    }
 
-    async function loadStaffTable() {
-        const tbody = document.querySelector('tbody');
+    async function loadUsers() {
+        const tbody = document.getElementById('usersTableBody');
         tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading staff data...</td></tr>';
-
-        // Fetch from API
         const users = await Api.get('/users');
-
-        // Clear Loading Message
         tbody.innerHTML = '';
 
-        if(users && users.length > 0) {
+        if (users && users.length > 0) {
             users.forEach(user => {
-                // Color code the roles for better UI
-                let badgeColor = 'secondary';
-                if(user.role === 'doctor') badgeColor = 'primary';
-                if(user.role === 'nurse') badgeColor = 'success';
-                if(user.role === 'admin') badgeColor = 'dark';
-                if(user.role === 'receptionist') badgeColor = 'warning';
-
-                const row = `
-                    <tr>
-                        <td class="ps-4">
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-initial bg-${badgeColor} text-white me-3">
-                                    ${user.full_name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <div class="fw-bold">${user.full_name}</div>
-                                    <div class="small text-muted">${user.email}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="badge bg-${badgeColor} bg-opacity-75">${user.role.toUpperCase()}</span></td>
-                        <td>General Staff</td>
-                        <td><span class="badge bg-success">Active</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-light border text-danger" onclick="deleteUser(${user.id})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
+                const role = (user.role || '').toLowerCase();
+                const badge = role === 'doctor' ? 'bg-primary'
+                    : role === 'nurse' ? 'bg-success'
+                    : role === 'receptionist' ? 'bg-warning text-dark'
+                    : 'bg-info text-dark';
+                const expiresTs = parseSqlDate(user.session_expires_at);
+                const hasValidLegacySession = expiresTs !== null && expiresTs > Date.now();
+                const activeSessions = Number(user.active_sessions || 0);
+                const isActive = activeSessions > 0 || (Number(user.is_active) === 1 && hasValidLegacySession);
+                const statusBadge = isActive ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary';
+                const statusLabel = isActive ? 'Online' : 'Offline';
+                tbody.innerHTML += `<tr><td class="fw-bold">${user.full_name}</td><td>${user.username}</td><td><span class="badge ${badge}">${(user.role || '').toUpperCase()}</span></td><td><span class="badge ${statusBadge}">${statusLabel}</span></td><td><button class="btn btn-sm btn-warning me-1" onclick="forceLogoutUser(${user.id}, '${(user.full_name || '').replace(/'/g, "\\'")}')"><i class="bi bi-box-arrow-right"></i></button><button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})"><i class="bi bi-trash"></i></button></td></tr>`;
             });
         } else {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No staff members found. Add one!</td></tr>';
         }
     }
 
+    async function forceLogoutUser(id, name) {
+        if (!confirm(`Force logout ${name || 'this user'} from all active sessions?`)) return;
+        const result = await Api.post('/admin/force_logout', { user_id: id });
+        if (result && result.success) {
+            alert("User has been logged out from all sessions.");
+            await loadUsers();
+            return;
+        }
+        alert(result?.message || "Failed to force logout user.");
+    }
+
     async function deleteUser(id) {
         if(confirm("Are you sure you want to PERMANENTLY delete this user?")) {
-            // Send DELETE request to backend
             const result = await Api.request(`/users?id=${id}`, 'DELETE');
             if(result) {
                 alert("User deleted successfully.");
-                loadStaffTable(); // Refresh table immediately
+                loadUsers();
             }
         }
     }

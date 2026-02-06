@@ -66,6 +66,9 @@ switch ($module) {
     case 'nurse':
         require_once 'routes/nurse.php';
         break;
+    case 'nurse_aid':
+        require_once 'routes/nurse_aid.php';
+        break;
 
     // Health Check (To test if API is alive)
     case '':

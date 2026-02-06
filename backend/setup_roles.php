@@ -31,6 +31,12 @@ try {
             'email' => 'pharmacy@hospital.com',
             'role' => 'pharmacist',
             'name' => 'Mike Meds'
+        ],
+        [
+            'username' => 'itsup1',
+            'email' => 'it@hospital.com',
+            'role' => 'it_support',
+            'name' => 'IT Support'
         ]
     ];
 

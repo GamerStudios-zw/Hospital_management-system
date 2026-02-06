@@ -127,6 +127,136 @@ switch ($action) {
         }
         break;
 
+    case 'analytics':
+        if ($method === 'GET') {
+            try {
+                $filters = [
+                    'start' => $_GET['start'] ?? null,
+                    'end' => $_GET['end'] ?? null,
+                    'username' => $_GET['username'] ?? null,
+                    'event_type' => $_GET['event_type'] ?? null,
+                    'entity_type' => $_GET['entity_type'] ?? null,
+                    'entity_id' => $_GET['entity_id'] ?? null,
+                    'actor_id' => $_GET['actor_id'] ?? null,
+                    'actor_role' => $_GET['actor_role'] ?? null,
+                    'status' => $_GET['status'] ?? null,
+                    'severity' => $_GET['severity'] ?? null,
+                    'source' => $_GET['source'] ?? null,
+                    'request_id' => $_GET['request_id'] ?? null,
+                    'q' => $_GET['q'] ?? null
+                ];
+                $includeAudit = isset($_GET['include_audit']) ? (int)$_GET['include_audit'] === 1 : true;
+
+                $where = [];
+                $params = [];
+
+                if (!empty($filters['start'])) {
+                    $where[] = "created_at >= ?";
+                    $params[] = $filters['start'];
+                }
+                if (!empty($filters['end'])) {
+                    $where[] = "created_at <= ?";
+                    $params[] = $filters['end'];
+                }
+                if (!empty($filters['username'])) {
+                    $where[] = "username = ?";
+                    $params[] = $filters['username'];
+                }
+                if (!empty($filters['event_type'])) {
+                    $where[] = "event_type = ?";
+                    $params[] = $filters['event_type'];
+                }
+                if (!empty($filters['entity_type'])) {
+                    $where[] = "entity_type = ?";
+                    $params[] = $filters['entity_type'];
+                }
+                if (!empty($filters['entity_id'])) {
+                    $where[] = "entity_id = ?";
+                    $params[] = $filters['entity_id'];
+                }
+                if (!empty($filters['actor_id'])) {
+                    $where[] = "actor_id = ?";
+                    $params[] = $filters['actor_id'];
+                }
+                if (!empty($filters['actor_role'])) {
+                    $where[] = "actor_role = ?";
+                    $params[] = $filters['actor_role'];
+                }
+                if (!empty($filters['status'])) {
+                    $where[] = "status = ?";
+                    $params[] = $filters['status'];
+                }
+                if (!empty($filters['severity'])) {
+                    $where[] = "severity = ?";
+                    $params[] = $filters['severity'];
+                }
+                if (!empty($filters['source'])) {
+                    $where[] = "source = ?";
+                    $params[] = $filters['source'];
+                }
+                if (!empty($filters['request_id'])) {
+                    $where[] = "request_id = ?";
+                    $params[] = $filters['request_id'];
+                }
+                if (!empty($filters['q'])) {
+                    $where[] = "(action LIKE ? OR username LIKE ? OR event_type LIKE ? OR entity_type LIKE ? OR entity_id LIKE ? OR error_message LIKE ?)";
+                    $like = "%" . $filters['q'] . "%";
+                    $params = array_merge($params, [$like, $like, $like, $like, $like, $like]);
+                }
+
+                $whereSql = $where ? (" WHERE " . implode(" AND ", $where)) : "";
+                $selectActivity = "SELECT source, severity, created_at, username, action, event_type, entity_type, entity_id, actor_id, actor_role, status, request_id, error_message FROM activity_logs";
+                $selectAudit = "SELECT source, severity, created_at, username, action, event_type, entity_type, entity_id, actor_id, actor_role, status, request_id, error_message FROM audit_logs";
+
+                $base = $selectActivity . $whereSql;
+                $baseParams = $params;
+                if ($includeAudit) {
+                    $base = "(" . $selectActivity . $whereSql . ") UNION ALL (" . $selectAudit . $whereSql . ")";
+                    $baseParams = array_merge($params, $params);
+                }
+
+                $sourceStmt = $db->prepare("SELECT COALESCE(NULLIF(source,''),'unknown') as source, COUNT(*) as count
+                                            FROM ({$base}) t
+                                            GROUP BY COALESCE(NULLIF(source,''),'unknown')
+                                            ORDER BY count DESC
+                                            LIMIT 8");
+                $sourceStmt->execute($baseParams);
+                $sourceRows = $sourceStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+                $severityStmt = $db->prepare("SELECT UPPER(COALESCE(NULLIF(severity,''),'INFO')) as severity, COUNT(*) as count
+                                              FROM ({$base}) t
+                                              GROUP BY UPPER(COALESCE(NULLIF(severity,''),'INFO'))
+                                              ORDER BY count DESC");
+                $severityStmt->execute($baseParams);
+                $severityRows = $severityStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+                $dayExtraWhere = (!empty($filters['start']) || !empty($filters['end'])) ? "" : " WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)";
+                $dayStmt = $db->prepare("SELECT DATE(created_at) as day, COUNT(*) as count
+                                         FROM ({$base}) t" . $dayExtraWhere . "
+                                         GROUP BY DATE(created_at)
+                                         ORDER BY day");
+                $dayStmt->execute($baseParams);
+                $dayRows = $dayStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+                ob_clean();
+                echo json_encode([
+                    "by_source" => $sourceRows,
+                    "by_severity" => $severityRows,
+                    "by_day" => $dayRows
+                ]);
+            } catch (Exception $e) {
+                ob_clean();
+                http_response_code(500);
+                echo json_encode([
+                    "message" => "Database error: " . $e->getMessage(),
+                    "by_source" => [],
+                    "by_severity" => [],
+                    "by_day" => []
+                ]);
+            }
+        }
+        break;
+
     case 'export':
         if ($method === 'GET') {
             try {

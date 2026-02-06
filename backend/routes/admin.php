@@ -9,6 +9,7 @@ require_once __DIR__ . '/../utils/Realtime.php';
 
 $database = new Database();
 $db = $database->getConnection();
+DbSchema::ensureUserRole($db, 'it_support');
 
 // Determine the resource (admin, users, or logs) based on the URL
 // Assuming URL structure: /backend/index.php/{resource}/{action}
@@ -185,6 +186,32 @@ if ($resource === 'admin') {
                     $presentRoleStmt->execute($dateParams);
                     $presentByRole = $presentRoleStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
+                    $roleUtilStmt = $db->prepare("SELECT u.role,
+                                                         COUNT(*) as total,
+                                                         SUM(CASE WHEN s.user_id IS NOT NULL THEN 1 ELSE 0 END) as present
+                                                  FROM users u
+                                                  LEFT JOIN (
+                                                      SELECT DISTINCT s.user_id
+                                                      FROM staff_shifts s
+                                                      WHERE s.shift_start <= NOW() AND s.shift_end >= NOW()
+                                                      AND (s.status IS NULL OR s.status NOT IN ('Cancelled','cancelled'))" . $dateClause . "
+                                                  ) s ON s.user_id = u.id
+                                                  GROUP BY u.role
+                                                  ORDER BY total DESC");
+                    $roleUtilStmt->execute($dateParams);
+                    $roleRows = $roleUtilStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                    $roleUtil = [];
+                    foreach ($roleRows as $row) {
+                        $total = (int)$row['total'];
+                        $presentCount = (int)$row['present'];
+                        $roleUtil[] = [
+                            'role' => $row['role'],
+                            'present' => $presentCount,
+                            'total' => $total,
+                            'percent' => $total > 0 ? round(($presentCount / $total) * 100, 2) : 0
+                        ];
+                    }
+
                     $deptStmt = $db->prepare("SELECT COALESCE(s.ward_name, 'General') as department,
                                                      COUNT(*) as total,
                                                      SUM(CASE WHEN s.shift_start <= NOW() AND s.shift_end >= NOW() THEN 1 ELSE 0 END) as present
@@ -214,7 +241,8 @@ if ($resource === 'admin') {
                         'utilization_percent' => $utilization,
                         'shift_types' => $shiftTypes,
                         'present_by_role' => $presentByRole,
-                        'utilization_by_department' => $deptUtil
+                        'utilization_by_department' => $deptUtil,
+                        'utilization_by_role' => $roleUtil
                     ]);
                 } catch (Exception $e) {
                     http_response_code(500);
@@ -231,6 +259,13 @@ if ($resource === 'admin') {
                 if (empty($data->full_name) || empty($data->email) || empty($data->username) || empty($data->role) || empty($data->password)) {
                     http_response_code(400);
                     echo json_encode(["message" => "All fields are required."]);
+                    exit;
+                }
+                $role = strtolower(trim((string)$data->role));
+                $allowedRoles = ['admin', 'doctor', 'nurse', 'nurse_aid', 'receptionist', 'pharmacist', 'senior_pharmacist', 'it_support'];
+                if (!in_array($role, $allowedRoles, true)) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "Invalid role selected."]);
                     exit;
                 }
 
@@ -255,7 +290,7 @@ if ($resource === 'admin') {
                     $sql = "INSERT INTO users (full_name, email, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, 1)";
                     $stmt = $db->prepare($sql);
 
-                    if($stmt->execute([$data->full_name, $data->email, $data->username, $hash, $data->role])) {
+                    if($stmt->execute([$data->full_name, $data->email, $data->username, $hash, $role])) {
                         $newId = $db->lastInsertId();
                         // Log the action
                         ActivityLogger::log($db, $user->full_name ?? 'Admin', "Created user: " . $data->username, 'Success', null, [
@@ -268,7 +303,7 @@ if ($resource === 'admin') {
                             'new_values' => [
                                 'username' => $data->username,
                                 'full_name' => $data->full_name,
-                                'role' => $data->role,
+                                'role' => $role,
                                 'email' => $data->email
                             ],
                             'safe_fields' => ['username', 'full_name', 'role', 'email']
@@ -423,28 +458,113 @@ else if ($resource === 'logs') {
     if ($action === 'analytics' && $method === 'GET') {
         try {
             ActivityLogger::ensureTables($db);
-            $base = "SELECT source, severity, created_at FROM activity_logs
-                     UNION ALL
-                     SELECT source, severity, created_at FROM audit_logs";
+            $filters = [
+                'start' => $_GET['start'] ?? null,
+                'end' => $_GET['end'] ?? null,
+                'username' => $_GET['username'] ?? null,
+                'event_type' => $_GET['event_type'] ?? null,
+                'entity_type' => $_GET['entity_type'] ?? null,
+                'entity_id' => $_GET['entity_id'] ?? null,
+                'actor_id' => $_GET['actor_id'] ?? null,
+                'actor_role' => $_GET['actor_role'] ?? null,
+                'status' => $_GET['status'] ?? null,
+                'severity' => $_GET['severity'] ?? null,
+                'source' => $_GET['source'] ?? null,
+                'request_id' => $_GET['request_id'] ?? null,
+                'q' => $_GET['q'] ?? null
+            ];
+            $includeAudit = isset($_GET['include_audit']) ? (int)$_GET['include_audit'] === 1 : true;
 
-            $sourceRows = $db->query("SELECT source, COUNT(*) as count
-                                      FROM ({$base}) t
-                                      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                                      GROUP BY source
-                                      ORDER BY count DESC
-                                      LIMIT 8")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $where = [];
+            $params = [];
 
-            $severityRows = $db->query("SELECT COALESCE(severity,'info') as severity, COUNT(*) as count
+            if (!empty($filters['start'])) {
+                $where[] = "created_at >= ?";
+                $params[] = $filters['start'];
+            }
+            if (!empty($filters['end'])) {
+                $where[] = "created_at <= ?";
+                $params[] = $filters['end'];
+            }
+            if (!empty($filters['username'])) {
+                $where[] = "username = ?";
+                $params[] = $filters['username'];
+            }
+            if (!empty($filters['event_type'])) {
+                $where[] = "event_type = ?";
+                $params[] = $filters['event_type'];
+            }
+            if (!empty($filters['entity_type'])) {
+                $where[] = "entity_type = ?";
+                $params[] = $filters['entity_type'];
+            }
+            if (!empty($filters['entity_id'])) {
+                $where[] = "entity_id = ?";
+                $params[] = $filters['entity_id'];
+            }
+            if (!empty($filters['actor_id'])) {
+                $where[] = "actor_id = ?";
+                $params[] = $filters['actor_id'];
+            }
+            if (!empty($filters['actor_role'])) {
+                $where[] = "actor_role = ?";
+                $params[] = $filters['actor_role'];
+            }
+            if (!empty($filters['status'])) {
+                $where[] = "status = ?";
+                $params[] = $filters['status'];
+            }
+            if (!empty($filters['severity'])) {
+                $where[] = "severity = ?";
+                $params[] = $filters['severity'];
+            }
+            if (!empty($filters['source'])) {
+                $where[] = "source = ?";
+                $params[] = $filters['source'];
+            }
+            if (!empty($filters['request_id'])) {
+                $where[] = "request_id = ?";
+                $params[] = $filters['request_id'];
+            }
+            if (!empty($filters['q'])) {
+                $where[] = "(action LIKE ? OR username LIKE ? OR event_type LIKE ? OR entity_type LIKE ? OR entity_id LIKE ? OR error_message LIKE ?)";
+                $like = "%" . $filters['q'] . "%";
+                $params = array_merge($params, [$like, $like, $like, $like, $like, $like]);
+            }
+
+            $whereSql = $where ? (" WHERE " . implode(" AND ", $where)) : "";
+            $selectActivity = "SELECT source, severity, created_at, username, action, event_type, entity_type, entity_id, actor_id, actor_role, status, request_id, error_message FROM activity_logs";
+            $selectAudit = "SELECT source, severity, created_at, username, action, event_type, entity_type, entity_id, actor_id, actor_role, status, request_id, error_message FROM audit_logs";
+            $base = $selectActivity . $whereSql;
+            $baseParams = $params;
+
+            if ($includeAudit) {
+                $base = "(" . $selectActivity . $whereSql . ") UNION ALL (" . $selectAudit . $whereSql . ")";
+                $baseParams = array_merge($params, $params);
+            }
+
+            $sourceStmt = $db->prepare("SELECT COALESCE(NULLIF(source,''),'unknown') as source, COUNT(*) as count
                                         FROM ({$base}) t
-                                        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                                        GROUP BY COALESCE(severity,'info')
-                                        ORDER BY count DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                                        GROUP BY COALESCE(NULLIF(source,''),'unknown')
+                                        ORDER BY count DESC
+                                        LIMIT 8");
+            $sourceStmt->execute($baseParams);
+            $sourceRows = $sourceStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-            $dayRows = $db->query("SELECT DATE(created_at) as day, COUNT(*) as count
-                                   FROM ({$base}) t
-                                   WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                                   GROUP BY DATE(created_at)
-                                   ORDER BY day")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $severityStmt = $db->prepare("SELECT UPPER(COALESCE(NULLIF(severity,''),'INFO')) as severity, COUNT(*) as count
+                                          FROM ({$base}) t
+                                          GROUP BY UPPER(COALESCE(NULLIF(severity,''),'INFO'))
+                                          ORDER BY count DESC");
+            $severityStmt->execute($baseParams);
+            $severityRows = $severityStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            $dayExtraWhere = (!empty($filters['start']) || !empty($filters['end'])) ? "" : " WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)";
+            $dayStmt = $db->prepare("SELECT DATE(created_at) as day, COUNT(*) as count
+                                     FROM ({$base}) t" . $dayExtraWhere . "
+                                     GROUP BY DATE(created_at)
+                                     ORDER BY day");
+            $dayStmt->execute($baseParams);
+            $dayRows = $dayStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             echo json_encode([
                 "by_source" => $sourceRows,

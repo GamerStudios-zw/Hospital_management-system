@@ -165,33 +165,7 @@
 </head>
 
 <body>
-
-<div class="topbar">
-  <div class="container-fluid d-flex justify-content-between align-items-center">
-    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
-    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
-  </div>
-</div>
-<header class="header">
-  <div class="container-fluid d-flex align-items-center justify-content-between">
-    <a class="logo" href="../../index.html"><i class="bi bi-hospital"></i> HMS</a>
-  </div>
-</header>
-
-
-    <header class="header">
-        <div class="container d-flex align-items-center justify-content-between">
-            <a href="../../index.html" class="logo">
-                <i class="bi bi-hospital"></i>
-                <span>HMS</span>
-            </a>
-            <a href="../../index.html" class="nav-link">
-                <i class="bi bi-arrow-left me-1"></i> Back to Home
-            </a>
-        </div>
-    </header>
-
-    <div class="login-wrapper">
+<div class="login-wrapper">
         <div class="login-card">
             <div class="login-header">
                 <h3>Staff Portal</h3>
@@ -285,20 +259,43 @@
                     alertBox.innerText = "Login Successful! Redirecting...";
                     alertBox.style.display = 'block';
 
-                    localStorage.setItem("hms_token", result.token);
-                    localStorage.setItem("hms_user", JSON.stringify(result.user));
-                    localStorage.setItem("hms_role", result.user.role);
+                    const userPayload = result?.user || result?.data?.user || null;
+                    const tokenPayload = result?.token || result?.data?.token || null;
+                    if (!userPayload || !tokenPayload) {
+                        throw new Error("Invalid login response from server.");
+                    }
+
+                    const rawRole = userPayload.role || userPayload.user_role || "";
+                    const normalizedRole = typeof normalizeRole === "function"
+                        ? normalizeRole(rawRole)
+                        : String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
+                    if (!normalizedRole) {
+                        throw new Error("Login succeeded but this account has no role assigned.");
+                    }
+
+                    userPayload.role = normalizedRole;
+                    localStorage.setItem("hms_token", tokenPayload);
+                    localStorage.setItem("hms_user", JSON.stringify(userPayload));
+                    localStorage.setItem("hms_role", normalizedRole);
 
                     // Redirect based on Role (Wait 1s for better UX)
                     setTimeout(() => {
-                        switch(result.user.role) {
+                        switch(normalizedRole) {
                             case 'admin':        window.location.href = "../admin/dashboard.html"; break;
                             case 'doctor':       window.location.href = "../doctor/dashboard.html"; break;
                             case 'nurse':        window.location.href = "../nurse/dashboard.html"; break;
+                            case 'nurse_aid':    window.location.href = "../nurse_aid/dashboard.html"; break;
                             case 'receptionist': window.location.href = "../reception/dashboard.html"; break;
                             case 'pharmacist':   window.location.href = "../pharmacy/dashboard.html"; break;
                             case 'senior_pharmacist': window.location.href = "../pharmacy/dashboard.html"; break;
-                            default: alert("Unknown Role: " + result.user.role);
+                            case 'it_support':   window.location.href = "../it/itdashboard.html"; break;
+                            default:
+                                if (typeof showNotification === "function") {
+                                    showNotification("Unknown Role: " + rawRole);
+                                } else {
+                                    alert("Unknown Role: " + rawRole);
+                                }
+                                break;
                         }
                     }, 1000);
 

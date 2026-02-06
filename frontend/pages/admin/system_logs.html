@@ -23,23 +23,20 @@
         }
         .chart-compact { height: 170px; }
         .chart-compact canvas { height: 170px !important; max-height: 170px; }
+        .log-table-wrap {
+            max-height: 480px;
+            overflow-y: auto;
+        }
+        .log-table-wrap thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f8fafc;
+            box-shadow: inset 0 -1px 0 #dee2e6;
+        }
     </style>
 </head>
 <body>
-
-<div class="topbar">
-  <div class="container-fluid d-flex justify-content-between align-items-center">
-    <div><i class="bi bi-telephone me-2"></i>+263 77 425 1433</div>
-    <div><i class="bi bi-envelope me-2"></i>support@hms.local</div>
-  </div>
-</div>
-<header class="header">
-  <div class="container-fluid d-flex align-items-center justify-content-between">
-    <a class="logo" href="/Hospital_Management_System/frontend/index.html"><i class="bi bi-hospital"></i> HMS</a>
-  </div>
-</header>
-
-
 <nav class="navbar navbar-dark bg-dark d-md-none p-3 mb-3">
     <div class="container-fluid">
         <span class="navbar-brand fw-bold"><i class="bi bi-hospital me-2 text-primary"></i> HMS Admin</span>
@@ -117,7 +114,7 @@
                             <button class="btn btn-sm btn-outline-secondary w-100 w-lg-auto" onclick="exportLogs()">
                                 <i class="bi bi-download me-1"></i> Export CSV
                             </button>
-                            <button class="btn btn-sm btn-primary w-100 w-lg-auto" onclick="loadLogs()">
+                            <button class="btn btn-sm btn-primary w-100 w-lg-auto" onclick="applyLogFilters()">
                                 <i class="bi bi-funnel me-1"></i> Apply Filters
                             </button>
                         </div>
@@ -189,7 +186,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="table-responsive">
+                <div class="table-responsive log-table-wrap">
                     <table class="table table-hover align-middle mb-0 text-nowrap">
                         <thead class="table-light">
                             <tr>
@@ -242,27 +239,32 @@
     }
 
     async function loadLogAnalytics() {
-        const data = await Api.get('/logs/analytics');
+        const query = buildQueryString(getFilters());
+        const data = await Api.get('/logs/analytics' + (query ? `?${query}` : ''));
         if (!data) return;
 
         const severityRows = data.by_severity || [];
+        const severityLabels = severityRows.length ? severityRows.map(r => r.severity) : ['No Data'];
+        const severityValues = severityRows.length ? severityRows.map(r => Number(r.count) || 0) : [1];
         if (logSeverityChart) logSeverityChart.destroy();
         logSeverityChart = new Chart(document.getElementById('logSeverityChart'), {
             type: 'doughnut',
             data: {
-                labels: severityRows.map(r => r.severity),
-                datasets: [{ data: severityRows.map(r => r.count), backgroundColor: ['#10b981','#f59e0b','#ef4444','#6b7280'] }]
+                labels: severityLabels,
+                datasets: [{ data: severityValues, backgroundColor: ['#10b981','#f59e0b','#ef4444','#6b7280','#94a3b8'] }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
 
         const sourceRows = data.by_source || [];
+        const sourceLabels = sourceRows.length ? sourceRows.map(r => r.source || 'unknown') : ['No Data'];
+        const sourceValues = sourceRows.length ? sourceRows.map(r => Number(r.count) || 0) : [0];
         if (logSourceChart) logSourceChart.destroy();
         logSourceChart = new Chart(document.getElementById('logSourceChart'), {
             type: 'bar',
             data: {
-                labels: sourceRows.map(r => r.source || 'unknown'),
-                datasets: [{ data: sourceRows.map(r => r.count), backgroundColor: '#2563eb' }]
+                labels: sourceLabels,
+                datasets: [{ data: sourceValues, backgroundColor: '#2563eb' }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
@@ -278,6 +280,11 @@
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
+    }
+
+    function applyLogFilters() {
+        loadLogs();
+        loadLogAnalytics();
     }
 
     function getFilters() {

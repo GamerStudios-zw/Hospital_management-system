@@ -4,10 +4,12 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../utils/ActivityLogger.php';
+require_once __DIR__ . '/../utils/DbSchema.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $database = new Database();
 $db = $database->getConnection();
+DbSchema::ensureUserRole($db, 'it_support');
 
 switch ($method) {
     // 1. HANDLE POST REQUESTS (Create User OR Reset Password)

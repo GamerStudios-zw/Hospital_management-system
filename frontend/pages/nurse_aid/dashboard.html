@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurse Aid Command Center | HMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; }
+        .sidebar { min-height: 100vh; background: #0f172a; color: white; }
+        .sidebar .nav-link {
+            color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer;
+            display: flex; align-items: center; transition: 0.2s;
+        }
+        .sidebar .nav-link.active { background: #10b981; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+        .stat-widget { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; }
+        .chart-compact { height: 170px; }
+        .chart-compact canvas { height: 170px !important; max-height: 170px; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <div class="col-md-2 sidebar d-flex flex-column">
+            <div class="p-4 text-center">
+                <h4 class="fw-bold text-success mb-0"><i class="bi bi-heart-pulse-fill me-2"></i>HMS NURSE AID</h4>
+                <p class="small text-muted mt-1">Command Center</p>
+            </div>
+
+            <nav class="nav flex-column mt-3 flex-grow-1">
+                <a class="nav-link active" onclick="switchTab('triage', this)"><i class="bi bi-clipboard2-pulse me-3"></i> Triage Station</a>
+                <a class="nav-link" onclick="switchTab('history', this)"><i class="bi bi-clock-history me-3"></i> Patient History</a>
+                <a class="nav-link" onclick="switchTab('daily', this)"><i class="bi bi-activity me-3"></i> Daily Vitals</a>
+                <a class="nav-link" onclick="switchTab('escalations', this)"><i class="bi bi-exclamation-triangle me-3"></i> Escalations</a>
+                <a class="nav-link" onclick="switchTab('discharge', this)"><i class="bi bi-box-arrow-right me-3"></i> Discharge Summary</a>
+            </nav>
+
+            <div class="p-3 border-top border-secondary">
+                <div class="d-flex align-items-center mb-3 px-2">
+                    <div class="bg-success rounded-circle me-2" style="width: 10px; height: 10px;"></div>
+                    <small id="navUserName">Loading...</small>
+                </div>
+                <button onclick="logout()" class="btn btn-outline-danger w-100 border-0 text-start"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
+            </div>
+        </div>
+
+        <main class="col-md-10 p-4">
+            <section id="triage" class="tab-section active">
+                <div class="d-flex justify-content-between align-items-end mb-4">
+                    <div>
+                        <h3 class="fw-bold">Triage Station</h3>
+                        <p class="text-muted">Process admitted patients for vitals.</p>
+                    </div>
+                    <div class="stat-widget py-2 px-4 d-flex align-items-center">
+                        <span class="text-warning fw-bold me-2 fs-4" id="statPending">0</span>
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">Pending<br>Triage</small>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                            <h6 class="fw-bold mb-3">Triage Volume (Last 7 Days)</h6>
+                            <div class="chart-compact">
+                                <canvas id="nurseAidTriageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Arrival</th>
+                                <th>Patient Details</th>
+                                <th>National ID</th>
+                                <th>Condition</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="triageTable"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="history" class="tab-section">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h3 class="fw-bold mb-0">Patient History</h3>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadHistory()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Time</th>
+                                    <th>Patient</th>
+                                    <th>Temp</th>
+                                    <th>Pulse</th>
+                                    <th>BP</th>
+                                    <th>SpO2</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr><td colspan="6" class="text-center text-muted py-4">Load history to view entries.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="daily" class="tab-section">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <h3 class="fw-bold mb-0">Daily Vitals</h3>
+                        <div class="text-muted small">Admitted patients only (occupied beds).</div>
+                    </div>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadAdmittedPatients()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Bed</th>
+                                    <th>Patient</th>
+                                    <th>National ID</th>
+                                    <th>Ward</th>
+                                    <th class="text-end pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyVitalsTable">
+                                <tr><td colspan="5" class="text-center text-muted py-4">No admitted patients.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="escalations" class="tab-section">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h3 class="fw-bold mb-0">Escalations</h3>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadEscalations()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Patient</label>
+                            <select id="escPatient" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Reason</label>
+                            <input id="escReason" class="form-control" placeholder="Unstable vitals / rapid decline">
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button class="btn btn-danger w-100" onclick="createEscalation()">Escalate</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Reason</th>
+                                    <th>Severity</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="escalationsTable">
+                                <tr><td colspan="5" class="text-center text-muted py-4">No escalations yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="discharge" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="fw-bold mb-1">Discharge Summary</h3>
+                        <div class="text-muted small">Read-only overview from doctor.</div>
+                    </div>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadDischarges()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Patient</th><th>Summary</th><th>Status</th><th>Time</th></tr>
+                            </thead>
+                            <tbody id="dischargeTable">
+                                <tr><td colspan="4" class="text-center text-muted py-4">No discharge summaries yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="vitalsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Vitals Capture - <span id="modalPatientName" class="text-success"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="vitalsForm" onsubmit="event.preventDefault(); saveVitals();" class="needs-validation">
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Temp (°C)</label>
+                            <input id="vTemp" type="number" step="0.1" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Pulse</label>
+                            <input id="vPulse" type="number" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">BP</label>
+                            <input id="vBp" type="text" class="form-control" placeholder="120/80" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Weight (kg)</label>
+                            <input id="vWeight" type="number" step="0.1" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">SpO2</label>
+                            <input id="vSpo2" type="number" class="form-control">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Nurse Aid Notes</label>
+                            <textarea id="vNotes" class="form-control" rows="3" placeholder="Add clinical notes..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Doctor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script>
+    protectPage(['nurse_aid', 'admin']);
+
+    let activeQueueId = null;
+    let activePatientId = null;
+    let isSavingVitals = false;
+    const vitalsModal = new bootstrap.Modal(document.getElementById('vitalsModal'));
+    let triageChart = null;
+    let vitalsMode = 'triage';
+
+    function switchTab(id, el) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById(id)?.classList.add('active');
+        if (id === 'triage') {
+            loadTriageQueue();
+            loadAnalytics();
+        }
+        if (id === 'history') loadHistory();
+        if (id === 'daily') loadAdmittedPatients();
+        if (id === 'escalations') loadEscalations();
+        if (id === 'discharge') loadDischarges();
+    }
+
+    function last7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            const label = d.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+            days.push({ key, label });
+        }
+        return days;
+    }
+
+    async function loadTriageQueue() {
+        const queue = await Api.get('/nurse_aid/triage_queue');
+        const tbody = document.getElementById('triageTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (queue && Array.isArray(queue) && queue.length) {
+            queue.forEach(q => {
+                const status = q.status || 'Waiting';
+                const badgeClass = status.toLowerCase().includes('urgent') ? 'bg-danger'
+                    : (status.toLowerCase().includes('triage') ? 'bg-info text-dark' : 'bg-warning text-dark');
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 small">${new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                        <td><div class="fw-bold">${q.full_name}</div><small class="text-muted">${q.gender}, ${q.dob}</small></td>
+                        <td class="small fw-medium">${q.national_id || 'N/A'}</td>
+                        <td><span class="badge ${badgeClass}">${status}</span></td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-success btn-sm rounded-pill px-3" onclick='openVitalsModal(${JSON.stringify(q)}, "triage")'>
+                                Capture
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+            document.getElementById('statPending').innerText = queue.length;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No patients awaiting triage.</td></tr>';
+            document.getElementById('statPending').innerText = '0';
+        }
+    }
+
+    function openVitalsModal(q, mode) {
+        vitalsMode = mode || 'triage';
+        activeQueueId = q.queue_id;
+        activePatientId = q.patient_id;
+        if (!activeQueueId) {
+            if (typeof showNotification === "function") {
+                showNotification("No active queue entry for this patient.");
+            } else {
+                alert("No active queue entry for this patient.");
+            }
+            return;
+        }
+        document.getElementById('modalPatientName').innerText = q.full_name;
+        if (vitalsMode === 'triage') {
+            Api.post('/nurse_aid/start_triage', { queue_id: activeQueueId });
+        }
+        vitalsModal.show();
+    }
+
+    async function saveVitals() {
+        if (isSavingVitals) return;
+        isSavingVitals = true;
+        const saveBtn = document.getElementById('saveVitalsBtn');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+        }
+
+        const data = {
+            patient_id: activePatientId,
+            queue_id: activeQueueId,
+            temperature: document.getElementById('vTemp').value,
+            pulse: document.getElementById('vPulse').value,
+            bp: document.getElementById('vBp').value,
+            weight: document.getElementById('vWeight').value,
+            spo2: document.getElementById('vSpo2').value,
+            notes: document.getElementById('vNotes').value
+        };
+
+        try {
+            const endpoint = vitalsMode === 'daily' ? '/nurse_aid/save_daily_vitals' : '/nurse_aid/save_vitals';
+            const res = await Api.post(endpoint, data);
+            if (res) {
+                vitalsModal.hide();
+                document.getElementById('vitalsForm').reset();
+                loadTriageQueue();
+                loadAnalytics();
+                if (vitalsMode === 'daily') {
+                    loadAdmittedPatients();
+                }
+            }
+        } finally {
+            isSavingVitals = false;
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Finalize & Route to Doctor';
+            }
+        }
+    }
+
+    async function loadAnalytics() {
+        const data = await Api.get('/nurse_aid/analytics');
+        if (!data) return;
+        const days = last7Days();
+        const triageMap = Object.fromEntries((data.triage_by_day || []).map(r => [r.day, r.count]));
+        const labels = days.map(d => d.label);
+        const triageSeries = days.map(d => triageMap[d.key] || 0);
+
+        if (triageChart) triageChart.destroy();
+        triageChart = new Chart(document.getElementById('nurseAidTriageChart'), {
+            type: 'line',
+            data: { labels, datasets: [{ label: 'Vitals Captured', data: triageSeries, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    async function loadHistory() {
+        const data = await Api.get('/nurse_aid/history');
+        if (!data) return;
+        const tbody = document.getElementById('historyTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (Array.isArray(data.recent) && data.recent.length) {
+            data.recent.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 small text-muted">${timeStr}</td>
+                        <td class="fw-semibold">${r.patient_name || 'Unknown'}</td>
+                        <td>${r.temperature ?? '-'}</td>
+                        <td>${r.pulse ?? '-'}</td>
+                        <td>${r.bp ?? '-'}</td>
+                        <td>${r.spo2 ?? '-'}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No history found.</td></tr>';
+        }
+    }
+
+    function renderPatientOptions(select, patients, placeholder) {
+        if (!select) return;
+        const options = [`<option value="">${placeholder}</option>`]
+            .concat(patients.map(p => `<option value="${p.id}">${p.full_name} (${p.national_id || 'N/A'})</option>`));
+        select.innerHTML = options.join('');
+    }
+
+    async function loadPatientOptions() {
+        const triage = await Api.get('/nurse_aid/triage_queue');
+        if (triage) {
+            const triagePatients = triage.map(p => ({
+                id: p.patient_id,
+                full_name: p.full_name,
+                national_id: p.national_id
+            }));
+            renderPatientOptions(document.getElementById('escPatient'), triagePatients, '-- Triage Patients Only --');
+        }
+    }
+
+    async function loadAdmittedPatients() {
+        const rows = await Api.get('/nurse_aid/admitted_patients');
+        const tbody = document.getElementById('dailyVitalsTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const bedLabel = `${r.ward_name || 'Ward'} - ${r.bed_number || 'Bed'}`;
+                const action = r.queue_id
+                    ? `<button class="btn btn-sm btn-success" onclick='openVitalsModal(${JSON.stringify(r)}, "daily")'>Record</button>`
+                    : `<button class="btn btn-sm btn-outline-secondary" disabled>No queue</button>`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4">${bedLabel}</td>
+                        <td>${r.full_name}</td>
+                        <td>${r.national_id || 'N/A'}</td>
+                        <td>${r.ward_name || '-'}</td>
+                        <td class="text-end pe-4">${action}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No admitted patients.</td></tr>';
+        }
+    }
+
+    async function loadEscalations() {
+        const rows = await Api.get('/nurse_aid/escalation_list');
+        const tbody = document.getElementById('escalationsTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                const sev = r.severity || 'urgent';
+                const badge = sev === 'urgent' ? 'danger' : 'warning';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${r.patient_name}</td>
+                        <td>${r.reason}</td>
+                        <td><span class="badge bg-${badge}-subtle text-${badge}">${sev}</span></td>
+                        <td>${r.status}</td>
+                        <td>${timeStr}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No escalations yet.</td></tr>';
+        }
+    }
+
+    async function createEscalation() {
+        const patientId = document.getElementById('escPatient').value;
+        const reason = document.getElementById('escReason').value.trim();
+        if (!patientId || !reason) return alert("Select a patient and add a reason");
+        const res = await Api.post('/nurse_aid/escalation_create', { patient_id: patientId, reason, severity: 'urgent' });
+        if (res) {
+            document.getElementById('escReason').value = '';
+            loadEscalations();
+        }
+    }
+
+    async function loadDischarges() {
+        const rows = await Api.get('/nurse_aid/discharge_list');
+        const tbody = document.getElementById('dischargeTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${r.patient_name}</td>
+                        <td>${r.summary}</td>
+                        <td>${r.status}</td>
+                        <td>${timeStr}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No discharge summaries yet.</td></tr>';
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const user = JSON.parse(localStorage.getItem("hms_user"));
+        if (user) document.getElementById('navUserName').innerText = user.full_name;
+        loadTriageQueue();
+        loadAnalytics();
+        loadPatientOptions();
+        loadAdmittedPatients();
+    });
+</script>
+</body>
+</html>

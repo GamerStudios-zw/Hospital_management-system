@@ -290,5 +290,46 @@ class DbSchema {
             INDEX idx_claim_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
+
+    public static function ensureITModules($db) {
+        if (!$db) return;
+        $db->exec("CREATE TABLE IF NOT EXISTS it_tickets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(150) NOT NULL,
+            description TEXT NOT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'open',
+            priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+            source VARCHAR(20) NOT NULL DEFAULT 'local',
+            requester_name VARCHAR(120) NULL,
+            requester_email VARCHAR(120) NULL,
+            created_by INT NULL,
+            assigned_to INT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_it_status (status),
+            INDEX idx_it_priority (priority),
+            INDEX idx_it_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
+
+    public static function ensureUserRole($db, $role) {
+        if (!$db || !$role) return;
+        $stmt = $db->prepare("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role' LIMIT 1");
+        $stmt->execute();
+        $type = $stmt->fetchColumn();
+        if (!$type || stripos($type, 'enum(') !== 0) return;
+
+        $raw = trim($type);
+        $raw = substr($raw, 5, -1);
+        $values = array_filter(array_map(function ($v) {
+            $v = trim($v);
+            return trim($v, "'");
+        }, explode("','", $raw)));
+
+        if (in_array($role, $values, true)) return;
+        $values[] = $role;
+        $enum = "ENUM('" . implode("','", $values) . "')";
+        $db->exec("ALTER TABLE users MODIFY role {$enum} NOT NULL");
+    }
 }
 ?>

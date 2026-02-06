@@ -27,10 +27,18 @@ switch ($action) {
         if ($method === 'GET') {
             // REMOVED 'Waiting' from the IN clause to ensure Nurse priority
             $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.dob, p.gender, q.status,
-                             v.bp, v.temperature, v.pulse, v.spo2
+                             v.bp, v.temperature, v.pulse, v.spo2, v.notes as nurse_notes
                       FROM patient_queue q
                       JOIN patients p ON q.patient_id = p.id
-                      LEFT JOIN patient_vitals v ON q.id = v.queue_id
+                      LEFT JOIN (
+                          SELECT pv.*
+                          FROM patient_vitals pv
+                          INNER JOIN (
+                              SELECT queue_id, MAX(id) as latest_id
+                              FROM patient_vitals
+                              GROUP BY queue_id
+                          ) latest ON latest.latest_id = pv.id
+                      ) v ON q.id = v.queue_id
                       WHERE q.status IN ('With Doctor', 'with doctor')
                       ORDER BY q.created_at ASC";
             $stmt = $db->query($query);
@@ -110,8 +118,34 @@ switch ($action) {
                 exit;
             }
             try {
+                $db->beginTransaction();
+
                 $stmt = $db->prepare("UPDATE patient_queue SET status = 'Urgent Care' WHERE id = ?");
                 $stmt->execute([$data->queue_id]);
+
+                // Auto-assign bed if available (urgent care)
+                $pidStmt = $db->prepare("SELECT patient_id FROM patient_queue WHERE id = ?");
+                $pidStmt->execute([$data->queue_id]);
+                $patient_id = $pidStmt->fetchColumn();
+
+                $bedAssigned = false;
+                if ($patient_id) {
+                    $existing = $db->prepare("SELECT id FROM beds WHERE current_patient_id = ? AND status = 'Occupied' LIMIT 1");
+                    $existing->execute([$patient_id]);
+                    $existingBedId = $existing->fetchColumn();
+
+                    if (!$existingBedId) {
+                        $bed = $db->query("SELECT id FROM beds WHERE status = 'Available' ORDER BY ward_name, bed_number LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+                        if ($bed && !empty($bed['id'])) {
+                            $assign = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ?, updated_at = NOW() WHERE id = ?");
+                            $assign->execute([$patient_id, $bed['id']]);
+                            $bedAssigned = true;
+                            Realtime::emit('nurse.assign_bed', ['bed_id' => $bed['id'], 'patient_id' => $patient_id]);
+                        }
+                    }
+                }
+
+                $db->commit();
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'doctor', 'Returned to nurse (urgent)', 'Success', null, [
                         'event_type' => 'audit',
@@ -120,16 +154,85 @@ switch ($action) {
                         'actor_id' => isset($user->id) ? (string)$user->id : null,
                         'actor_role' => $user->role ?? 'doctor',
                         'source' => 'doctor/urgent_care',
-                        'metadata' => !empty($data->reason) ? ['reason' => $data->reason] : null
+                        'metadata' => [
+                            'reason' => !empty($data->reason) ? $data->reason : null,
+                            'bed_assigned' => $bedAssigned ? 'yes' : 'no'
+                        ]
                     ]);
                 } catch (Exception $e) {
                     // ignore logging errors
                 }
                 Realtime::emit('doctor.urgent_care', ['queue_id' => $data->queue_id]);
-                echo json_encode(["message" => "Patient returned to nurse for urgent care."]);
+                echo json_encode(["message" => "Patient returned to nurse for urgent care.", "bed_assigned" => $bedAssigned]);
             } catch (Exception $e) {
+                $db->rollBack();
                 http_response_code(500);
                 echo json_encode(["message" => "Server Error: " . $e->getMessage()]);
+            }
+        }
+        break;
+    
+    // 2c. LIST APPOINTMENTS (Doctor-specific)
+    case 'appointments':
+        if ($method === 'GET') {
+            $start = $_GET['start'] ?? null;
+            $end = $_GET['end'] ?? null;
+            $status = $_GET['status'] ?? null;
+
+            $where = ["a.doctor_id = ?"];
+            $params = [$user->id];
+
+            if ($start) { $where[] = "a.scheduled_at >= ?"; $params[] = $start; }
+            if ($end) { $where[] = "a.scheduled_at <= ?"; $params[] = $end; }
+            if ($status) { $where[] = "a.status = ?"; $params[] = $status; }
+
+            $whereSql = "WHERE " . implode(" AND ", $where);
+
+            $sql = "SELECT a.id, a.patient_id, a.scheduled_at, a.status, a.reason, a.notes,
+                           p.full_name, p.gender, p.dob
+                    FROM appointments a
+                    JOIN patients p ON a.patient_id = p.id
+                    $whereSql
+                    ORDER BY a.scheduled_at DESC
+                    LIMIT 200";
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        }
+        break;
+    
+    // 2d. UPDATE APPOINTMENT STATUS (Doctor-specific)
+    case 'appointment_update':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->appointment_id) || !isset($data->status)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Appointment ID and status required"]);
+                exit;
+            }
+
+            $stmt = $db->prepare("UPDATE appointments SET status = ?, notes = COALESCE(?, notes)
+                                  WHERE id = ? AND doctor_id = ?");
+            if ($stmt->execute([$data->status, $data->notes ?? null, $data->appointment_id, $user->id])) {
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'doctor', 'Updated appointment status', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'appointments',
+                        'entity_id' => (string)$data->appointment_id,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'doctor',
+                        'source' => 'doctor/appointment_update',
+                        'metadata' => ['status' => $data->status]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                Realtime::emit('doctor.appointment_update', ['appointment_id' => $data->appointment_id]);
+                echo json_encode(["message" => "Appointment updated"]);
+            } else {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to update appointment"]);
             }
         }
         break;
@@ -359,7 +462,7 @@ switch ($action) {
                 echo json_encode(["message" => "Patient ID required"]);
                 exit;
             }
-            $vitals = $db->query("SELECT created_at, CONCAT('Vitals: BP ', bp, ', T ', temperature, '°C') as note FROM patient_vitals WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
+            $vitals = $db->query("SELECT created_at, CONCAT('Vitals: BP ', bp, ', T ', temperature, '°C', IF(notes IS NOT NULL AND notes <> '', CONCAT(' | Nurse notes: ', notes), '')) as note FROM patient_vitals WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
             $visits = $db->query("SELECT created_at, CONCAT('Visit status: ', status) as note FROM patient_queue WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
             $meds = $db->query("SELECT created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note FROM prescriptions pr LEFT JOIN medicines m ON pr.medicine_id = m.id WHERE pr.patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
             $docs = $db->query("SELECT created_at, CONCAT('Document: ', report_name) as note FROM medical_reports WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);

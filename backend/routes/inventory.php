@@ -11,7 +11,7 @@ $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
 $user = AuthMiddleware::isAuthenticated();
-RoleMiddleware::allow(['pharmacist', 'admin'], $user);
+RoleMiddleware::allow(['senior_pharmacist'], $user);
 
 switch ($action) {
     // 1. GET ALL STOCK

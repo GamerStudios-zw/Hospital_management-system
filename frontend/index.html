@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>Hospital Management System | Digital Healthcare Platform</title>
-    <meta name="description" content="A secure, modern Hospital Management System for government and private hospitals.">
+    <meta name="description" content="A secure, Hospital Management System for government and private hospitals.">
     <meta name="keywords" content="hospital management, healthcare, digital health, patient records">
 
     <!-- Favicons -->
@@ -58,6 +58,7 @@
             position: fixed;
             width: 100%;
             top: 0;
+            bottom: auto;
             border-bottom: 3px solid #e44a3c;
         }
 
@@ -554,8 +555,6 @@
                         <li><a href="#about">About</a></li>
                         <li><a href="#services">Services</a></li>
                         <li><a href="#departments">Departments</a></li>
-                        <li><a href="#doctors">Doctors</a></li>
-                        <li><a href="#contact">Contact</a></li>
                     </ul>
                 </nav>
 
@@ -572,7 +571,7 @@
         <section id="hero" class="hero">
             <div class="container position-relative">
                 <div class="text-center">
-                    <h1>Modern Hospital Management System</h1>
+                    <h1>Hospital Management System</h1>
                     <p>Digitizing patient care, clinical workflows, pharmacy operations, and inventory management for healthcare institutions.</p>
                     <a href="pages/auth/login.html" class="btn btn-outline-light btn-lg">Access System</a>
                 </div>
@@ -793,169 +792,6 @@
             </div>
         </section>
 
-        <!-- Doctors Section -->
-        <section id="doctors" class="doctors">
-            <div class="container section-title">
-                <h2>Hospital Staff</h2>
-                <p>Meet our dedicated healthcare professionals</p>
-            </div>
-
-            <div class="container">
-                <div class="row gy-4">
-
-                    <div class="col-lg-6">
-                        <div class="team-member d-flex align-items-start">
-                            <div class="pic">
-                                <img src="assets/img/default-doctor.jpg" alt="Doctor" onerror="this.style.background='#ddd'; this.style.display='flex'; this.style.alignItems='center'; this.style.justifyContent='center'; this.innerText='👨‍⚕️';">
-                            </div>
-                            <div class="member-info w-100">
-                                <h4>Dr. Medical Officer</h4>
-                                <span>Chief Medical Officer</span>
-                                <p>Overseeing clinical operations and ensuring quality patient care across all departments.</p>
-                                <div class="social">
-                                    <a href="#"><i class="bi bi-linkedin"></i></a>
-                                    <a href="#"><i class="bi bi-facebook"></i></a>
-                                    <a href="#"><i class="bi bi-twitter-x"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-6">
-                        <div class="team-member d-flex align-items-start">
-                            <div class="pic">
-                                <img src="assets/img/doctors/doctors-2.jpg" alt="Doctor" class="img-fluid">
-                            </div>
-                            <div class="member-info w-100">
-                                <h4>Nurse Supervisor</h4>
-                                <span>Head of Nursing</span>
-                                <p>Managing nursing staff and ensuring excellent patient care standards in all wards.</p>
-                                <div class="social">
-                                    <a href="#"><i class="bi bi-linkedin"></i></a>
-                                    <a href="#"><i class="bi bi-facebook"></i></a>
-                                    <a href="#"><i class="bi bi-twitter-x"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-6">
-                        <div class="team-member d-flex align-items-start">
-                            <div class="pic">
-                                <img src="assets/img/doctors/doctors-3.jpg" alt="Doctor" class="img-fluid">
-                            </div>
-                            <div class="member-info w-100">
-                                <h4>Pharmacy Manager</h4>
-                                <span>Head of Pharmacy</span>
-                                <p>Managing medicine stock, prescriptions processing, and pharmacy operations.</p>
-                                <div class="social">
-                                    <a href="#"><i class="bi bi-linkedin"></i></a>
-                                    <a href="#"><i class="bi bi-facebook"></i></a>
-                                    <a href="#"><i class="bi bi-twitter-x"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-6">
-                        <div class="team-member d-flex align-items-start">
-                            <div class="pic">
-                                <img src="assets/img/doctors/doctors-4.jpg" alt="Doctor" class="img-fluid">
-                            </div>
-                            <div class="member-info w-100">
-                                <h4>Store Manager</h4>
-                                <span>Head of Inventory</span>
-                                <p>Overseeing hospital inventory, procurement, and resource allocation across departments.</p>
-                                <div class="social">
-                                    <a href="#"><i class="bi bi-linkedin"></i></a>
-                                    <a href="#"><i class="bi bi-facebook"></i></a>
-                                    <a href="#"><i class="bi bi-twitter-x"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </section>
-
-        <!-- Contact Section -->
-        <section id="contact" class="contact-section py-5" style="background: var(--light-bg);">
-            <div class="container">
-                <div class="section-title">
-                    <h2>Contact Us</h2>
-                    <p>Request a demo, ask about deployment, or discuss partnerships.</p>
-                </div>
-
-                <div class="row g-4 align-items-stretch">
-                    <div class="col-lg-7">
-                        <div class="card shadow-sm h-100 border-0">
-                            <div class="card-body p-4">
-                                <h5 class="mb-3">Send us a message</h5>
-
-                                <form id="contactForm">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Full Name</label>
-                                            <input type="text" id="contactName" class="form-control" placeholder="Your name" required>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label class="form-label">Email Address</label>
-                                            <input type="email" id="contactEmail" class="form-control" placeholder="you@example.com" required>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label class="form-label">Organization</label>
-                                            <input type="text" id="contactOrg" class="form-control" placeholder="Hospital / Institution">
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label class="form-label">Phone Number</label>
-                                            <input type="tel" id="contactPhone" class="form-control" placeholder="+263 …">
-                                        </div>
-
-                                        <div class="col-12">
-                                            <label class="form-label">Message</label>
-                                            <textarea id="contactMessage" class="form-control" rows="5" placeholder="Tell us how we can help…" required></textarea>
-                                        </div>
-
-                                        <div class="col-12">
-                                            <button type="submit" id="submitBtn" class="btn btn-primary px-4">
-                                                Submit Inquiry
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-
-                                <div id="formAlert" class="alert mt-3 d-none"></div>
-
-                                <small class="text-muted d-block mt-3">
-                                    Your information will be handled confidentially.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-5">
-                        <div class="card h-100 border-0 shadow-sm">
-                            <div class="card-body p-4">
-                                <h5 class="mb-3">Reach us directly</h5>
-
-                                <p class="mb-2"><strong>Email:</strong><br> info@hmsplatform.com</p>
-                                <p class="mb-2"><strong>Phone:</strong><br> +263 XXX XXX XXX</p>
-                                <p class="mb-4"><strong>Location:</strong><br> Harare, Zimbabwe</p>
-
-                                <h6 class="mb-3">Business Hours</h6>
-                                <p class="mb-1">Monday – Friday: 08:00 – 17:00</p>
-                                <p>Saturday: 09:00 – 13:00</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
     </main>
 
     <footer class="pt-5">
@@ -1011,58 +847,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        document.getElementById('contactForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const submitBtn = document.getElementById('submitBtn');
-            const alertBox = document.getElementById('formAlert');
-            const originalBtnText = submitBtn.innerText;
-
-            const formData = {
-                name: document.getElementById('contactName').value,
-                email: document.getElementById('contactEmail').value,
-                organization: document.getElementById('contactOrg').value,
-                phone: document.getElementById('contactPhone').value,
-                message: document.getElementById('contactMessage').value
-            };
-
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Sending...";
-            alertBox.classList.add('d-none');
-
-            try {
-                const response = await fetch('http://localhost/Hospital_Management_System/backend/index.php/contact/submit', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                const result = await response.json();
-
-                alertBox.classList.remove('d-none');
-
-                if (response.ok) {
-                    alertBox.className = 'alert alert-success mt-3';
-                    alertBox.innerText = "Message sent successfully! We will contact you shortly.";
-                    document.getElementById('contactForm').reset();
-                } else {
-                    alertBox.className = 'alert alert-danger mt-3';
-                    alertBox.innerText = result.message || "Failed to send message. Please try again.";
-                }
-
-            } catch (error) {
-                console.error('Error:', error);
-                alertBox.classList.remove('d-none');
-                alertBox.className = 'alert alert-danger mt-3';
-                alertBox.innerText = "Connection error. Please check if the backend server is running.";
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = originalBtnText;
-            }
-        });
-
         // Add active class to current nav link on scroll
         window.addEventListener('scroll', function() {
             const header = document.querySelector('.header');
@@ -1076,73 +860,4 @@
 
 </body>
 
-</html>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-    document.getElementById('contactForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-
-        // UI Elements
-        const submitBtn = document.getElementById('submitBtn');
-        const alertBox = document.getElementById('formAlert');
-        const originalBtnText = submitBtn.innerText;
-
-        // 1. Gather Data
-        const formData = {
-            name: document.getElementById('contactName').value,
-            email: document.getElementById('contactEmail').value,
-            organization: document.getElementById('contactOrg').value,
-            phone: document.getElementById('contactPhone').value,
-            message: document.getElementById('contactMessage').value
-        };
-
-        // 2. Disable button to prevent double submit
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Sending...";
-        alertBox.classList.add('d-none'); // Hide previous alerts
-
-        try {
-            // 3. Send to Backend
-            // Ensure this URL matches your backend setup exactly
-            const response = await fetch('http://localhost/Hospital_Management_System/backend/index.php/contact/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            });
-
-            const result = await response.json();
-
-            // 4. Handle Response
-            alertBox.classList.remove('d-none');
-
-            if (response.ok) {
-                // Success
-                alertBox.className = 'alert alert-success mt-3';
-                alertBox.innerText = "Message sent successfully! We will contact you shortly.";
-                document.getElementById('contactForm').reset();
-            } else {
-                // Backend Error
-                alertBox.className = 'alert alert-danger mt-3';
-                alertBox.innerText = result.message || "Failed to send message. Please try again.";
-            }
-
-        } catch (error) {
-            // Network Error
-            console.error('Error:', error);
-            alertBox.classList.remove('d-none');
-            alertBox.className = 'alert alert-danger mt-3';
-            alertBox.innerText = "Connection error. Please check if the backend server is running.";
-        } finally {
-            // 5. Reset Button
-            submitBtn.disabled = false;
-            submitBtn.innerText = originalBtnText;
-        }
-    });
-</script>
-
-</body>
 </html>

@@ -64,107 +64,15 @@ switch ($action) {
         }
         break;
 
-    // 2. TRIAGE QUEUE (Matches triageTable in dashboard)
+    // 2. TRIAGE MOVED TO NURSE AID
     case 'triage_queue':
-        if ($method === 'GET') {
-            $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
-                      FROM patient_queue q
-                      JOIN patients p ON q.patient_id = p.id
-                      WHERE q.status IN ('Waiting', 'waiting', 'Urgent Care', 'urgent care', 'In Triage', 'in triage')
-                      ORDER BY (q.status IN ('Urgent Care', 'urgent care')) DESC, q.created_at ASC";
-            $stmt = $db->query($query);
-            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-        }
-        break;
-
-    // 3. SAVE VITALS (Full data mapping for weight and SpO2)
     case 'save_vitals':
-        if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-
-            if(!isset($data->queue_id) || !isset($data->patient_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Missing Patient or Queue ID"]);
-                exit;
-            }
-
-            try {
-                $db->beginTransaction();
-
-                // SQL Mapping based on your vitalsForm fields
-                $sql = "INSERT INTO patient_vitals (patient_id, queue_id, temperature, pulse, bp, weight, spo2, notes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-
-                $stmt = $db->prepare($sql);
-                $stmt->execute([
-                    $data->patient_id,
-                    $data->queue_id,
-                    $data->temperature,
-                    $data->pulse,
-                    $data->bp,
-                    $data->weight,
-                    $data->spo2,
-                    $data->notes
-                ]);
-
-                // Update status to 'With Doctor' after triage is complete
-                $upd = $db->prepare("UPDATE patient_queue SET status = 'With Doctor' WHERE id = ?");
-                $upd->execute([$data->queue_id]);
-
-                $db->commit();
-                try {
-                    ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Vitals recorded', 'Success', null, [
-                        'event_type' => 'audit',
-                        'entity_type' => 'patient_vitals',
-                        'entity_id' => (string)$data->queue_id,
-                        'actor_id' => isset($user->id) ? (string)$user->id : null,
-                        'actor_role' => $user->role ?? 'nurse',
-                        'source' => 'nurse/save_vitals'
-                    ]);
-                } catch (Exception $e) {
-                    // ignore logging errors
-                }
-                Realtime::emit('nurse.save_vitals', ['queue_id' => $data->queue_id]);
-                echo json_encode(["message" => "Vitals Saved. Patient routed to Doctor."]);
-            } catch (Exception $e) {
-                $db->rollBack();
-                http_response_code(500);
-                echo json_encode(["message" => "Database Error: " . $e->getMessage()]);
-            }
-        }
-        break;
-
-    // 3b. START TRIAGE (Move Waiting -> In Triage)
     case 'start_triage':
-        if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->queue_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Queue ID required"]);
-                exit;
-            }
-            try {
-                $stmt = $db->prepare("UPDATE patient_queue SET status = 'In Triage' WHERE id = ? AND status IN ('Waiting','waiting','Urgent Care','urgent care')");
-                $stmt->execute([$data->queue_id]);
-                try {
-                    ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Started triage', 'Success', null, [
-                        'event_type' => 'audit',
-                        'entity_type' => 'patient_queue',
-                        'entity_id' => (string)$data->queue_id,
-                        'actor_id' => isset($user->id) ? (string)$user->id : null,
-                        'actor_role' => $user->role ?? 'nurse',
-                        'source' => 'nurse/start_triage'
-                    ]);
-                } catch (Exception $e) {
-                    // ignore logging errors
-                }
-                Realtime::emit('nurse.start_triage', ['queue_id' => $data->queue_id]);
-                echo json_encode(["message" => "Triage started"]);
-            } catch (Exception $e) {
-                http_response_code(500);
-                echo json_encode(["message" => "Failed to start triage: " . $e->getMessage()]);
-            }
-        }
+        http_response_code(403);
+        echo json_encode([
+            "message" => "Triage is now handled by Nurse Aid.",
+            "required_roles" => ["nurse_aid", "admin"]
+        ]);
         break;
 
     // 4. BED MANAGEMENT
@@ -258,6 +166,23 @@ switch ($action) {
             } catch (Exception $e) {
                 http_response_code(500);
                 echo json_encode(["message" => "Urgent list error: " . $e->getMessage()]);
+            }
+        }
+        break;
+    
+    case 'urgent_care_list':
+        if ($method === 'GET') {
+            try {
+                $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
+                          FROM patient_queue q
+                          JOIN patients p ON q.patient_id = p.id
+                          WHERE q.status IN ('Urgent Care', 'urgent care')
+                          ORDER BY q.created_at DESC";
+                $stmt = $db->query($query);
+                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Urgent care list error: " . $e->getMessage()]);
             }
         }
         break;
@@ -373,6 +298,15 @@ switch ($action) {
                 echo json_encode(["message" => "Task required"]);
                 exit;
             }
+            if (!empty($data->patient_id)) {
+                $check = $db->prepare("SELECT 1 FROM patient_queue WHERE patient_id = ? AND status IN ('Urgent Care','urgent care') LIMIT 1");
+                $check->execute([$data->patient_id]);
+                if (!$check->fetchColumn()) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "Only Urgent Care patients can be assigned to tasks."]);
+                    exit;
+                }
+            }
             $stmt = $db->prepare("INSERT INTO nurse_tasks (patient_id, assigned_to, task, priority, status, due_at)
                                   VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([
@@ -394,6 +328,12 @@ switch ($action) {
                                 FROM nurse_tasks t
                                 LEFT JOIN patients p ON t.patient_id = p.id
                                 LEFT JOIN users u ON t.assigned_to = u.id
+                                WHERE t.patient_id IS NULL
+                                   OR EXISTS (
+                                       SELECT 1 FROM patient_queue q
+                                       WHERE q.patient_id = t.patient_id
+                                         AND q.status IN ('Urgent Care','urgent care')
+                                   )
                                 ORDER BY t.created_at DESC
                                 LIMIT 100");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
@@ -442,6 +382,16 @@ switch ($action) {
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
         }
         break;
+    
+    case 'escalation_patients':
+        if ($method === 'GET') {
+            $stmt = $db->query("SELECT DISTINCT e.patient_id, p.full_name, p.national_id
+                                FROM nurse_escalations e
+                                JOIN patients p ON e.patient_id = p.id
+                                ORDER BY p.full_name ASC");
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
+        break;
 
     // 11. DISCHARGE SUMMARY
     case 'discharge_create':
@@ -450,6 +400,13 @@ switch ($action) {
             if (!isset($data->patient_id) || empty($data->summary)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient and summary required"]);
+                exit;
+            }
+            $check = $db->prepare("SELECT 1 FROM nurse_escalations WHERE patient_id = ? LIMIT 1");
+            $check->execute([$data->patient_id]);
+            if (!$check->fetchColumn()) {
+                http_response_code(400);
+                echo json_encode(["message" => "Only escalated patients can be discharged."]);
                 exit;
             }
             $stmt = $db->prepare("INSERT INTO discharge_summaries (patient_id, summary, status)
@@ -465,6 +422,10 @@ switch ($action) {
             $stmt = $db->query("SELECT d.*, p.full_name as patient_name
                                 FROM discharge_summaries d
                                 JOIN patients p ON d.patient_id = p.id
+                                WHERE EXISTS (
+                                    SELECT 1 FROM nurse_escalations e
+                                    WHERE e.patient_id = d.patient_id
+                                )
                                 ORDER BY d.created_at DESC
                                 LIMIT 100");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);

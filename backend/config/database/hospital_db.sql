@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email` varchar(100) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `full_name` varchar(100) NOT NULL,
-  `role` enum('admin','doctor','nurse','pharmacist','receptionist') NOT NULL,
+  `role` enum('admin','doctor','nurse','nurse_aid','pharmacist','senior_pharmacist','receptionist','it_support') NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
   `current_session_id` varchar(64) DEFAULT NULL,
@@ -74,6 +74,28 @@ CREATE TABLE IF NOT EXISTS `medicines` (
   `expiry_date` date DEFAULT NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- IT SUPPORT TICKETS
+--
+CREATE TABLE IF NOT EXISTS `it_tickets` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(150) NOT NULL,
+  `description` text NOT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'open',
+  `priority` varchar(20) NOT NULL DEFAULT 'normal',
+  `source` varchar(20) NOT NULL DEFAULT 'local',
+  `requester_name` varchar(120) DEFAULT NULL,
+  `requester_email` varchar(120) DEFAULT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  `assigned_to` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_it_status` (`status`),
+  KEY `idx_it_priority` (`priority`),
+  KEY `idx_it_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --

@@ -19,6 +19,14 @@ header('Content-Type: application/json');
 
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['pharmacist', 'admin', 'senior_pharmacist'], $user);
+$normalizedRole = str_replace([' ', '-'], '_', strtolower(trim((string)($user->role ?? ''))));
+$requireSeniorPharmacy = function () use ($normalizedRole) {
+    if ($normalizedRole !== 'senior_pharmacist') {
+        http_response_code(403);
+        echo json_encode(["message" => "This action requires senior pharmacist access."]);
+        exit;
+    }
+};
 
 switch ($action) {
 
@@ -71,7 +79,7 @@ switch ($action) {
                     $ctrl = $db->prepare("SELECT requires_approval FROM controlled_substances WHERE medicine_id = ?");
                     $ctrl->execute([$presc['medicine_id']]);
                     $requires = $ctrl->fetchColumn();
-                    if ($requires) {
+                    if ($requires && !in_array($normalizedRole, ['pharmacist', 'senior_pharmacist', 'admin'], true)) {
                         $appr = $db->prepare("SELECT COUNT(*) FROM controlled_requests WHERE prescription_id = ? AND status = 'Approved'");
                         $appr->execute([$data->prescription_id]);
                         if ((int)$appr->fetchColumn() === 0) {
@@ -274,6 +282,7 @@ switch ($action) {
 
     case 'controlled_add':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->medicine_id) || empty($data->schedule)) {
                 http_response_code(400);
@@ -304,7 +313,7 @@ switch ($action) {
 
     case 'controlled_approve':
         if ($method === 'POST') {
-            $role = strtolower(trim((string)($user->role ?? '')));
+            $role = str_replace([' ', '-'], '_', strtolower(trim((string)($user->role ?? ''))));
             if (!in_array($role, ['admin', 'senior_pharmacist'], true)) {
                 http_response_code(403);
                 echo json_encode(["message" => "Approval requires admin or senior pharmacist"]);
@@ -340,6 +349,7 @@ switch ($action) {
     // 10. REFILL REQUESTS
     case 'refill_list':
         if ($method === 'GET') {
+            $requireSeniorPharmacy();
             $stmt = $db->query("SELECT r.*, p.full_name as patient_name
                                 FROM refill_requests r
                                 JOIN patients p ON r.patient_id = p.id
@@ -350,6 +360,7 @@ switch ($action) {
 
     case 'refill_update':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->request_id) || empty($data->status)) {
                 http_response_code(400);
@@ -365,6 +376,7 @@ switch ($action) {
     // 11. SUPPLIERS
     case 'supplier_list':
         if ($method === 'GET') {
+            $requireSeniorPharmacy();
             $stmt = $db->query("SELECT * FROM suppliers ORDER BY name ASC");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
         }
@@ -372,6 +384,7 @@ switch ($action) {
 
     case 'supplier_create':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (empty($data->name)) {
                 http_response_code(400);
@@ -388,6 +401,7 @@ switch ($action) {
     // 12. PURCHASE ORDERS + GRN + INVOICES
     case 'po_create':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->supplier_id) || empty($data->items)) {
                 http_response_code(400);
@@ -416,6 +430,7 @@ switch ($action) {
 
     case 'po_list':
         if ($method === 'GET') {
+            $requireSeniorPharmacy();
             $stmt = $db->query("SELECT po.*, s.name as supplier_name
                                 FROM purchase_orders po
                                 LEFT JOIN suppliers s ON po.supplier_id = s.id
@@ -426,6 +441,7 @@ switch ($action) {
 
     case 'po_items':
         if ($method === 'GET') {
+            $requireSeniorPharmacy();
             $orderId = $_GET['order_id'] ?? 0;
             $stmt = $db->prepare("SELECT * FROM purchase_order_items WHERE order_id = ?");
             $stmt->execute([$orderId]);
@@ -435,6 +451,7 @@ switch ($action) {
 
     case 'grn_create':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->order_id)) {
                 http_response_code(400);
@@ -451,6 +468,7 @@ switch ($action) {
 
     case 'invoice_create':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->order_id) || empty($data->invoice_number)) {
                 http_response_code(400);
@@ -508,6 +526,7 @@ switch ($action) {
     // 14. STOCK ADJUSTMENTS
     case 'adjustment_add':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->medicine_id) || !isset($data->adjustment) || empty($data->reason)) {
                 http_response_code(400);
@@ -586,6 +605,7 @@ switch ($action) {
 
     case 'claim_update':
         if ($method === 'POST') {
+            $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
             if (!isset($data->claim_id) || empty($data->status)) {
                 http_response_code(400);

@@ -43,6 +43,7 @@
             <div class="p-4 text-center"><h4 class="fw-bold text-primary mb-0">HMS DOCTOR</h4></div>
             <nav class="nav flex-column mt-3 flex-grow-1">
                 <a class="nav-link active" onclick="switchTab('queue', this)"><i class="bi bi-people me-3"></i> Waiting Room</a>
+                <a class="nav-link" href="appointments.html"><i class="bi bi-calendar-check me-3"></i> Appointments</a>
                 <a class="nav-link" onclick="switchTab('directory', this)"><i class="bi bi-journal-medical me-3"></i> Patient History</a>
                 <a class="nav-link" onclick="switchTab('timeline', this)"><i class="bi bi-diagram-3 me-3"></i> Patient Timeline</a>
                 <a class="nav-link" onclick="switchTab('tasks', this)"><i class="bi bi-list-check me-3"></i> Task Board</a>
@@ -329,7 +330,7 @@
             <div class="modal-footer border-0 p-4 pt-0">
                 <div class="d-flex gap-2 w-100">
                     <button onclick="sendToUrgentCare()" class="btn btn-outline-danger w-100 py-2 fw-bold">Send Back to Nurse (Urgent)</button>
-                    <button onclick="finishConsultation()" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Complete & Print</button>
+                    <button id="completeConsultBtn" onclick="finishConsultation()" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Complete Consultation</button>
                 </div>
             </div>
         </div>
@@ -379,6 +380,7 @@
     let currentHistory = null;
     const consultModal = new bootstrap.Modal(document.getElementById('consultModal'));
     const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+    const escapeHtml = (val) => String(val ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
@@ -402,7 +404,8 @@
         if(queue && Array.isArray(queue)) {
             queue.forEach(p => {
                 const vitals = p.bp ? `<span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}°C</span>` : '<span class="badge bg-light text-muted border">Vitals Pending</span>';
-                tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${vitals}</td><td><span class="badge bg-warning-subtle text-warning">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
+                const vitalsWithNotes = p.nurse_notes ? `${vitals}<span class="badge bg-info-subtle text-info border ms-2">Nurse notes available</span>` : vitals;
+                tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${vitalsWithNotes}</td><td><span class="badge bg-warning-subtle text-warning">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
             });
             document.getElementById('statWaiting').innerText = queue.length;
         }
@@ -643,10 +646,17 @@
         activeQueueId = p.queue_id;
         activePatientName = p.full_name;
         currentPrescriptions = [];
+        syncCompleteButtonLabel();
         document.getElementById('prescriptionListTable').innerHTML = '';
         document.getElementById('prescriptionContainer').style.display = 'none';
         document.getElementById('modalPatientName').innerText = p.full_name;
-        document.getElementById('modalVitalsDisplay').innerHTML = p.bp ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}°C</div>` : 'Vitals not captured.';
+        const nurseNotes = (p.nurse_notes || '').trim();
+        const nurseNotesHtml = nurseNotes
+            ? `<div class="alert alert-info py-2 px-3 w-100 mb-0"><b>Nurse Clinical Notes:</b> ${escapeHtml(nurseNotes)}</div>`
+            : '<div class="text-muted small w-100">Nurse Clinical Notes: none provided.</div>';
+        document.getElementById('modalVitalsDisplay').innerHTML = p.bp
+            ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}°C</div>${nurseNotesHtml}`
+            : `Vitals not captured.${nurseNotesHtml}`;
         await loadMedicines();
         consultModal.show();
     }
@@ -683,6 +693,7 @@
         });
         document.getElementById('prescriptionContainer').style.display = 'block';
         renderPrescriptionTable();
+        syncCompleteButtonLabel();
         document.getElementById('manualMedName').value = "";
     }
 
@@ -695,6 +706,14 @@
         currentPrescriptions.splice(idx, 1);
         if(currentPrescriptions.length === 0) document.getElementById('prescriptionContainer').style.display = 'none';
         renderPrescriptionTable();
+        syncCompleteButtonLabel();
+    }
+
+    function syncCompleteButtonLabel() {
+        const btn = document.getElementById('completeConsultBtn');
+        if (!btn) return;
+        const hasExternalMedication = currentPrescriptions.some(p => !p.medicine_id || p.manual_name);
+        btn.textContent = hasExternalMedication ? 'Complete & Print' : 'Complete Consultation';
     }
 
     async function finishConsultation() {
@@ -703,7 +722,8 @@
         const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
         const res = await Api.post('/doctor/complete_multiple', data);
         if (res) {
-            printThermalReceipt();
+            const hasExternalMedication = currentPrescriptions.some(p => !p.medicine_id || p.manual_name);
+            if (hasExternalMedication) printThermalReceipt();
             consultModal.hide();
             loadQueue();
         }
@@ -802,7 +822,7 @@
         currentHistory = data || null;
         document.getElementById('histPatientName').innerText = data.patient.full_name;
         document.getElementById('uploadPatientId').value = pid;
-        document.getElementById('historyTimeline').innerHTML = data.vitals.map(v => `<div class="p-3 mb-2 bg-white border rounded shadow-sm"><b>Date: ${new Date(v.created_at).toDateString()}</b><br>BP: ${v.bp} | T: ${v.temperature}°C | Pulse: ${v.pulse}</div>`).join('') || 'No records';
+        document.getElementById('historyTimeline').innerHTML = data.vitals.map(v => `<div class="p-3 mb-2 bg-white border rounded shadow-sm"><b>Date: ${new Date(v.created_at).toDateString()}</b><br>BP: ${v.bp} | T: ${v.temperature}°C | Pulse: ${v.pulse}${v.notes ? `<br><span class="text-primary">Nurse notes:</span> ${escapeHtml(v.notes)}` : ''}</div>`).join('') || 'No records';
         document.getElementById('fileList').innerHTML = data.files.map(f => `<a href="${CONFIG.BACKEND_ROOT}/${f.file_path}" target="_blank" class="list-group-item list-group-item-action d-flex justify-content-between"><span>${f.report_name}</span><i class="bi bi-download"></i></a>`).join('') || 'No files';
         historyModal.show();
     }
