@@ -8,7 +8,7 @@
     <link href="../../assets/css/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; }
+        body { font-family: var(--app-font); background: #f1f5f9; color: #1e293b; }
 
         /* Sidebar Navigation */
         .sidebar { min-height: 100vh; background: #0f172a; color: white; transition: all 0.3s; }
@@ -579,7 +579,7 @@
         if(confirm("Are you sure you want to discharge this patient?")) {
             const res = await Api.post('/nurse/discharge', { bed_id: bedId });
             if (res && res.message && res.message.toLowerCase().includes('doctor discharge command required')) {
-                return alert(res.message);
+                return notify(res.message);
             }
             if(res) {
                 // notify other open dashboards to refresh immediately
@@ -620,7 +620,7 @@
 
     async function confirmBedAdmission() {
         const patientId = document.getElementById('urgentPatientSelect').value;
-        if (!patientId) return alert("Select an urgent patient");
+        if (!patientId) return notify("Select an urgent patient");
         const res = await Api.post('/nurse/assign_bed', { bed_id: activeBedId, patient_id: patientId });
         if (res) {
             bedAdmitModal.hide();
@@ -681,7 +681,7 @@
     }
 
     function printHistoryReport() {
-        if (!historySnapshot) return alert("History not loaded yet.");
+        if (!historySnapshot) return notify("History not loaded yet.");
         const rows = (historySnapshot.recent || []).map(r => {
             const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
             return `<tr>
@@ -907,8 +907,8 @@
     async function createTask() {
         const task = document.getElementById('taskText').value.trim();
         const patientId = document.getElementById('taskPatient').value;
-        if (!patientId) return alert("Select a patient");
-        if (!task) return alert("Enter task details");
+        if (!patientId) return notify("Select a patient");
+        if (!task) return notify("Enter task details");
         const priority = document.getElementById('taskPriority').value || 'normal';
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/nurse/task_create', {
@@ -955,7 +955,7 @@
     async function createEscalation() {
         const patientId = document.getElementById('escPatient').value;
         const reason = document.getElementById('escReason').value.trim();
-        if (!patientId || !reason) return alert("Select a patient and add a reason");
+        if (!patientId || !reason) return notify("Select a patient and add a reason");
         const res = await Api.post('/nurse/escalation_create', { patient_id: patientId, reason, severity: 'urgent' });
         if (res) {
             document.getElementById('escReason').value = '';
@@ -1008,8 +1008,8 @@
         const notes = document.getElementById('handoverNotes').value.trim();
         const shiftStart = document.getElementById('handoverStart').value;
         const shiftEnd = document.getElementById('handoverEnd').value;
-        if (!shiftStart || !shiftEnd) return alert("Select shift start and end");
-        if (!notes) return alert("Add handover notes");
+        if (!shiftStart || !shiftEnd) return notify("Select shift start and end");
+        if (!notes) return notify("Add handover notes");
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/nurse/handover_create', {
             user_id: user?.id,

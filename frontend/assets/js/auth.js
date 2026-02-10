@@ -1,5 +1,10 @@
 // Global API Configuration
 const API_BASE_URL = "http://localhost/Hospital_Management_System/backend/index.php";
+const notify = window.notify || function(message, options = {}) {
+    if (window.showBanner) return window.showBanner(message, options);
+    if (window.showNotification) return window.showNotification(message, options);
+    if (window.alert) return window.alert(message);
+};
 
 async function login(event) {
     // Prevent the form from refreshing the page
@@ -13,7 +18,7 @@ async function login(event) {
     const password = passwordInput ? passwordInput.value : "";
 
     if (!username || !password) {
-        alert("Please enter both username/email and password.");
+        notify("Please enter both username/email and password.");
         return;
     }
 
@@ -61,12 +66,12 @@ async function login(event) {
                     window.location.href = "../../index.html";
             }
         } else {
-            alert(result.message || "Login failed. Please check credentials.");
+            notify(result.message || "Login failed. Please check credentials.");
         }
 
     } catch (error) {
         console.error("Login Error:", error);
-        alert("Unable to connect to the server.");
+        notify("Unable to connect to the server.");
     }
 }
 

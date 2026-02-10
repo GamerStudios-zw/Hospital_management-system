@@ -7,6 +7,11 @@ const CONFIG = {
     // Ensure this path matches your actual backend folder structure
     BASE_URL: "http://localhost/Hospital_Management_System/backend/index.php"
 };
+const notify = window.notify || function(message, options = {}) {
+    if (window.showBanner) return window.showBanner(message, options);
+    if (window.showNotification) return window.showNotification(message, options);
+    if (window.alert) return window.alert(message);
+};
 
 const Api = {
     /**
@@ -37,7 +42,7 @@ const Api = {
 
             // Strict session handling: force logout on 401
             if (response.status === 401) {
-                alert("Session expired. Please login again.");
+                notify("Session expired. Please login again.");
                 localStorage.clear();
                 window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
                 return null;
@@ -46,7 +51,7 @@ const Api = {
             // Handle Forbidden Access (403)
             if (response.status === 403) {
                 const err = await response.json();
-                alert(err.message || "You do not have permission to perform this action.");
+                notify(err.message || "You do not have permission to perform this action.");
                 return null;
             }
 
@@ -54,7 +59,7 @@ const Api = {
 
         } catch (error) {
             console.error("API Error:", error);
-            alert("Network error. Please check your connection.");
+            notify("Network error. Please check your connection.");
             return null;
         }
     },
@@ -105,7 +110,7 @@ function protectPage(allowedRoles) {
     
     // 1. Check if logged in
     if (!userJson || !token) {
-        alert("Please log in to access this page.");
+        notify("Please log in to access this page.");
         window.location.href = "../auth/login.html"; 
         return;
     }
@@ -113,7 +118,7 @@ function protectPage(allowedRoles) {
     // 2. Check Role
     const user = JSON.parse(userJson);
     if (!allowedRoles.includes(user.role)) {
-        alert("⛔ Access Denied: You do not have permission.");
+        notify("⛔ Access Denied: You do not have permission.");
         // Redirect back to their correct dashboard based on their actual role
         if(user.role === 'doctor') window.location.href = "../doctor/dashboard.html";
         else if(user.role === 'nurse') window.location.href = "../nurse/dashboard.html";

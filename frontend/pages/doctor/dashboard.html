@@ -8,7 +8,7 @@
     <link href="../../assets/css/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        body { font-family: var(--app-font); background: #f1f5f9; }
         .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
         .sidebar .nav-link { color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer; display: flex; align-items: center; }
         .sidebar .nav-link.active { background: #2563eb; color: white; }
@@ -537,7 +537,7 @@
         const notesInput = document.getElementById('clinicalNotesInput');
         const notes = (notesInput.value || '').trim();
         if (!notes) {
-            alert('Clinical notes are required to complete the appointment.');
+            notify('Clinical notes are required to complete the appointment.');
             return;
         }
         const res = await Api.post('/doctor/appointment_update', {
@@ -675,8 +675,8 @@
     async function createTask() {
         const task = document.getElementById('taskText').value.trim();
         const patientId = document.getElementById('taskPatient').value;
-        if (!patientId) return alert("Select a patient");
-        if (!task) return alert("Enter task details");
+        if (!patientId) return notify("Select a patient");
+        if (!task) return notify("Enter task details");
         const priority = document.getElementById('taskPriority').value || 'normal';
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/doctor/task_create', {
@@ -727,7 +727,7 @@
     async function createEscalation() {
         const patientId = document.getElementById('escPatient').value;
         const reason = document.getElementById('escReason').value.trim();
-        if (!patientId || !reason) return alert("Select a patient and add a reason");
+        if (!patientId || !reason) return notify("Select a patient and add a reason");
         const res = await Api.post('/doctor/escalation_create', { patient_id: patientId, reason, severity: 'urgent' });
         if (res) {
             document.getElementById('escReason').value = '';
@@ -759,7 +759,7 @@
     async function createDischarge() {
         const patientId = document.getElementById('dischargePatient').value;
         const summary = document.getElementById('dischargeSummary').value.trim();
-        if (!patientId || !summary) return alert("Select a patient and add a summary");
+        if (!patientId || !summary) return notify("Select a patient and add a summary");
         const res = await Api.post('/doctor/discharge_create', { patient_id: patientId, summary, status: 'approved' });
         if (res) {
             document.getElementById('dischargeSummary').value = '';
@@ -791,8 +791,8 @@
         const notes = document.getElementById('handoverNotes').value.trim();
         const shiftStart = document.getElementById('handoverStart').value;
         const shiftEnd = document.getElementById('handoverEnd').value;
-        if (!shiftStart || !shiftEnd) return alert("Select shift start and end");
-        if (!notes) return alert("Add handover notes");
+        if (!shiftStart || !shiftEnd) return notify("Select shift start and end");
+        if (!notes) return notify("Add handover notes");
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/doctor/handover_create', {
             user_id: user?.id,
@@ -872,10 +872,10 @@
         const qty = Number(document.getElementById('consultQty').value);
         const dosage = document.getElementById('consultDosage').value;
 
-        if (!isExternal && !medSelect.value) return alert("Select medicine");
-        if (isExternal && !manualName.trim()) return alert("Enter name");
-        if (!Number.isFinite(qty) || qty < 1) return alert("Enter quantity");
-        if (!dosage.trim()) return alert("Enter dosage");
+        if (!isExternal && !medSelect.value) return notify("Select medicine");
+        if (isExternal && !manualName.trim()) return notify("Enter name");
+        if (!Number.isFinite(qty) || qty < 1) return notify("Enter quantity");
+        if (!dosage.trim()) return notify("Enter dosage");
 
         currentPrescriptions.push({
             medicine_id: isExternal ? null : medSelect.value,
@@ -910,7 +910,7 @@
 
     async function finishConsultation() {
         const notes = document.getElementById('consultDiagnosis').value;
-        if (!notes.trim()) return alert("Notes required");
+        if (!notes.trim()) return notify("Notes required");
         const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
         const res = await Api.post('/doctor/complete_multiple', data);
         if (res) {
@@ -923,7 +923,7 @@
 
     async function completeAndRefer() {
         const notes = document.getElementById('consultDiagnosis').value;
-        if (!notes.trim()) return alert("Notes required");
+        if (!notes.trim()) return notify("Notes required");
         if (!confirm("Complete consultation and refer this patient to Nurse for admission?")) return;
         const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
         const res = await Api.post('/doctor/complete_refer', data);
@@ -937,7 +937,7 @@
 
     async function sendToUrgentCare() {
         const reason = document.getElementById('consultDiagnosis').value;
-        if (!reason.trim()) return alert("Clinical notes are required");
+        if (!reason.trim()) return notify("Clinical notes are required");
         if (!confirm("Send this patient back to Nurse for urgent care?")) return;
         const res = await Api.post('/doctor/urgent_care', { queue_id: activeQueueId, reason: reason });
         if (res) {
@@ -961,7 +961,7 @@
     }
 
     function printPatientHistory() {
-        if (!currentHistory || !currentHistory.patient) return alert("History not loaded yet.");
+        if (!currentHistory || !currentHistory.patient) return notify("History not loaded yet.");
         const patient = currentHistory.patient || {};
         const vitals = Array.isArray(currentHistory.vitals) ? currentHistory.vitals : [];
         const visits = Array.isArray(currentHistory.visits) ? currentHistory.visits : [];
@@ -1040,7 +1040,7 @@
         formData.append('report_name', document.getElementById('fileName').value);
         formData.append('report_file', document.getElementById('fileInput').files[0]);
         const response = await fetch(`${CONFIG.BASE_URL}/doctor/upload_file`, { method: "POST", headers: { "Authorization": `Bearer ${Api.getToken()}` }, body: formData });
-        if(response.ok) { alert("Success!"); openHistory(document.getElementById('uploadPatientId').value); }
+        if(response.ok) { notify("Success!"); openHistory(document.getElementById('uploadPatientId').value); }
     }
 
     let doctorConsultChart = null;

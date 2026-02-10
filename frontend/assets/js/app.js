@@ -39,7 +39,7 @@ const Api = {
             if (response.status === 403) {
                 if (!window.__accessDeniedAlertShown) {
                     window.__accessDeniedAlertShown = true;
-                    alert("Access denied. You do not have permission for this action.");
+                    notify("Access denied. You do not have permission for this action.", "error");
                 }
                 return null;
             }
@@ -131,6 +131,22 @@ function showBanner(message, options = {}) {
         banner.remove();
     }, timeoutMs);
 }
+
+function notify(message, options = {}) {
+    if (!message) return;
+    const opts = typeof options === 'string' ? { type: options } : options;
+    const type = opts.type || 'info';
+    const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : 10000;
+    if (typeof showBanner === 'function') {
+        showBanner(message, { type, timeoutMs });
+        return;
+    }
+    if (typeof showNotification === 'function') {
+        showNotification(message, { type, title: opts.title });
+        return;
+    }
+    if (__nativeAlert) __nativeAlert(message);
+}
 function ensureNotificationModal() {
     if (document.getElementById('appNotifyModal')) return;
     const modalHtml = `
@@ -177,7 +193,7 @@ function showNotification(message, options = {}) {
 }
 
 if (window.alert) {
-    window.alert = (msg) => showNotification(msg);
+    window.alert = (msg) => notify(msg, 'warning');
 }
 
 function ensureChangePasswordModal() {
@@ -230,9 +246,9 @@ async function submitChangePassword() {
     const next = document.getElementById('newPasswordInput').value;
     const confirm = document.getElementById('confirmPasswordInput').value;
 
-    if (!current || !next) return alert("Please fill in all fields.");
-    if (next !== confirm) return alert("New passwords do not match.");
-    if (next.length < 6) return alert("New password must be at least 6 characters.");
+    if (!current || !next) return notify("Please fill in all fields.", "warning");
+    if (next !== confirm) return notify("New passwords do not match.", "warning");
+    if (next.length < 6) return notify("New password must be at least 6 characters.", "warning");
 
     const result = await Api.post('/users', {
         action: 'change_password',
@@ -240,7 +256,7 @@ async function submitChangePassword() {
         new_password: next
     });
     if (result) {
-        alert("Password updated successfully.");
+        notify("Password updated successfully.", "success");
         const modalEl = document.getElementById('changePasswordModal');
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
@@ -473,7 +489,7 @@ function protectPage(allowedRoles) {
     const rolesArray = (Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]).map(normalizeRole);
 
     if (!rolesArray.includes(normalizedUserRole)) {
-        alert("⛔ Access Denied: You do not have permission.");
+        notify("⛔ Access Denied: You do not have permission.", "error");
 
         // Redirect to their correct dashboard based on role
         if(normalizedUserRole === 'doctor') window.location.href = "../doctor/dashboard.html";
@@ -554,7 +570,7 @@ async function submitItTicket() {
     const title = (document.getElementById('itTicketTitle') || {}).value || '';
     const description = (document.getElementById('itTicketDesc') || {}).value || '';
     const priority = (document.getElementById('itTicketPriority') || {}).value || 'normal';
-    if (!title.trim() || !description.trim()) return alert("Title and description are required.");
+    if (!title.trim() || !description.trim()) return notify("Title and description are required.", "warning");
     const res = await Api.post('/it/ticket_create', { title: title.trim(), description: description.trim(), priority });
     if (res) {
         document.getElementById('itTicketTitle').value = '';
@@ -562,7 +578,7 @@ async function submitItTicket() {
         const modalEl = document.getElementById('itTicketModal');
         const modal = bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();
-        alert("Ticket submitted to IT Support.");
+        notify("Ticket submitted to IT Support.", "success");
     }
 }
 
@@ -582,7 +598,7 @@ async function submitNewUser() {
     const password = "Staff123!";
 
     if(!name || !email) {
-        alert("Please fill in all fields.");
+        notify("Please fill in all fields.", "warning");
         return;
     }
 
@@ -597,7 +613,7 @@ async function submitNewUser() {
     const result = await Api.post('/users/create', userData);
 
     if (result) {
-        alert("✅ User Created Successfully!\nUsername: " + userData.username + "\nPassword: " + password);
+        notify("✅ User Created Successfully! Username: " + userData.username + " | Password: " + password, "success");
         location.reload();
     }
 }

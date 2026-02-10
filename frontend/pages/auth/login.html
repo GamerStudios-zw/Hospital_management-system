@@ -20,7 +20,7 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--app-font);
             color: var(--text-color);
             background-color: #f0f2f5;
             min-height: 100vh;
@@ -289,7 +289,7 @@
                                 if (typeof showNotification === "function") {
                                     showNotification("Unknown Role: " + rawRole);
                                 } else {
-                                    alert("Unknown Role: " + rawRole);
+                                    notify("Unknown Role: " + rawRole);
                                 }
                                 break;
                         }

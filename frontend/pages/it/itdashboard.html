@@ -334,7 +334,7 @@
             const title = document.getElementById('ticketTitle').value.trim();
             const description = document.getElementById('ticketDesc').value.trim();
             const priority = document.getElementById('ticketPriority').value;
-            if (!title || !description) return alert('Title and description required.');
+            if (!title || !description) return notify('Title and description required.');
             const res = await Api.post('/it/ticket_create', { title, description, priority });
             if (res) {
                 document.getElementById('ticketTitle').value = '';

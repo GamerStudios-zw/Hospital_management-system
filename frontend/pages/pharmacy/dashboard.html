@@ -9,7 +9,7 @@
     <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; }
+        body { font-family: var(--app-font); background: #f1f5f9; color: #1e293b; }
         .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
         .sidebar .nav-link { color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer; display: flex; align-items: center; }
         .sidebar .nav-link.active { background: #0ea5e9; color: white; }
@@ -697,7 +697,7 @@
 
     function switchTab(id, el) {
         if (restrictedSeniorTabs.includes(id) && !isSeniorPharmacyRole()) {
-            alert("This section is only available to Senior Pharmacist.");
+            notify("This section is only available to Senior Pharmacist.");
             return;
         }
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
@@ -980,7 +980,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     async function addInteractionRule() {
         const drugA = document.getElementById('ruleDrugA').value.trim();
         const drugB = document.getElementById('ruleDrugB').value.trim();
-        if (!drugA || !drugB) return alert("Enter both drugs");
+        if (!drugA || !drugB) return notify("Enter both drugs");
         const res = await Api.post('/pharmacy/interactions_add', {
             drug_a: drugA,
             drug_b: drugB,
@@ -999,7 +999,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
         const patientId = document.getElementById('interactionPatient').value;
         const med = document.getElementById('interactionMed').value.trim();
         const result = document.getElementById('interactionResult');
-        if (!patientId || !med) return alert("Select patient and medicine");
+        if (!patientId || !med) return notify("Select patient and medicine");
         const rows = await Api.get(`/pharmacy/interactions_check?patient_id=${patientId}&medicine=${encodeURIComponent(med)}`);
         if (rows && rows.length) {
             result.innerHTML = rows.map(r => `<div class="alert alert-warning py-2 mb-2">Interaction with <b>${r.with}</b> (${r.severity}) ${r.notes ? ' - ' + r.notes : ''}</div>`).join('');
@@ -1054,10 +1054,10 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function addControlled() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can register controlled medicines.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can register controlled medicines.");
         const medId = document.getElementById('controlledMed').value;
         const schedule = document.getElementById('controlledSchedule').value.trim();
-        if (!medId || !schedule) return alert("Select medicine and schedule");
+        if (!medId || !schedule) return notify("Select medicine and schedule");
         const res = await Api.post('/pharmacy/controlled_add', {
             medicine_id: medId,
             schedule,
@@ -1079,7 +1079,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
             notes: 'Approval requested'
         });
         if (res) {
-            alert("Approval requested.");
+            notify("Approval requested.");
             loadControlled();
         }
     }
@@ -1116,7 +1116,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function updateRefill(id, status) {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can process refills.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can process refills.");
         const res = await Api.post('/pharmacy/refill_update', { request_id: id, status });
         if (res) loadRefills();
     }
@@ -1133,9 +1133,9 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function addSupplier() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can add suppliers.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can add suppliers.");
         const name = document.getElementById('supplierName').value.trim();
-        if (!name) return alert("Enter supplier name");
+        if (!name) return notify("Enter supplier name");
         const res = await Api.post('/pharmacy/supplier_create', {
             name,
             contact_name: document.getElementById('supplierContact').value.trim(),
@@ -1157,7 +1157,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
         const med = document.getElementById('poMed').value.trim();
         const qty = Number(document.getElementById('poQty').value || 0);
         const cost = Number(document.getElementById('poCost').value || 0);
-        if (!med || qty <= 0) return alert("Enter medicine and quantity");
+        if (!med || qty <= 0) return notify("Enter medicine and quantity");
         poItems.push({ medicine_name: med, quantity: qty, unit_cost: cost });
         document.getElementById('poMed').value = '';
         document.getElementById('poQty').value = 1;
@@ -1183,9 +1183,9 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function createPO() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can create purchase orders.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can create purchase orders.");
         const supplierId = document.getElementById('poSupplier').value;
-        if (!supplierId || poItems.length === 0) return alert("Select supplier and add items");
+        if (!supplierId || poItems.length === 0) return notify("Select supplier and add items");
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/pharmacy/po_create', {
             supplier_id: supplierId,
@@ -1222,9 +1222,9 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function createGRN() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can record GRN.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can record GRN.");
         const orderId = document.getElementById('grnOrderId').value;
-        if (!orderId) return alert("Enter PO ID");
+        if (!orderId) return notify("Enter PO ID");
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/pharmacy/grn_create', {
             order_id: orderId,
@@ -1236,10 +1236,10 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function createInvoice() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can record invoices.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can record invoices.");
         const orderId = document.getElementById('invOrderId').value;
         const invNumber = document.getElementById('invNumber').value.trim();
-        if (!orderId || !invNumber) return alert("PO ID and invoice number required");
+        if (!orderId || !invNumber) return notify("PO ID and invoice number required");
         const res = await Api.post('/pharmacy/invoice_create', {
             order_id: orderId,
             invoice_number: invNumber,
@@ -1278,7 +1278,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     async function addQuarantine() {
         const medId = document.getElementById('quarantineMed').value;
         const reason = document.getElementById('quarantineReason').value.trim();
-        if (!medId || !reason) return alert("Select medicine and reason");
+        if (!medId || !reason) return notify("Select medicine and reason");
         const res = await Api.post('/pharmacy/quarantine_add', {
             medicine_id: medId,
             batch_number: document.getElementById('quarantineBatch').value.trim(),
@@ -1319,11 +1319,11 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function addAdjustment() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can create stock adjustments.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can create stock adjustments.");
         const medId = document.getElementById('adjustMed').value;
         const adj = Number(document.getElementById('adjustQty').value || 0);
         const reason = document.getElementById('adjustReason').value.trim();
-        if (!medId || !reason) return alert("Select medicine and reason");
+        if (!medId || !reason) return notify("Select medicine and reason");
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/pharmacy/adjustment_add', {
             medicine_id: medId,
@@ -1373,7 +1373,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     async function createClaim() {
         const sel = document.getElementById('claimPrescription');
         const prescId = sel.value;
-        if (!prescId) return alert("Select prescription");
+        if (!prescId) return notify("Select prescription");
         const patientId = sel.options[sel.selectedIndex].dataset.patient;
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/pharmacy/claim_create', {
@@ -1390,7 +1390,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function updateClaim(id, status) {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can approve claims.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can approve claims.");
         const res = await Api.post('/pharmacy/claim_update', { claim_id: id, status });
         if (res) loadClaims();
     }
@@ -1459,7 +1459,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function confirmDispense() {
-        if(!document.getElementById('checkVerify').checked) return alert("Please verify the dosage.");
+        if(!document.getElementById('checkVerify').checked) return notify("Please verify the dosage.");
         const res = await Api.post('/pharmacy/dispense', { prescription_id: activePrescriptionId });
         if(res) { dispenseModal.hide(); loadPending(); }
     }
@@ -1467,7 +1467,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     function openAddModal() { new bootstrap.Modal(document.getElementById('addStockModal')).show(); }
 
     function openEditModal(item) {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can edit inventory.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can edit inventory.");
         document.getElementById('editId').value = item.id;
         document.getElementById('editName').value = item.name || '';
         document.getElementById('editBatch').value = item.batch_number || '';
@@ -1479,7 +1479,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function saveEditStock() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can edit inventory.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can edit inventory.");
         const data = {
             id: document.getElementById('editId').value,
             name: document.getElementById('editName').value,
@@ -1497,7 +1497,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function saveStock() {
-        if (!isSeniorPharmacyRole()) return alert("Only Senior Pharmacist can add inventory.");
+        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can add inventory.");
         const data = {
             name: document.getElementById('drugName').value,
             batch_number: document.getElementById('batchNo').value,

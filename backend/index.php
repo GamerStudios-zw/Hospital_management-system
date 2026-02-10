@@ -144,7 +144,7 @@ switch ($module) {
 
     case '':
     case 'health':
-        echo json_encode(["status" => "active", "message" => "API Running"]);
+        require_once 'routes/health.php';
         break;
 
     default:

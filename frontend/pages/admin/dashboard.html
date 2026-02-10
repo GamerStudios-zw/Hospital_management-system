@@ -10,7 +10,7 @@
     <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #eef3f7; }
+        body { font-family: var(--app-font); background-color: #eef3f7; }
         .sidebar { min-height: 100vh; background: #0f172a; color: #fff; }
         .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; margin-bottom: 4px; border-radius: 8px; cursor: pointer; }
         .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.1); color: #fff; }
@@ -458,7 +458,7 @@
     async function submitNewShift() {
         const start = new Date(document.getElementById('shiftStart').value);
         const end = new Date(document.getElementById('shiftEnd').value);
-        if (end <= start) return alert("Error: End time must be after start time.");
+        if (end <= start) return notify("Error: End time must be after start time.");
 
         const data = {
             user_id: document.getElementById('shiftUserSelect').value,
@@ -468,7 +468,7 @@
             shift_type: document.getElementById('shiftType').value
         };
         if (await Api.post('/shifts/add', data)) {
-            alert("Shift Assigned!");
+            notify("Shift Assigned!");
             shiftModal.hide();
             loadAllShifts();
         }
@@ -490,10 +490,10 @@
         };
         const nameVal = (data.full_name || '').trim();
         if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)+$/.test(nameVal)) {
-            return alert("Full Name must include first and surname (e.g., Al Ali).");
+            return notify("Full Name must include first and surname (e.g., Al Ali).");
         }
         if (await Api.post('/admin/add_user', data)) {
-            alert("Account Created!");
+            notify("Account Created!");
             bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
             loadUsers();
         }
@@ -504,7 +504,7 @@
 
         const result = await Api.request(`/users?id=${id}`, 'DELETE');
         if (result) {
-            alert("User deleted successfully.");
+            notify("User deleted successfully.");
             loadUsers();
         }
     }
@@ -531,12 +531,12 @@
 
         const result = await Api.post('/admin/force_logout', { user_id: id });
         if (result && result.success) {
-            alert("User has been logged out from all sessions.");
+            notify("User has been logged out from all sessions.");
             await loadUsers();
             return;
         }
 
-        alert(result?.message || "Failed to force logout user.");
+        notify(result?.message || "Failed to force logout user.");
     }
 
     async function loadStaffPerformance() {

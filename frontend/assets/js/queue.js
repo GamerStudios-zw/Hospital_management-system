@@ -2,6 +2,11 @@
  * QUEUE MANAGEMENT SCRIPT
  * Requires: api.js to be loaded first
  */
+const notify = window.notify || function(message, options = {}) {
+    if (window.showBanner) return window.showBanner(message, options);
+    if (window.showNotification) return window.showNotification(message, options);
+    if (window.alert) return window.alert(message);
+};
 
 document.addEventListener("DOMContentLoaded", () => {
     loadQueue();
@@ -102,7 +107,7 @@ async function addToQueue(event) {
     const complaint = document.getElementById("chiefComplaint").value;
 
     if (!patientId || !complaint) {
-        alert("Please select a patient and enter a complaint.");
+        notify("Please select a patient and enter a complaint.");
         return;
     }
 
@@ -114,7 +119,7 @@ async function addToQueue(event) {
     const result = await Api.post('/queue/add', payload);
 
     if (result) {
-        alert("Patient added to queue successfully.");
+        notify("Patient added to queue successfully.");
         document.getElementById("addToQueueForm").reset();
 
         // Close modal if you are using one

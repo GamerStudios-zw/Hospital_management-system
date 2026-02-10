@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Changelog 2026-02-10</title>
+<link rel="stylesheet" href="frontend/assets/css/fonts.css">
+<style>
+  :root { --app-font: 'Inter', 'Poppins', 'Roboto', sans-serif; }
+  body { font-family: var(--app-font); margin: 32px; color: #0f172a; }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  h2 { font-size: 18px; margin-top: 20px; }
+  h3 { font-size: 15px; margin-top: 16px; }
+  p { margin: 6px 0; font-size: 13px; }
+  ul { margin: 6px 0 10px 18px; }
+  li { margin: 4px 0; font-size: 13px; }
+  .spacer { height: 6px; }
+</style>
+</head>
+<body>
+<h1>Changelog — 2026-02-10</h1><div class="spacer"></div><h2>Summary</h2><p>This release consolidates multiple workflow improvements across Doctor, Nurse, Nurse Aid, Pharmacy, Reception, and Admin modules, introduces self‑hosted fonts, standardizes notifications, adds basic monitoring/tests, and improves mobile usability.</p><div class="spacer"></div><h2>Features</h2><ul><li>**Nurse Aid module** with triage + daily vitals workflow and clinical notes.</li><li>**Urgent care flow** improvements, including admission waiting list and nurse handoff.</li><li>**Pharmacy requests** workflow for nurse → pharmacy medication pickup.</li><li>**Self‑hosted fonts** (Inter, Poppins, Roboto) and unified font family via `--app-font`.</li><li>**Banner notifications** replacing native browser popups across the UI.</li><li>**Monitoring**: `/health` endpoint with DB + realtime status and a watcher script.</li><li>**Basic test runner**: combined DB connection test + API smoke test.</li><li>**Mobile responsive layouts** for Admin, Nurse, Nurse Aid, Doctor, Pharmacy, Reception, and IT dashboards.</li></ul><div class="spacer"></div><h2>Fixes</h2><ul><li>**Doctor dashboard**: appointment handling, consult validation, and tab‑driven modules consolidated in one dashboard.</li><li>**Nurse/Nurse Aid**: validations for vitals capture and overdue status refresh.</li><li>**Admission &amp; discharge** flows tightened to reflect admitted patients only.</li><li>**UI cleanup**: removal of missing action buttons, refined tab switching, and responsive table wrappers.</li><li>**Backend cleanups**: reduced server errors in queue/bed admission operations.</li></ul><div class="spacer"></div><h2>Database Updates</h2><ul><li>`patient_queue.status` enum expanded (includes admission/urgent care states).</li><li>`prescriptions.medicine_id` now nullable.</li><li>`prescriptions.status` enum includes `External`.</li><li>Added `pharmacy_requests` table.</li><li>Removed reliance on `beds.updated_at` where it was not present.</li></ul><div class="spacer"></div><h2>Monitoring &amp; Tests</h2><ul><li>**Health endpoint**: `backend/index.php/health`</li><li>**Watcher**: `scripts/monitor_watch.ps1`</li><li>**Test runner**: `scripts/run_tests.ps1` (includes `scripts/smoke_test.ps1` + `backend/db_connection_test.php`)</li></ul><div class="spacer"></div><h2>Notes</h2><ul><li>Fonts are now served locally from `frontend/assets/fonts/` and `frontend/assets/css/fonts.css`.</li><li>All modules use the unified `--app-font` setting.</li><li>Native `alert()` calls replaced with `notify()` banner messages.</li></ul>
+</body>
+</html>

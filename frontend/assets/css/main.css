@@ -1,5 +1,5 @@
 body {
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: var(--app-font);
     background-color: #f8f9fa;
 }
 

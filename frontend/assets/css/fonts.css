@@ -1,3 +1,7 @@
+:root {
+  --app-font: 'Inter', 'Poppins', 'Roboto', sans-serif;
+}
+
 @font-face {
   font-family: 'Inter';
   font-style: normal;
