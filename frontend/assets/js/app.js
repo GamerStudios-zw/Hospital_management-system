@@ -1,7 +1,7 @@
 const CONFIG = {
     // UPDATED: Use your network IP so other devices can connect
-    BASE_URL: "http://192.168.1.128/Hospital_Management_System/backend/index.php",
-    BACKEND_ROOT: "http://192.168.1.128/Hospital_Management_System/backend",
+    BASE_URL: `${window.location.origin}/Hospital_Management_System/backend/index.php`,
+    BACKEND_ROOT: `${window.location.origin}/Hospital_Management_System/backend`,
     WS_URL: `ws://${window.location.hostname}:8090`
 };
 
@@ -65,6 +65,72 @@ const Api = {
 
 // Global notification modal (replaces browser alerts)
 const __nativeAlert = window.alert ? window.alert.bind(window) : null;
+const __bannerState = { containerId: 'appBannerContainer', styleId: 'appBannerStyles' };
+
+function ensureBannerStyles() {
+    if (document.getElementById(__bannerState.styleId)) return;
+    const style = document.createElement('style');
+    style.id = __bannerState.styleId;
+    style.textContent = `
+        #${__bannerState.containerId} {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 360px;
+        }
+        .app-banner {
+            border-radius: 12px;
+            padding: 12px 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+            font-size: 0.92rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .app-banner .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-top: 5px;
+            flex: 0 0 10px;
+        }
+        .app-banner.info .dot { background: #3b82f6; }
+        .app-banner.success .dot { background: #10b981; }
+        .app-banner.warning .dot { background: #f59e0b; }
+        .app-banner.error .dot { background: #ef4444; }
+    `;
+    document.head.appendChild(style);
+}
+
+function ensureBannerContainer() {
+    if (document.getElementById(__bannerState.containerId)) return;
+    ensureBannerStyles();
+    const container = document.createElement('div');
+    container.id = __bannerState.containerId;
+    document.body.appendChild(container);
+}
+
+function showBanner(message, options = {}) {
+    if (!message) return;
+    ensureBannerContainer();
+    const type = options.type || 'info';
+    const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 10000;
+    const container = document.getElementById(__bannerState.containerId);
+    const banner = document.createElement('div');
+    banner.className = `app-banner ${type}`;
+    banner.innerHTML = `<span class="dot"></span><div>${message}</div>`;
+    container.appendChild(banner);
+    setTimeout(() => {
+        banner.remove();
+    }, timeoutMs);
+}
 function ensureNotificationModal() {
     if (document.getElementById('appNotifyModal')) return;
     const modalHtml = `
@@ -184,6 +250,7 @@ async function submitChangePassword() {
 // Auto-refresh helper: calls known page loaders if present
 const AUTO_REFRESH_INTERVAL_MS = 10000;
 let __autoRefreshTimers = [];
+let __broadcastChannel = null;
 
 function getRefreshCandidates() {
     return [
@@ -194,6 +261,7 @@ function getRefreshCandidates() {
         "loadStaffTable",
         "loadLogs",
         "loadSettings",
+        "loadAppointments",
         "loadPending",
         "loadInventory",
         "loadHistory",
@@ -211,10 +279,12 @@ function getRefreshCandidates() {
         "loadDischarges",
         "loadHandover",
         "loadTimeline",
+        "loadAdmissionWaiting",
         "loadReceptionAnalytics",
         "loadNurseAnalytics",
         "loadDoctorAnalytics",
         "loadPharmacyAnalytics",
+        "loadNurseRequests",
         "loadLogAnalytics",
         "loadInteractionRules",
         "loadControlled",
@@ -253,15 +323,6 @@ function setupAutoRefresh() {
         triggerAutoRefresh();
     };
 
-    const stop = () => {
-        __autoRefreshTimers.forEach((t) => clearInterval(t));
-        __autoRefreshTimers = [];
-    };
-
-    document.addEventListener("visibilitychange", () => {
-        document.hidden ? stop() : start();
-    });
-
     start();
 }
 
@@ -293,7 +354,35 @@ function setupRealtime() {
 document.addEventListener("DOMContentLoaded", () => {
     setupAutoRefresh();
     setupRealtime();
+    setupBroadcastChannel();
 });
+
+// Cross-tab refresh triggers (e.g., discharge updates)
+window.addEventListener("storage", (e) => {
+    if (!e || !e.key) return;
+    if (e.key === "hms_discharge_event") {
+        triggerAutoRefresh();
+    }
+});
+
+function setupBroadcastChannel() {
+    if (typeof BroadcastChannel === "undefined") return;
+    if (__broadcastChannel) return;
+    __broadcastChannel = new BroadcastChannel("hms_events");
+    __broadcastChannel.onmessage = () => {
+        triggerAutoRefresh();
+    };
+}
+
+function broadcastEvent(name, payload = {}) {
+    if (!__broadcastChannel) setupBroadcastChannel();
+    if (!__broadcastChannel) return;
+    try {
+        __broadcastChannel.postMessage({ name, payload, ts: Date.now() });
+    } catch (e) {
+        // ignore
+    }
+}
 /**
  * 3. GLOBAL LOGOUT
  * Clears local session and redirects to the login page.

@@ -11,6 +11,7 @@ $database = new Database();
 $db = $database->getConnection();
 
 DbSchema::ensureNurseModules($db);
+DbSchema::ensurePharmacyModules($db);
 
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -25,7 +26,7 @@ switch ($action) {
 
     // 1. DASHBOARD STATS (Matches triage widget)
     case 'stats':
-        $stmt = $db->query("SELECT COUNT(*) as count FROM patient_queue WHERE status IN ('Waiting','waiting','Urgent Care','urgent care')");
+        $stmt = $db->query("SELECT COUNT(*) as count FROM patient_queue WHERE status IN ('Waiting','waiting','Urgent Care','urgent care','Admission Pending','admission pending')");
         $pending = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 
         $stmt = $db->query("SELECT COUNT(*) as occupied FROM beds WHERE status = 'Occupied'");
@@ -53,7 +54,7 @@ switch ($action) {
 
             $escRows = $db->query("SELECT status, COUNT(*) as count FROM nurse_escalations GROUP BY status")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-            $urgentCount = (int)$db->query("SELECT COUNT(*) FROM patient_queue WHERE status IN ('Urgent Care','urgent care')")->fetchColumn();
+            $urgentCount = (int)$db->query("SELECT COUNT(*) FROM patient_queue WHERE status IN ('Urgent Care','urgent care','Admission Pending','admission pending')")->fetchColumn();
 
             echo json_encode([
                 "triage_by_day" => $triageRows,
@@ -77,7 +78,22 @@ switch ($action) {
 
     // 4. BED MANAGEMENT
     case 'beds':
-        $query = "SELECT b.*, p.full_name as patient_name, p.national_id
+        $query = "SELECT b.*,
+                         p.full_name as patient_name,
+                         p.national_id,
+                         (
+                             SELECT d.status
+                             FROM discharge_summaries d
+                             WHERE d.patient_id = b.current_patient_id
+                             ORDER BY d.created_at DESC
+                             LIMIT 1
+                         ) as discharge_status,
+                         (
+                             SELECT COUNT(*)
+                             FROM discharge_summaries d2
+                             WHERE d2.patient_id = b.current_patient_id
+                               AND d2.status = 'approved'
+                         ) as discharge_ready
                   FROM beds b
                   LEFT JOIN patients p ON b.current_patient_id = p.id
                   ORDER BY b.ward_name, b.bed_number";
@@ -87,10 +103,39 @@ switch ($action) {
     case 'discharge':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->bed_id)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Bed ID required"]);
+                exit;
+            }
+            $bedStmt = $db->prepare("SELECT current_patient_id, status FROM beds WHERE id = ? LIMIT 1");
+            $bedStmt->execute([$data->bed_id]);
+            $bedRow = $bedStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$bedRow || $bedRow['status'] !== 'Occupied' || empty($bedRow['current_patient_id'])) {
+                http_response_code(400);
+                echo json_encode(["message" => "Bed is not occupied."]);
+                exit;
+            }
+            $auth = $db->prepare("SELECT 1 FROM discharge_summaries WHERE patient_id = ? AND status = 'approved' LIMIT 1");
+            $auth->execute([$bedRow['current_patient_id']]);
+            if (!$auth->fetchColumn()) {
+                http_response_code(400);
+                echo json_encode(["message" => "Doctor discharge command required."]);
+                exit;
+            }
             // Sets status to 'Cleaning' to trigger custodial workflow
-            $sql = "UPDATE beds SET status = 'Cleaning', current_patient_id = NULL, updated_at = NOW() WHERE id = ?";
+            $sql = "UPDATE beds SET status = 'Cleaning', current_patient_id = NULL WHERE id = ?";
             $stmt = $db->prepare($sql);
             if($stmt->execute([$data->bed_id])) {
+                // Mark any discharge summary for this patient as completed
+                $db->prepare("UPDATE discharge_summaries SET status = 'completed' WHERE patient_id = ?")
+                   ->execute([$bedRow['current_patient_id']]);
+                // Update latest queue status so triage/admission lists no longer show the patient
+                $db->prepare("UPDATE patient_queue
+                              SET status = 'Discharged'
+                              WHERE patient_id = ?
+                                AND LOWER(status) IN ('urgent care','admission pending','with doctor','in triage','waiting')")
+                   ->execute([$bedRow['current_patient_id']]);
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Discharged patient from bed', 'Success', null, [
                         'event_type' => 'audit',
@@ -128,7 +173,7 @@ switch ($action) {
                     exit;
                 }
 
-                $stmt = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ? WHERE id = ?");
                 $stmt->execute([$data->patient_id, $data->bed_id]);
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Assigned bed', 'Success', null, [
@@ -183,6 +228,95 @@ switch ($action) {
             } catch (Exception $e) {
                 http_response_code(500);
                 echo json_encode(["message" => "Urgent care list error: " . $e->getMessage()]);
+            }
+        }
+        break;
+    
+    // 4d. ADMISSION WAITING LIST (Sent by Doctor)
+    case 'admission_waiting_list':
+        if ($method === 'GET') {
+            try {
+                $query = "SELECT q.id as queue_id,
+                                 p.id as patient_id,
+                                 p.full_name,
+                                 p.national_id,
+                                 p.dob,
+                                 p.gender,
+                                 q.created_at,
+                                 q.status,
+                                 (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = p.id AND pr.status IN ('Pending','External')) as pending_prescriptions
+                          FROM patient_queue q
+                          JOIN patients p ON q.patient_id = p.id
+                          WHERE LOWER(q.status) IN ('admission pending','waiting pharmacy','ready for admission')
+                          ORDER BY q.created_at DESC";
+                $stmt = $db->query($query);
+                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Admission waiting list error: " . $e->getMessage()]);
+            }
+        }
+        break;
+    
+    // 4e. REQUEST PHARMACY TO PREPARE PRESCRIPTIONS
+    case 'pharmacy_request':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->patient_id)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Patient ID required."]);
+                exit;
+            }
+            try {
+                $db->beginTransaction();
+                $check = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
+                $check->execute([$data->patient_id]);
+                $count = (int)$check->fetchColumn();
+                if ($count === 0) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["message" => "No pending prescriptions for this patient."]);
+                    exit;
+                }
+                // Prevent duplicate pending/ready pharmacy requests for same patient
+                $existing = $db->prepare("SELECT id FROM pharmacy_requests WHERE patient_id = ? AND LOWER(status) IN ('pending','ready') LIMIT 1");
+                $existing->execute([$data->patient_id]);
+                if ($existing->fetchColumn()) {
+                    $db->rollBack();
+                    echo json_encode(["message" => "Pharmacy request already pending for this patient.", "pending_prescriptions" => $count]);
+                    exit;
+                }
+                $insert = $db->prepare("INSERT INTO pharmacy_requests (patient_id, requested_by, status, notes) VALUES (?, ?, 'Pending', ?)");
+                $insert->execute([
+                    $data->patient_id,
+                    isset($user->id) ? $user->id : null,
+                    $data->notes ?? null
+                ]);
+                // Mark admission as waiting on pharmacy prep
+                $db->prepare("UPDATE patient_queue
+                              SET status = 'Waiting Pharmacy'
+                              WHERE patient_id = ?
+                                AND status IN ('Admission Pending','admission pending')")
+                   ->execute([$data->patient_id]);
+                $db->commit();
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Requested pharmacy meds', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'pharmacy_request',
+                        'entity_id' => (string)$db->lastInsertId(),
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'nurse',
+                        'source' => 'nurse/pharmacy_request'
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                Realtime::emit('pharmacy.request', ['patient_id' => $data->patient_id]);
+                echo json_encode(["message" => "Pharmacy request sent.", "pending_prescriptions" => $count]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to send pharmacy request: " . $e->getMessage()]);
             }
         }
         break;
@@ -422,10 +556,6 @@ switch ($action) {
             $stmt = $db->query("SELECT d.*, p.full_name as patient_name
                                 FROM discharge_summaries d
                                 JOIN patients p ON d.patient_id = p.id
-                                WHERE EXISTS (
-                                    SELECT 1 FROM nurse_escalations e
-                                    WHERE e.patient_id = d.patient_id
-                                )
                                 ORDER BY d.created_at DESC
                                 LIMIT 100");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);

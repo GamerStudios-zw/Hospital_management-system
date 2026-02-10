@@ -62,6 +62,9 @@ switch ($action) {
                 $stmt = $db->prepare("SELECT patient_id FROM patient_queue WHERE id = ?");
                 $stmt->execute([$data->queue_id]);
                 $patient_id = $stmt->fetchColumn();
+                // Ensure doctor_assigned is set for downstream modules (e.g., pharmacy)
+                $db->prepare("UPDATE patient_queue SET doctor_assigned = COALESCE(doctor_assigned, ?) WHERE id = ?")
+                   ->execute([isset($user->id) ? $user->id : null, $data->queue_id]);
 
                 if(!empty($data->prescriptions)) {
                     // medicine_id is NULL for external items; name stored in 'notes' column
@@ -137,7 +140,7 @@ switch ($action) {
                     if (!$existingBedId) {
                         $bed = $db->query("SELECT id FROM beds WHERE status = 'Available' ORDER BY ward_name, bed_number LIMIT 1")->fetch(PDO::FETCH_ASSOC);
                         if ($bed && !empty($bed['id'])) {
-                            $assign = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ?, updated_at = NOW() WHERE id = ?");
+                            $assign = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ? WHERE id = ?");
                             $assign->execute([$patient_id, $bed['id']]);
                             $bedAssigned = true;
                             Realtime::emit('nurse.assign_bed', ['bed_id' => $bed['id'], 'patient_id' => $patient_id]);
@@ -164,6 +167,92 @@ switch ($action) {
                 }
                 Realtime::emit('doctor.urgent_care', ['queue_id' => $data->queue_id]);
                 echo json_encode(["message" => "Patient returned to nurse for urgent care.", "bed_assigned" => $bedAssigned]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Server Error: " . $e->getMessage()]);
+            }
+        }
+        break;
+    
+    // 2a. COMPLETE VISIT + REFER FOR ADMISSION (Urgent Care)
+    case 'complete_refer':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->queue_id) || empty($data->notes)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Queue ID and Clinical Notes are required."]);
+                exit;
+            }
+            try {
+                $db->beginTransaction();
+
+                // Fetch Patient ID
+                $stmt = $db->prepare("SELECT patient_id FROM patient_queue WHERE id = ?");
+                $stmt->execute([$data->queue_id]);
+                $patient_id = $stmt->fetchColumn();
+                // Ensure doctor_assigned is set for downstream modules (e.g., pharmacy)
+                $db->prepare("UPDATE patient_queue SET doctor_assigned = COALESCE(doctor_assigned, ?) WHERE id = ?")
+                   ->execute([isset($user->id) ? $user->id : null, $data->queue_id]);
+
+                if(!empty($data->prescriptions)) {
+                    // medicine_id is NULL for external items; name stored in 'notes' column
+                    $sql = "INSERT INTO prescriptions (patient_id, medicine_id, quantity, dosage, notes, status)
+                            VALUES (?, ?, ?, ?, ?, ?)";
+                    $stmt = $db->prepare($sql);
+                    foreach($data->prescriptions as $p) {
+                        $status = $p->medicine_id ? 'Pending' : 'External';
+                        $stmt->execute([
+                            $patient_id,
+                            $p->medicine_id ?: null,
+                            $p->quantity,
+                            $p->dosage,
+                            $p->manual_name ?: null,
+                            $status
+                        ]);
+                    }
+                }
+
+                // Refer to nurse for admission (Admission Pending)
+                $db->prepare("UPDATE patient_queue SET status = 'Admission Pending' WHERE id = ?")
+                   ->execute([$data->queue_id]);
+
+                // Auto-assign bed if available
+                $bedAssigned = false;
+                if ($patient_id) {
+                    $existing = $db->prepare("SELECT id FROM beds WHERE current_patient_id = ? AND status = 'Occupied' LIMIT 1");
+                    $existing->execute([$patient_id]);
+                    $existingBedId = $existing->fetchColumn();
+
+                    if (!$existingBedId) {
+                        $bed = $db->query("SELECT id FROM beds WHERE status = 'Available' ORDER BY ward_name, bed_number LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+                        if ($bed && !empty($bed['id'])) {
+                            $assign = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ? WHERE id = ?");
+                            $assign->execute([$patient_id, $bed['id']]);
+                            $bedAssigned = true;
+                            Realtime::emit('nurse.assign_bed', ['bed_id' => $bed['id'], 'patient_id' => $patient_id]);
+                        }
+                    }
+                }
+
+                $db->commit();
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'doctor', 'Completed consultation and referred for admission', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'patient_queue',
+                        'entity_id' => (string)$data->queue_id,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'doctor',
+                        'source' => 'doctor/complete_refer',
+                        'metadata' => [
+                            'bed_assigned' => $bedAssigned ? 'yes' : 'no'
+                        ]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                Realtime::emit('doctor.urgent_care', ['queue_id' => $data->queue_id]);
+                echo json_encode(["message" => "Consultation completed and referred for admission.", "bed_assigned" => $bedAssigned]);
             } catch (Exception $e) {
                 $db->rollBack();
                 http_response_code(500);
@@ -426,6 +515,17 @@ switch ($action) {
         break;
 
     // 10. DISCHARGE SUMMARY
+    case 'discharge_candidates':
+        if ($method === 'GET') {
+            $stmt = $db->query("SELECT p.id, p.full_name, p.national_id, b.ward_name, b.bed_number
+                                FROM beds b
+                                JOIN patients p ON b.current_patient_id = p.id
+                                WHERE b.status = 'Occupied'
+                                ORDER BY b.ward_name, b.bed_number");
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
+        break;
+
     case 'discharge_create':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
@@ -434,9 +534,17 @@ switch ($action) {
                 echo json_encode(["message" => "Patient and summary required"]);
                 exit;
             }
+            $check = $db->prepare("SELECT 1 FROM beds WHERE current_patient_id = ? AND status = 'Occupied' LIMIT 1");
+            $check->execute([$data->patient_id]);
+            if (!$check->fetchColumn()) {
+                http_response_code(400);
+                echo json_encode(["message" => "Only admitted/ICU patients can be discharged."]);
+                exit;
+            }
             $stmt = $db->prepare("INSERT INTO discharge_summaries (patient_id, summary, status)
                                   VALUES (?, ?, ?)");
-            $stmt->execute([$data->patient_id, $data->summary, $data->status ?? 'pending']);
+            // Doctor discharge summary serves as the command to release a patient
+            $stmt->execute([$data->patient_id, $data->summary, $data->status ?? 'approved']);
             Realtime::emit('doctor.discharge_summary', ['patient_id' => $data->patient_id]);
             echo json_encode(["message" => "Discharge summary saved"]);
         }

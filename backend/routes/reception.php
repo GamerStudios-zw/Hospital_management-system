@@ -292,8 +292,23 @@ switch ($action) {
             $stmt = $db->prepare("UPDATE appointments SET status = 'checked_in' WHERE id = ?");
             $stmt->execute([$data->appointment_id]);
             if (!empty($data->queue_patient_id)) {
-                $stmt2 = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, 'Waiting')");
-                $stmt2->execute([$data->queue_patient_id, $data->doctor_assigned ?? null]);
+                // Avoid duplicate active queue rows for same patient
+                $active = $db->prepare("SELECT id FROM patient_queue
+                                        WHERE patient_id = ?
+                                          AND LOWER(status) NOT IN ('completed','cancelled','discharged')
+                                        ORDER BY created_at DESC, id DESC
+                                        LIMIT 1");
+                $active->execute([$data->queue_patient_id]);
+                $activeId = $active->fetchColumn();
+                if ($activeId) {
+                    if (!empty($data->doctor_assigned)) {
+                        $upd = $db->prepare("UPDATE patient_queue SET doctor_assigned = ? WHERE id = ?");
+                        $upd->execute([$data->doctor_assigned, $activeId]);
+                    }
+                } else {
+                    $stmt2 = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, 'Waiting')");
+                    $stmt2->execute([$data->queue_patient_id, $data->doctor_assigned ?? null]);
+                }
             }
             Realtime::emit('reception.checkin', ['appointment_id' => $data->appointment_id]);
             echo json_encode(["message" => "Checked in"]);

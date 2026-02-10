@@ -201,6 +201,17 @@ class DbSchema {
             INDEX idx_refill_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+        $db->exec("CREATE TABLE IF NOT EXISTS pharmacy_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            requested_by INT NULL,
+            status VARCHAR(20) DEFAULT 'Pending',
+            notes TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_pharm_req_patient (patient_id),
+            INDEX idx_pharm_req_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
         $db->exec("CREATE TABLE IF NOT EXISTS suppliers (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(120) NOT NULL,

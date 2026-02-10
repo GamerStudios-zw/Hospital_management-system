@@ -82,7 +82,19 @@ switch ($action) {
     case 'admitted_patients':
         if ($method === 'GET') {
             $query = "SELECT b.id as bed_id, b.ward_name, b.bed_number, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender,
-                             q.id as queue_id
+                             q.id as queue_id,
+                             (SELECT MAX(created_at) FROM patient_vitals pv WHERE pv.patient_id = p.id) as last_vitals_at,
+                             (SELECT temperature FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_temp,
+                             (SELECT temperature FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_temp,
+                             (SELECT pulse FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_pulse,
+                             (SELECT pulse FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_pulse,
+                             (SELECT bp FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_bp,
+                             (SELECT bp FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_bp,
+                             (SELECT spo2 FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_spo2,
+                             (SELECT spo2 FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_spo2,
+                             (SELECT weight FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_weight,
+                             (SELECT weight FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_weight,
+                             'admitted' as source
                       FROM beds b
                       JOIN patients p ON b.current_patient_id = p.id
                       LEFT JOIN (
@@ -95,7 +107,30 @@ switch ($action) {
                           ) latest ON latest.latest_id = q1.id
                       ) q ON q.patient_id = p.id
                       WHERE b.status = 'Occupied'
-                      ORDER BY b.ward_name, b.bed_number";
+                      UNION ALL
+                      SELECT NULL as bed_id, 'Urgent Care' as ward_name, NULL as bed_number, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender,
+                             q.id as queue_id,
+                             (SELECT MAX(created_at) FROM patient_vitals pv WHERE pv.patient_id = p.id) as last_vitals_at,
+                             (SELECT temperature FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_temp,
+                             (SELECT temperature FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_temp,
+                             (SELECT pulse FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_pulse,
+                             (SELECT pulse FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_pulse,
+                             (SELECT bp FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_bp,
+                             (SELECT bp FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_bp,
+                             (SELECT spo2 FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_spo2,
+                             (SELECT spo2 FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_spo2,
+                             (SELECT weight FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1) as last_weight,
+                             (SELECT weight FROM patient_vitals pv WHERE pv.patient_id = p.id ORDER BY pv.created_at DESC LIMIT 1,1) as prev_weight,
+                             'urgent' as source
+                      FROM patient_queue q
+                      JOIN patients p ON q.patient_id = p.id
+                      WHERE q.status IN ('Urgent Care','urgent care')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM beds b2
+                            WHERE b2.current_patient_id = q.patient_id
+                              AND b2.status = 'Occupied'
+                        )
+                      ORDER BY ward_name, bed_number";
             $stmt = $db->query($query);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         }
@@ -123,7 +158,7 @@ switch ($action) {
 
                 if ($existingVitalId) {
                     $sql = "UPDATE patient_vitals
-                            SET temperature = ?, pulse = ?, bp = ?, weight = ?, spo2 = ?, notes = ?
+                            SET temperature = ?, pulse = ?, bp = ?, weight = ?, spo2 = ?, notes = ?, created_at = NOW()
                             WHERE id = ?";
                     $stmt = $db->prepare($sql);
                     $stmt->execute([

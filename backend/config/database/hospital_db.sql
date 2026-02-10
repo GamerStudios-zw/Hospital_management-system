@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email` varchar(100) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `full_name` varchar(100) NOT NULL,
+  `gender` varchar(20) DEFAULT NULL,
   `role` enum('admin','doctor','nurse','nurse_aid','pharmacist','senior_pharmacist','receptionist','it_support') NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,

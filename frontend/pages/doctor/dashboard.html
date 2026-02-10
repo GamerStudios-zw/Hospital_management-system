@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doctor Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
         .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
@@ -17,6 +17,9 @@
         .vitals-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; font-weight: 600; }
         .chart-compact { height: 170px; }
         .chart-compact canvas { height: 170px !important; max-height: 170px; }
+        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
+        .sidebar-backdrop.show { display: block; }
+        .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
 
         @media print {
             body.printing .sidebar,
@@ -32,6 +35,16 @@
             body.printing .modal-backdrop { display: none !important; }
             body.printing .modal-dialog { max-width: 100% !important; }
             body.printing .modal-content { box-shadow: none !important; border: none !important; }
+            body.printing .mobile-topbar { display: none !important; }
+        }
+
+        @media (max-width: 992px) {
+            .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; width: 240px; z-index: 1040; transition: left 0.25s ease; }
+            .sidebar.open { left: 0; }
+            .mobile-topbar { display: flex; }
+            main { padding: 16px; }
+            .chart-compact { height: 150px; }
+            .modal-dialog { max-width: 95%; margin: 1rem auto; }
         }
     </style>
 </head>
@@ -43,7 +56,7 @@
             <div class="p-4 text-center"><h4 class="fw-bold text-primary mb-0">HMS DOCTOR</h4></div>
             <nav class="nav flex-column mt-3 flex-grow-1">
                 <a class="nav-link active" onclick="switchTab('queue', this)"><i class="bi bi-people me-3"></i> Waiting Room</a>
-                <a class="nav-link" href="appointments.html"><i class="bi bi-calendar-check me-3"></i> Appointments</a>
+                <a class="nav-link" onclick="switchTab('appointments', this)"><i class="bi bi-calendar-check me-3"></i> Appointments</a>
                 <a class="nav-link" onclick="switchTab('directory', this)"><i class="bi bi-journal-medical me-3"></i> Patient History</a>
                 <a class="nav-link" onclick="switchTab('timeline', this)"><i class="bi bi-diagram-3 me-3"></i> Patient Timeline</a>
                 <a class="nav-link" onclick="switchTab('tasks', this)"><i class="bi bi-list-check me-3"></i> Task Board</a>
@@ -56,8 +69,13 @@
                 <button onclick="logout()" class="btn btn-outline-danger w-100 border-0 text-start"><i class="bi bi-box-arrow-right me-2"></i> Logout</button>
             </div>
         </div>
+        <div class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
 
         <main class="col-md-10 p-4">
+            <div class="mobile-topbar d-lg-none">
+                <button class="btn btn-outline-primary btn-sm" onclick="toggleSidebar(true)"><i class="bi bi-list"></i></button>
+                <div class="fw-bold text-primary">Doctor Dashboard</div>
+            </div>
             <section id="queue" class="tab-section active">
                 <div class="d-flex justify-content-between mb-4">
                     <h3 class="fw-bold">Waiting Room</h3>
@@ -82,43 +100,53 @@
                     </div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light"><tr><th class="ps-4">Patient</th><th>Vitals</th><th>Status</th><th class="text-end pe-4">Action</th></tr></thead>
-                        <tbody id="queueTableBody"></tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light"><tr><th class="ps-4">Patient</th><th>Vitals</th><th>Status</th><th class="text-end pe-4">Action</th></tr></thead>
+                            <tbody id="queueTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
-            <section id="roster" class="tab-section">
-    <div class="d-flex justify-content-between mb-4">
-        <h3 class="fw-bold">Doctor Duty Roster</h3>
-        <div class="bg-white py-2 px-4 rounded-4 shadow-sm"><small class="text-muted">Role:</small> <span class="fw-bold text-primary">Doctor</span></div>
-    </div>
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-                <tr>
-                    <th class="ps-4">Date</th>
-                    <th>Shift Type</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="rosterTableBody">
-                <tr><td colspan="5" class="text-center py-4 text-muted">Loading roster assignments...</td></tr>
-            </tbody>
-        </table>
-    </div>
-</section>
+            <section id="appointments" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="fw-bold mb-1">Appointments</h3>
+                        <p class="text-muted mb-0">Scheduled appointments assigned to you.</p>
+                    </div>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadAppointments()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Patient</th>
+                                    <th>Scheduled</th>
+                                    <th>Status</th>
+                                    <th>Reason</th>
+                                    <th>Notes</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="appointmentTable">
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Checking...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
             <section id="directory" class="tab-section">
                 <h3 class="fw-bold mb-4">Patient Directory</h3>
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light"><tr><th class="ps-4">Name</th><th>Gender/DOB</th><th class="text-end pe-4">Action</th></tr></thead>
-                        <tbody id="directoryTableBody"></tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light"><tr><th class="ps-4">Name</th><th>Gender/DOB</th><th class="text-end pe-4">Action</th></tr></thead>
+                            <tbody id="directoryTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -152,7 +180,7 @@
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Patient (optional)</label>
+                            <label class="form-label small fw-bold">Patient</label>
                             <select id="taskPatient" class="form-select"></select>
                         </div>
                         <div class="col-md-4">
@@ -284,6 +312,31 @@
                     </div>
                 </div>
             </section>
+
+            <section id="roster" class="tab-section">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3 class="fw-bold">Doctor Duty Roster</h3>
+                    <div class="bg-white py-2 px-4 rounded-4 shadow-sm"><small class="text-muted">Role:</small> <span class="fw-bold text-primary">Doctor</span></div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Date</th>
+                                    <th>Shift Type</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rosterTableBody">
+                                <tr><td colspan="5" class="text-center py-4 text-muted">Loading roster assignments...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 </div>
@@ -330,6 +383,7 @@
             <div class="modal-footer border-0 p-4 pt-0">
                 <div class="d-flex gap-2 w-100">
                     <button onclick="sendToUrgentCare()" class="btn btn-outline-danger w-100 py-2 fw-bold">Send Back to Nurse (Urgent)</button>
+                    <button onclick="completeAndRefer()" class="btn btn-outline-warning w-100 py-2 fw-bold">Complete & Refer to Nurse (Admission)</button>
                     <button id="completeConsultBtn" onclick="finishConsultation()" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Complete Consultation</button>
                 </div>
             </div>
@@ -369,6 +423,27 @@
     </div>
 </div>
 
+<div class="modal fade" id="clinicalNotesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Clinical Notes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="clinicalNotesInput" class="form-label">Notes (required to complete)</label>
+                    <textarea id="clinicalNotesInput" class="form-control" rows="5" placeholder="Enter clinical notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitClinicalNotes()">Save & Complete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
@@ -380,21 +455,109 @@
     let currentHistory = null;
     const consultModal = new bootstrap.Modal(document.getElementById('consultModal'));
     const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+    const clinicalModal = new bootstrap.Modal(document.getElementById('clinicalNotesModal'));
+    let pendingCompleteId = null;
     const escapeHtml = (val) => String(val ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
+        document.getElementById(id)?.classList.add('active');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        el.classList.add('active');
+        if (el) el.classList.add('active');
+        if (window.innerWidth < 992) toggleSidebar(false);
         if(id === 'queue') loadQueue();
+        if(id === 'appointments') loadAppointments();
         if(id === 'directory') loadDirectory();
         if(id === 'timeline') loadTimeline();
         if(id === 'tasks') loadTasks();
         if(id === 'escalations') loadEscalations();
-        if(id === 'discharge') loadDischarges();
+        if(id === 'discharge') { loadDischarges(); loadDischargeCandidates(); }
         if(id === 'handover') loadHandover();
         if(id === 'roster') loadShifts();
+    }
+
+    function toggleSidebar(open) {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.querySelector('.sidebar-backdrop');
+        if (!sidebar || !backdrop) return;
+        const shouldOpen = typeof open === 'boolean' ? open : !sidebar.classList.contains('open');
+        sidebar.classList.toggle('open', shouldOpen);
+        backdrop.classList.toggle('show', shouldOpen);
+    }
+
+    async function loadAppointments() {
+        const tbody = document.getElementById('appointmentTable');
+        if (!tbody) return;
+        const appointments = await Api.get('/doctor/appointments');
+        tbody.innerHTML = '';
+        if (appointments && appointments.length > 0) {
+            appointments.forEach(a => {
+                const when = a.scheduled_at ? new Date(a.scheduled_at) : null;
+                const whenLabel = when ? when.toLocaleString() : 'N/A';
+                const status = (a.status || 'scheduled').toLowerCase();
+                const statusKey = status.replace(/\s+/g, '_');
+                const statusClass = statusKey === 'checked_in' ? 'bg-success'
+                    : statusKey === 'cancelled' ? 'bg-danger'
+                    : statusKey === 'completed' ? 'bg-secondary'
+                    : 'bg-primary';
+                let actionHtml = '-';
+                if (statusKey === 'scheduled' || statusKey === 'confirmed' || statusKey === 'pending') {
+                    actionHtml = `<button class="btn btn-sm btn-primary" onclick="updateAppointmentStatus(${a.id}, 'checked_in')">Start Consult</button>`;
+                } else if (statusKey === 'checked_in') {
+                    actionHtml = `<button class="btn btn-sm btn-success" onclick="openClinicalNotes(${a.id})">Mark Completed</button>`;
+                }
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">${a.full_name}</td>
+                        <td>${whenLabel}</td>
+                        <td><span class="badge ${statusClass} text-uppercase">${statusKey.replace('_',' ')}</span></td>
+                        <td>${a.reason || '-'}</td>
+                        <td>${a.notes || '-'}</td>
+                        <td>${actionHtml}</td>
+                    </tr>
+                `;
+            });
+        } else if (appointments) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">No appointments found.</td></tr>';
+        } else {
+            if (typeof showBanner === 'function') {
+                showBanner('Failed to load appointments.', { type: 'error' });
+            }
+        }
+    }
+
+    function openClinicalNotes(appointmentId) {
+        pendingCompleteId = appointmentId;
+        const notesInput = document.getElementById('clinicalNotesInput');
+        notesInput.value = '';
+        clinicalModal.show();
+    }
+
+    async function submitClinicalNotes() {
+        const notesInput = document.getElementById('clinicalNotesInput');
+        const notes = (notesInput.value || '').trim();
+        if (!notes) {
+            alert('Clinical notes are required to complete the appointment.');
+            return;
+        }
+        const res = await Api.post('/doctor/appointment_update', {
+            appointment_id: pendingCompleteId,
+            status: 'completed',
+            notes
+        });
+        if (res) {
+            clinicalModal.hide();
+            loadAppointments();
+        }
+    }
+
+    async function updateAppointmentStatus(appointmentId, status) {
+        const label = status.replace('_', ' ');
+        if (!confirm(`Set status to "${label}"?`)) return;
+        const res = await Api.post('/doctor/appointment_update', { appointment_id: appointmentId, status });
+        if (res) {
+            loadAppointments();
+        }
     }
 
     async function loadQueue() {
@@ -408,6 +571,13 @@
                 tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${vitalsWithNotes}</td><td><span class="badge bg-warning-subtle text-warning">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
             });
             document.getElementById('statWaiting').innerText = queue.length;
+        } else if (queue) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No patients waiting.</td></tr>';
+            document.getElementById('statWaiting').innerText = '0';
+        } else {
+            if (typeof showBanner === 'function') {
+                showBanner('Failed to load waiting room.', { type: 'error' });
+            }
         }
         loadDoctorAnalytics();
     }
@@ -434,9 +604,22 @@
         const patients = await Api.get('/doctor/patients');
         if (!patients) return;
         renderPatientOptions(document.getElementById('timelinePatient'), patients, '-- Select Patient --');
-        renderPatientOptions(document.getElementById('taskPatient'), patients, '-- Optional --');
+        renderPatientOptions(document.getElementById('taskPatient'), patients, '-- Select Patient --');
         renderPatientOptions(document.getElementById('escPatient'), patients, '-- Select Patient --');
-        renderPatientOptions(document.getElementById('dischargePatient'), patients, '-- Select Patient --');
+        await loadDischargeCandidates();
+    }
+
+    async function loadDischargeCandidates() {
+        const discharge = await Api.get('/doctor/discharge_candidates');
+        const dischargeSelect = document.getElementById('dischargePatient');
+        if (!dischargeSelect) return;
+        const options = [`<option value="">-- Admitted/ICU Patients --</option>`]
+            .concat((discharge || []).map(p => {
+                const ward = p.ward_name || 'Ward';
+                const bed = p.bed_number ? ` - ${p.bed_number}` : '';
+                return `<option value="${p.id}">${p.full_name} (${ward}${bed})</option>`;
+            }));
+        dischargeSelect.innerHTML = options.join('');
     }
 
     async function loadTimeline() {
@@ -491,8 +674,9 @@
 
     async function createTask() {
         const task = document.getElementById('taskText').value.trim();
+        const patientId = document.getElementById('taskPatient').value;
+        if (!patientId) return alert("Select a patient");
         if (!task) return alert("Enter task details");
-        const patientId = document.getElementById('taskPatient').value || null;
         const priority = document.getElementById('taskPriority').value || 'normal';
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/doctor/task_create', {
@@ -531,8 +715,12 @@
                         <td>${timeStr}</td>
                     </tr>`;
             });
-        } else {
+        } else if (rows) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No escalations yet.</td></tr>';
+        } else {
+            if (typeof showBanner === 'function') {
+                showBanner('Failed to load escalations.', { type: 'error' });
+            }
         }
     }
 
@@ -572,7 +760,7 @@
         const patientId = document.getElementById('dischargePatient').value;
         const summary = document.getElementById('dischargeSummary').value.trim();
         if (!patientId || !summary) return alert("Select a patient and add a summary");
-        const res = await Api.post('/doctor/discharge_create', { patient_id: patientId, summary, status: 'pending' });
+        const res = await Api.post('/doctor/discharge_create', { patient_id: patientId, summary, status: 'approved' });
         if (res) {
             document.getElementById('dischargeSummary').value = '';
             loadDischarges();
@@ -601,12 +789,15 @@
 
     async function createHandover() {
         const notes = document.getElementById('handoverNotes').value.trim();
+        const shiftStart = document.getElementById('handoverStart').value;
+        const shiftEnd = document.getElementById('handoverEnd').value;
+        if (!shiftStart || !shiftEnd) return alert("Select shift start and end");
         if (!notes) return alert("Add handover notes");
         const user = JSON.parse(localStorage.getItem("hms_user"));
         const res = await Api.post('/doctor/handover_create', {
             user_id: user?.id,
-            shift_start: document.getElementById('handoverStart').value || null,
-            shift_end: document.getElementById('handoverEnd').value || null,
+            shift_start: shiftStart,
+            shift_end: shiftEnd,
             notes
         });
         if (res) {
@@ -678,11 +869,12 @@
         const isExternal = document.getElementById('externalMedToggle').checked;
         const medSelect = document.getElementById('consultMed');
         const manualName = document.getElementById('manualMedName').value;
-        const qty = document.getElementById('consultQty').value;
+        const qty = Number(document.getElementById('consultQty').value);
         const dosage = document.getElementById('consultDosage').value;
 
         if (!isExternal && !medSelect.value) return alert("Select medicine");
         if (isExternal && !manualName.trim()) return alert("Enter name");
+        if (!Number.isFinite(qty) || qty < 1) return alert("Enter quantity");
         if (!dosage.trim()) return alert("Enter dosage");
 
         currentPrescriptions.push({
@@ -729,8 +921,23 @@
         }
     }
 
+    async function completeAndRefer() {
+        const notes = document.getElementById('consultDiagnosis').value;
+        if (!notes.trim()) return alert("Notes required");
+        if (!confirm("Complete consultation and refer this patient to Nurse for admission?")) return;
+        const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
+        const res = await Api.post('/doctor/complete_refer', data);
+        if (res) {
+            const hasExternalMedication = currentPrescriptions.some(p => !p.medicine_id || p.manual_name);
+            if (hasExternalMedication) printThermalReceipt();
+            consultModal.hide();
+            loadQueue();
+        }
+    }
+
     async function sendToUrgentCare() {
         const reason = document.getElementById('consultDiagnosis').value;
+        if (!reason.trim()) return alert("Clinical notes are required");
         if (!confirm("Send this patient back to Nurse for urgent care?")) return;
         const res = await Api.post('/doctor/urgent_care', { queue_id: activeQueueId, reason: reason });
         if (res) {
@@ -874,9 +1081,36 @@
         });
     }
 
+    async function showDoctorLoginBanner() {
+        try {
+            const [queue, tasks, esc] = await Promise.all([
+                Api.get('/doctor/waiting_list'),
+                Api.get('/doctor/task_list'),
+                Api.get('/doctor/escalation_list')
+            ]);
+            const waiting = Array.isArray(queue) ? queue.length : 0;
+            const openTasks = Array.isArray(tasks)
+                ? tasks.filter(t => String(t.status || 'open').toLowerCase() !== 'done').length
+                : 0;
+            const openEsc = Array.isArray(esc)
+                ? esc.filter(e => String(e.status || 'open').toLowerCase() !== 'closed').length
+                : 0;
+            const parts = [];
+            if (waiting) parts.push(`${waiting} patient${waiting === 1 ? '' : 's'} waiting`);
+            if (openTasks) parts.push(`${openTasks} task${openTasks === 1 ? '' : 's'} open`);
+            if (openEsc) parts.push(`${openEsc} escalation${openEsc === 1 ? '' : 's'}`);
+            if (parts.length && typeof showBanner === 'function') {
+                showBanner(`Welcome back. ${parts.join(' \u2022 ')}`, { type: 'warning', timeoutMs: 10000 });
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         loadQueue();
         loadPatientOptions();
+        showDoctorLoginBanner();
     });
 </script>
 </body>

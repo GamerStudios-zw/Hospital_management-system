@@ -20,6 +20,12 @@ header('Content-Type: application/json');
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['pharmacist', 'admin', 'senior_pharmacist'], $user);
 $normalizedRole = str_replace([' ', '-'], '_', strtolower(trim((string)($user->role ?? ''))));
+$normalizeRequestStatus = function ($status) {
+    $s = strtolower(trim((string)$status));
+    if ($s === 'ready') return 'Ready';
+    if ($s === 'completed') return 'Completed';
+    return 'Pending';
+};
 $requireSeniorPharmacy = function () use ($normalizedRole) {
     if ($normalizedRole !== 'senior_pharmacist') {
         http_response_code(403);
@@ -38,19 +44,52 @@ switch ($action) {
                              pat.full_name as patient_name, pat.medical_aid_number,
                              med.name as med_name, med.stock_quantity,
                              q.doctor_assigned,
+                             IFNULL(d.full_name, q.doctor_assigned) as doctor_name,
                              cs.requires_approval as controlled_requires_approval
                       FROM prescriptions p
                       JOIN patients pat ON p.patient_id = pat.id
                       LEFT JOIN medicines med ON p.medicine_id = med.id
                       LEFT JOIN controlled_substances cs ON cs.medicine_id = p.medicine_id
-                      JOIN patient_queue q ON p.patient_id = q.patient_id
+                      JOIN patient_queue q ON q.id = (
+                          SELECT q2.id
+                          FROM patient_queue q2
+                          WHERE q2.patient_id = p.patient_id
+                          ORDER BY (q2.doctor_assigned IS NULL) ASC, q2.created_at DESC, q2.id DESC
+                          LIMIT 1
+                      )
+                      LEFT JOIN users d ON d.id = q.doctor_assigned
                       WHERE p.status IN ('Pending', 'External')
-                      AND q.status IN ('Completed', 'completed')
+                      AND LOWER(q.status) IN (
+                          'completed',
+                          'admission pending',
+                          'waiting pharmacy',
+                          'ready for admission'
+                      )
                       ORDER BY p.created_at ASC";
 
             $stmt = $db->prepare($query);
             $stmt->execute();
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        }
+        break;
+
+    // 1b. NURSE MEDICATION REQUESTS
+    case 'nurse_requests':
+        if ($method === 'GET') {
+            $query = "SELECT r.id,
+                             r.patient_id,
+                             r.status,
+                             r.notes,
+                             r.created_at,
+                             p.full_name as patient_name,
+                             p.national_id,
+                             (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = r.patient_id AND pr.status IN ('Pending','External')) as pending_prescriptions
+                      FROM pharmacy_requests r
+                      JOIN patients p ON r.patient_id = p.id
+                      WHERE LOWER(r.status) IN ('pending', 'ready')
+                      ORDER BY r.created_at ASC";
+            $stmt = $db->query($query);
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
         }
         break;
 
@@ -68,7 +107,7 @@ switch ($action) {
             try {
                 $db->beginTransaction();
 
-                $stmt = $db->prepare("SELECT medicine_id, quantity FROM prescriptions WHERE id = ?");
+                $stmt = $db->prepare("SELECT patient_id, medicine_id, quantity FROM prescriptions WHERE id = ?");
                 $stmt->execute([$data->prescription_id]);
                 $presc = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -105,6 +144,20 @@ switch ($action) {
                 $updateStatus = $db->prepare("UPDATE prescriptions SET status = 'Dispensed' WHERE id = ?");
                 $updateStatus->execute([$data->prescription_id]);
 
+                // If no pending/external prescriptions remain, move admission to "Ready for Admission"
+                if (!empty($presc['patient_id'])) {
+                    $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
+                    $pendingStmt->execute([$presc['patient_id']]);
+                    $remaining = (int)$pendingStmt->fetchColumn();
+                    if ($remaining === 0) {
+                        $db->prepare("UPDATE patient_queue
+                                      SET status = 'Ready for Admission'
+                                      WHERE patient_id = ?
+                                        AND status IN ('Waiting Pharmacy','waiting pharmacy')")
+                           ->execute([$presc['patient_id']]);
+                    }
+                }
+
                 $db->commit();
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'pharmacist', 'Dispensed medication', 'Success', null, [
@@ -125,6 +178,40 @@ switch ($action) {
                 $db->rollBack();
                 http_response_code(500);
                 echo json_encode(["message" => "Error: " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 2b. UPDATE NURSE REQUEST STATUS
+    case 'nurse_request_update':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->request_id) || !isset($data->status)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Request ID and status are required."]);
+                exit;
+            }
+            try {
+                $status = $normalizeRequestStatus($data->status);
+                $stmt = $db->prepare("UPDATE pharmacy_requests SET status = ? WHERE id = ?");
+                $stmt->execute([$status, $data->request_id]);
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'pharmacist', 'Updated nurse pharmacy request', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'pharmacy_request',
+                        'entity_id' => (string)$data->request_id,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'pharmacist',
+                        'source' => 'pharmacy/nurse_request_update'
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                Realtime::emit('pharmacy.request_update', ['request_id' => $data->request_id]);
+                echo json_encode(["message" => "Request updated."]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to update request: " . $e->getMessage()]);
             }
         }
         break;

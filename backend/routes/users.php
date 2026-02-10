@@ -102,17 +102,33 @@ switch ($method) {
         }
 
         // --- C. CREATE USER (Original Logic) ---
-        if (!isset($data->username)) {
+        if (!isset($data->full_name) || !isset($data->email) || !isset($data->password) || !isset($data->role)) {
             http_response_code(400);
             echo json_encode(["message" => "Incomplete data"]);
             exit();
         }
 
+        // Build username in format: firstname@hospitallocation
+        $fullName = trim((string)$data->full_name);
+        $firstName = strtolower(preg_replace('/[^a-z]/i', '', strtok($fullName, ' ')));
+        if ($firstName === '') $firstName = 'staff';
+        $location = 'hospital';
+        try {
+            $settings = $db->query("SELECT hospital_name FROM system_settings WHERE id = 1 LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+            if ($settings && !empty($settings['hospital_name'])) {
+                $locToken = strtolower(preg_replace('/[^a-z]/i', '', strtok($settings['hospital_name'], ' ')));
+                if ($locToken !== '') $location = $locToken;
+            }
+        } catch (Exception $e) {
+            // fallback to default location
+        }
+        $data->username = $firstName . '@' . $location;
+
         $hash = password_hash($data->password, PASSWORD_BCRYPT);
-        $sql = "INSERT INTO users (full_name, username, email, password_hash, role) VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO users (full_name, username, email, password_hash, role, gender) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $db->prepare($sql);
 
-        if($stmt->execute([$data->full_name, $data->username, $data->email, $hash, $data->role])) {
+        if($stmt->execute([$data->full_name, $data->username, $data->email, $hash, $data->role, $data->gender ?? null])) {
             http_response_code(201);
             try {
                 $actor = AuthMiddleware::isAuthenticated();
@@ -153,6 +169,7 @@ switch ($method) {
                     u.username,
                     u.email,
                     u.role,
+                    u.gender,
                     u.is_active,
                     u.session_expires_at,
                     SUM(CASE WHEN (us.expires_at IS NULL OR us.expires_at > NOW()) THEN 1 ELSE 0 END) AS active_sessions

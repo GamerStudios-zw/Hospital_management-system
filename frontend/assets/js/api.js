@@ -35,7 +35,7 @@ const Api = {
         try {
             const response = await fetch(`${CONFIG.BASE_URL}${endpoint}`, config);
 
-            // Handle Token Expiry (401 Unauthorized)
+            // Strict session handling: force logout on 401
             if (response.status === 401) {
                 alert("Session expired. Please login again.");
                 localStorage.clear();

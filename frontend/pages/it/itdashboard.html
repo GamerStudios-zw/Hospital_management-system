@@ -32,6 +32,16 @@
             padding: 4px 10px;
             font-size: 12px;
         }
+        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
+        .sidebar-backdrop.show { display: block; }
+        .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+        @media (max-width: 992px) {
+            .sidebar { position: fixed; left: -260px; width: 240px; z-index: 1040; transition: left 0.25s ease; }
+            .sidebar.open { left: 0; }
+            .main { margin-left: 0; padding: 16px; }
+            .mobile-topbar { display: flex; }
+        }
     </style>
 </head>
 <body>
@@ -52,8 +62,13 @@
             <button class="btn btn-outline-danger w-100" onclick="logout(event)"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
         </div>
     </aside>
+    <div class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
 
     <main class="main">
+        <div class="mobile-topbar d-lg-none">
+            <button class="btn btn-outline-primary btn-sm" onclick="toggleSidebar(true)"><i class="bi bi-list"></i></button>
+            <span class="fw-semibold">IT Support</span>
+        </div>
         <div id="overview" class="tab-section active">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <h3 class="mb-0">System Overview</h3>
@@ -245,6 +260,22 @@
             if (id === 'overview') loadOverview();
             if (id === 'tickets') loadTickets();
             if (id === 'audit') loadAudit();
+            toggleSidebar(false);
+        }
+
+        function toggleSidebar(show) {
+            const sidebar = document.querySelector('.sidebar');
+            const backdrop = document.querySelector('.sidebar-backdrop');
+            if (!sidebar || !backdrop) return;
+            if (show) {
+                sidebar.classList.add('open');
+                backdrop.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            } else {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('show');
+                document.body.style.overflow = '';
+            }
         }
 
         async function loadOverview() {
