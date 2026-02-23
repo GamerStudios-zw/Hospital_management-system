@@ -102,14 +102,10 @@ switch ($action) {
 
     case 'discharge':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->bed_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Bed ID required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $bedId = RequestValidator::requireInt($data, 'bed_id', 1);
             $bedStmt = $db->prepare("SELECT current_patient_id, status FROM beds WHERE id = ? LIMIT 1");
-            $bedStmt->execute([$data->bed_id]);
+            $bedStmt->execute([$bedId]);
             $bedRow = $bedStmt->fetch(PDO::FETCH_ASSOC);
             if (!$bedRow || $bedRow['status'] !== 'Occupied' || empty($bedRow['current_patient_id'])) {
                 http_response_code(400);
@@ -126,7 +122,7 @@ switch ($action) {
             // Sets status to 'Cleaning' to trigger custodial workflow
             $sql = "UPDATE beds SET status = 'Cleaning', current_patient_id = NULL WHERE id = ?";
             $stmt = $db->prepare($sql);
-            if($stmt->execute([$data->bed_id])) {
+            if($stmt->execute([$bedId])) {
                 // Mark any discharge summary for this patient as completed
                 $db->prepare("UPDATE discharge_summaries SET status = 'completed' WHERE patient_id = ?")
                    ->execute([$bedRow['current_patient_id']]);
@@ -140,7 +136,7 @@ switch ($action) {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Discharged patient from bed', 'Success', null, [
                         'event_type' => 'audit',
                         'entity_type' => 'bed',
-                        'entity_id' => (string)$data->bed_id,
+                        'entity_id' => (string)$bedId,
                         'actor_id' => isset($user->id) ? (string)$user->id : null,
                         'actor_role' => $user->role ?? 'nurse',
                         'source' => 'nurse/discharge'
@@ -148,7 +144,7 @@ switch ($action) {
                 } catch (Exception $e) {
                     // ignore logging errors
                 }
-                Realtime::emit('nurse.discharge', ['bed_id' => $data->bed_id]);
+                Realtime::emit('nurse.discharge', ['bed_id' => $bedId]);
                 echo json_encode(["message" => "Discharge initiated. Bed sent for cleaning."]);
             }
         }
@@ -157,15 +153,12 @@ switch ($action) {
     // 4b. ASSIGN BED (Nurse admits patient to ward)
     case 'assign_bed':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->bed_id) || !isset($data->patient_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Bed ID and Patient ID required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $bedId = RequestValidator::requireInt($data, 'bed_id', 1);
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
             try {
                 $check = $db->prepare("SELECT status FROM beds WHERE id = ?");
-                $check->execute([$data->bed_id]);
+                $check->execute([$bedId]);
                 $currentStatus = $check->fetchColumn();
                 if ($currentStatus && $currentStatus !== 'Available') {
                     http_response_code(400);
@@ -174,21 +167,21 @@ switch ($action) {
                 }
 
                 $stmt = $db->prepare("UPDATE beds SET status = 'Occupied', current_patient_id = ? WHERE id = ?");
-                $stmt->execute([$data->patient_id, $data->bed_id]);
+                $stmt->execute([$patientId, $bedId]);
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Assigned bed', 'Success', null, [
                         'event_type' => 'audit',
                         'entity_type' => 'bed',
-                        'entity_id' => (string)$data->bed_id,
+                        'entity_id' => (string)$bedId,
                         'actor_id' => isset($user->id) ? (string)$user->id : null,
                         'actor_role' => $user->role ?? 'nurse',
                         'source' => 'nurse/assign_bed',
-                        'metadata' => ['patient_id' => $data->patient_id]
+                        'metadata' => ['patient_id' => $patientId]
                     ]);
                 } catch (Exception $e) {
                     // ignore logging errors
                 }
-                Realtime::emit('nurse.assign_bed', ['bed_id' => $data->bed_id, 'patient_id' => $data->patient_id]);
+                Realtime::emit('nurse.assign_bed', ['bed_id' => $bedId, 'patient_id' => $patientId]);
                 echo json_encode(["message" => "Bed assigned"]);
             } catch (Exception $e) {
                 http_response_code(500);
@@ -261,16 +254,13 @@ switch ($action) {
     // 4e. REQUEST PHARMACY TO PREPARE PRESCRIPTIONS
     case 'pharmacy_request':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient ID required."]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $notes = RequestValidator::optionalString($data, 'notes', 1000);
             try {
                 $db->beginTransaction();
                 $check = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
-                $check->execute([$data->patient_id]);
+                $check->execute([$patientId]);
                 $count = (int)$check->fetchColumn();
                 if ($count === 0) {
                     $db->rollBack();
@@ -280,7 +270,7 @@ switch ($action) {
                 }
                 // Prevent duplicate pending/ready pharmacy requests for same patient
                 $existing = $db->prepare("SELECT id FROM pharmacy_requests WHERE patient_id = ? AND LOWER(status) IN ('pending','ready') LIMIT 1");
-                $existing->execute([$data->patient_id]);
+                $existing->execute([$patientId]);
                 if ($existing->fetchColumn()) {
                     $db->rollBack();
                     echo json_encode(["message" => "Pharmacy request already pending for this patient.", "pending_prescriptions" => $count]);
@@ -288,16 +278,16 @@ switch ($action) {
                 }
                 $insert = $db->prepare("INSERT INTO pharmacy_requests (patient_id, requested_by, status, notes) VALUES (?, ?, 'Pending', ?)");
                 $insert->execute([
-                    $data->patient_id,
+                    $patientId,
                     isset($user->id) ? $user->id : null,
-                    $data->notes ?? null
+                    $notes
                 ]);
                 // Mark admission as waiting on pharmacy prep
                 $db->prepare("UPDATE patient_queue
                               SET status = 'Waiting Pharmacy'
                               WHERE patient_id = ?
                                 AND status IN ('Admission Pending','admission pending')")
-                   ->execute([$data->patient_id]);
+                   ->execute([$patientId]);
                 $db->commit();
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Requested pharmacy meds', 'Success', null, [
@@ -311,7 +301,7 @@ switch ($action) {
                 } catch (Exception $e) {
                     // ignore logging errors
                 }
-                Realtime::emit('pharmacy.request', ['patient_id' => $data->patient_id]);
+                Realtime::emit('pharmacy.request', ['patient_id' => $patientId]);
                 echo json_encode(["message" => "Pharmacy request sent.", "pending_prescriptions" => $count]);
             } catch (Exception $e) {
                 if ($db->inTransaction()) $db->rollBack();
@@ -342,6 +332,10 @@ switch ($action) {
                                 ORDER BY v.created_at DESC
                                 LIMIT 50";
                 $recent = $db->query($recentQuery)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($recent as &$r) {
+                    $r = array_merge($r, VitalRisk::classify($r['temperature'] ?? null, $r['pulse'] ?? null, $r['bp'] ?? null, $r['spo2'] ?? null));
+                }
+                unset($r);
 
                 $trendQuery = "SELECT DATE(created_at) as day, COUNT(*) as count
                                FROM patient_vitals
@@ -403,15 +397,14 @@ switch ($action) {
     // 8. NURSE HANDOVER
     case 'handover_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->user_id) || empty($data->notes)) {
-                http_response_code(400);
-                echo json_encode(["message" => "User and notes required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $userId = RequestValidator::requireInt($data, 'user_id', 1);
+            $notes = RequestValidator::requireString($data, 'notes', 3, 2000);
+            $shiftStart = RequestValidator::optionalString($data, 'shift_start', 40);
+            $shiftEnd = RequestValidator::optionalString($data, 'shift_end', 40);
             $stmt = $db->prepare("INSERT INTO nurse_handover (user_id, shift_start, shift_end, notes) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->user_id, $data->shift_start ?? null, $data->shift_end ?? null, $data->notes]);
-            Realtime::emit('nurse.handover', ['user_id' => $data->user_id]);
+            $stmt->execute([$userId, $shiftStart, $shiftEnd, $notes]);
+            Realtime::emit('nurse.handover', ['user_id' => $userId]);
             echo json_encode(["message" => "Handover saved"]);
         }
         break;
@@ -426,15 +419,16 @@ switch ($action) {
     // 9. TASK BOARD
     case 'task_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (empty($data->task)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Task required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $task = RequestValidator::requireString($data, 'task', 3, 500);
+            $patientId = isset($data->patient_id) ? RequestValidator::requireInt($data, 'patient_id', 1) : null;
+            $assignedTo = isset($data->assigned_to) ? RequestValidator::requireInt($data, 'assigned_to', 1) : null;
+            $priority = RequestValidator::enum($data->priority ?? 'normal', ['low', 'normal', 'high', 'urgent'], 'priority');
+            $status = RequestValidator::enum($data->status ?? 'open', ['open', 'in_progress', 'done', 'cancelled'], 'status');
+            $dueAt = RequestValidator::optionalString($data, 'due_at', 40);
             if (!empty($data->patient_id)) {
                 $check = $db->prepare("SELECT 1 FROM patient_queue WHERE patient_id = ? AND status IN ('Urgent Care','urgent care') LIMIT 1");
-                $check->execute([$data->patient_id]);
+                $check->execute([$patientId]);
                 if (!$check->fetchColumn()) {
                     http_response_code(400);
                     echo json_encode(["message" => "Only Urgent Care patients can be assigned to tasks."]);
@@ -444,12 +438,12 @@ switch ($action) {
             $stmt = $db->prepare("INSERT INTO nurse_tasks (patient_id, assigned_to, task, priority, status, due_at)
                                   VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([
-                $data->patient_id ?? null,
-                $data->assigned_to ?? null,
-                $data->task,
-                $data->priority ?? 'normal',
-                $data->status ?? 'open',
-                $data->due_at ?? null
+                $patientId,
+                $assignedTo,
+                $task,
+                $priority,
+                $status,
+                $dueAt
             ]);
             Realtime::emit('nurse.task', []);
             echo json_encode(["message" => "Task created"]);
@@ -476,14 +470,11 @@ switch ($action) {
 
     case 'task_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->task_id) || !isset($data->status)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Task ID and status required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $taskId = RequestValidator::requireInt($data, 'task_id', 1);
+            $status = RequestValidator::enum($data->status ?? '', ['open', 'in_progress', 'done', 'cancelled'], 'status');
             $stmt = $db->prepare("UPDATE nurse_tasks SET status = ? WHERE id = ?");
-            $stmt->execute([$data->status, $data->task_id]);
+            $stmt->execute([$status, $taskId]);
             Realtime::emit('nurse.task', []);
             echo json_encode(["message" => "Task updated"]);
         }
@@ -492,16 +483,15 @@ switch ($action) {
     // 10. ESCALATIONS
     case 'escalation_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || empty($data->reason)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient and reason required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $reason = RequestValidator::requireString($data, 'reason', 3, 1000);
+            $severity = RequestValidator::enum($data->severity ?? 'urgent', ['low', 'normal', 'high', 'urgent'], 'severity');
+            $status = RequestValidator::enum($data->status ?? 'open', ['open', 'triaged', 'closed'], 'status');
             $stmt = $db->prepare("INSERT INTO nurse_escalations (patient_id, reason, severity, status)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->patient_id, $data->reason, $data->severity ?? 'urgent', $data->status ?? 'open']);
-            Realtime::emit('nurse.escalation', ['patient_id' => $data->patient_id]);
+            $stmt->execute([$patientId, $reason, $severity, $status]);
+            Realtime::emit('nurse.escalation', ['patient_id' => $patientId]);
             echo json_encode(["message" => "Escalation created"]);
         }
         break;
@@ -530,14 +520,12 @@ switch ($action) {
     // 11. DISCHARGE SUMMARY
     case 'discharge_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || empty($data->summary)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient and summary required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $summary = RequestValidator::requireString($data, 'summary', 5, 4000);
+            $status = RequestValidator::enum($data->status ?? 'pending', ['pending', 'approved', 'completed'], 'status');
             $check = $db->prepare("SELECT 1 FROM nurse_escalations WHERE patient_id = ? LIMIT 1");
-            $check->execute([$data->patient_id]);
+            $check->execute([$patientId]);
             if (!$check->fetchColumn()) {
                 http_response_code(400);
                 echo json_encode(["message" => "Only escalated patients can be discharged."]);
@@ -545,8 +533,8 @@ switch ($action) {
             }
             $stmt = $db->prepare("INSERT INTO discharge_summaries (patient_id, summary, status)
                                   VALUES (?, ?, ?)");
-            $stmt->execute([$data->patient_id, $data->summary, $data->status ?? 'pending']);
-            Realtime::emit('nurse.discharge_summary', ['patient_id' => $data->patient_id]);
+            $stmt->execute([$patientId, $summary, $status]);
+            Realtime::emit('nurse.discharge_summary', ['patient_id' => $patientId]);
             echo json_encode(["message" => "Discharge summary saved"]);
         }
         break;

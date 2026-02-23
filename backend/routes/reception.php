@@ -74,7 +74,20 @@ switch ($action) {
     // 3. REGISTER NEW PATIENT
     case 'register':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
+            $fullName = RequestValidator::requireString($data, 'full_name', 3, 150);
+            $nationalId = RequestValidator::requireString($data, 'national_id', 5, 30, '/^[A-Za-z0-9\-]+$/');
+            $dob = RequestValidator::requireString($data, 'dob', 10, 10, '/^\d{4}\-\d{2}\-\d{2}$/');
+            $gender = RequestValidator::enum($data->gender ?? '', ['male', 'female', 'other'], 'gender');
+            $phone = RequestValidator::requireString($data, 'phone', 7, 25, '/^[0-9\+\-\s]+$/');
+            $address = RequestValidator::requireString($data, 'address', 3, 255);
+            $hasMedicalAid = !empty($data->has_medical_aid) ? 1 : 0;
+            $aidProvider = RequestValidator::optionalString($data, 'medical_aid_provider', 120);
+            $aidNumber = RequestValidator::optionalString($data, 'medical_aid_number', 60);
+            $kinName = RequestValidator::optionalString($data, 'kin_name', 150);
+            $kinRelation = RequestValidator::optionalString($data, 'kin_relation', 80);
+            $kinPhone = RequestValidator::optionalString($data, 'kin_phone', 25);
+            $allergies = RequestValidator::optionalString($data, 'allergies', 1000);
 
             $sql = "INSERT INTO patients (
                         full_name, national_id, dob, gender, phone, address,
@@ -85,19 +98,19 @@ switch ($action) {
             $stmt = $db->prepare($sql);
 
             $params = [
-                $data->full_name,
-                $data->national_id,
-                $data->dob,
-                $data->gender,
-                $data->phone,
-                $data->address,
-                $data->has_medical_aid,
-                $data->medical_aid_provider,
-                $data->medical_aid_number,
-                $data->kin_name,
-                $data->kin_relation,
-                $data->kin_phone,
-                $data->allergies
+                $fullName,
+                $nationalId,
+                $dob,
+                $gender,
+                $phone,
+                $address,
+                $hasMedicalAid,
+                $aidProvider,
+                $aidNumber,
+                $kinName,
+                $kinRelation,
+                $kinPhone,
+                $allergies
             ];
 
             if($stmt->execute($params)) {
@@ -114,16 +127,12 @@ switch ($action) {
     // 4. ADMIT PATIENT (Simplified workflow)
     case 'admit':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-
-            if (!isset($data->patient_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient ID required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $doctorId = isset($data->doctor) && $data->doctor !== '' ? RequestValidator::requireInt($data, 'doctor', 1) : null;
 
             $check = $db->prepare("SELECT id FROM patient_queue WHERE patient_id = ? AND status NOT IN ('Completed', 'Cancelled', 'completed', 'cancelled')");
-            $check->execute([$data->patient_id]);
+            $check->execute([$patientId]);
             if($check->rowCount() > 0) {
                  http_response_code(400);
                  echo json_encode(["message" => "Patient is already active in the queue"]);
@@ -136,7 +145,7 @@ switch ($action) {
             $sql = "INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, ?)";
             $stmt = $db->prepare($sql);
 
-            if($stmt->execute([$data->patient_id, $data->doctor, $initial_status])) {
+            if($stmt->execute([$patientId, $doctorId, $initial_status])) {
                 $queueId = $db->lastInsertId();
                 Realtime::emit('reception.admit', ['queue_id' => $queueId]);
                 echo json_encode(["message" => "Patient Admitted"]);
@@ -180,19 +189,16 @@ switch ($action) {
     // 4b. CREATE APPOINTMENT
     case 'create_appointment':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || !isset($data->scheduled_at)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient ID and schedule required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $scheduledAt = RequestValidator::requireString($data, 'scheduled_at', 16, 19, '/^\d{4}\-\d{2}\-\d{2}[ T]\d{2}\:\d{2}(\:\d{2})?$/');
             $stmt = $db->prepare("INSERT INTO appointments (patient_id, doctor_id, scheduled_at, status, reason, notes)
                                   VALUES (?, ?, ?, ?, ?, ?)");
-            $doctorId = $data->doctor_id ?? null;
-            $status = $data->status ?? 'scheduled';
-            $reason = $data->reason ?? null;
-            $notes = $data->notes ?? null;
-            if ($stmt->execute([$data->patient_id, $doctorId, $data->scheduled_at, $status, $reason, $notes])) {
+            $doctorId = isset($data->doctor_id) && $data->doctor_id !== '' ? RequestValidator::requireInt($data, 'doctor_id', 1) : null;
+            $status = RequestValidator::enum($data->status ?? 'scheduled', ['scheduled', 'confirmed', 'checked_in', 'cancelled', 'completed'], 'status');
+            $reason = RequestValidator::optionalString($data, 'reason', 1000);
+            $notes = RequestValidator::optionalString($data, 'notes', 2000);
+            if ($stmt->execute([$patientId, $doctorId, $scheduledAt, $status, $reason, $notes])) {
                 $newId = $db->lastInsertId();
                 Realtime::emit('reception.appointment', ['appointment_id' => $newId]);
                 echo json_encode(["message" => "Appointment created"]);
@@ -263,15 +269,13 @@ switch ($action) {
     // 4d. UPDATE APPOINTMENT STATUS
     case 'appointment_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->appointment_id) || !isset($data->status)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Appointment ID and status required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $appointmentId = RequestValidator::requireInt($data, 'appointment_id', 1);
+            $status = RequestValidator::enum($data->status ?? '', ['scheduled', 'confirmed', 'checked_in', 'cancelled', 'completed'], 'status');
+            $notes = RequestValidator::optionalString($data, 'notes', 2000);
             $stmt = $db->prepare("UPDATE appointments SET status = ?, notes = COALESCE(?, notes) WHERE id = ?");
-            if ($stmt->execute([$data->status, $data->notes ?? null, $data->appointment_id])) {
-                Realtime::emit('reception.appointment_update', ['appointment_id' => $data->appointment_id]);
+            if ($stmt->execute([$status, $notes, $appointmentId])) {
+                Realtime::emit('reception.appointment_update', ['appointment_id' => $appointmentId]);
                 echo json_encode(["message" => "Appointment updated"]);
             } else {
                 http_response_code(500);
@@ -283,34 +287,33 @@ switch ($action) {
     // 4e. CHECK-IN APPOINTMENT (optionally push to queue)
     case 'checkin':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->appointment_id)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Appointment ID required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $appointmentId = RequestValidator::requireInt($data, 'appointment_id', 1);
             $stmt = $db->prepare("UPDATE appointments SET status = 'checked_in' WHERE id = ?");
-            $stmt->execute([$data->appointment_id]);
+            $stmt->execute([$appointmentId]);
             if (!empty($data->queue_patient_id)) {
+                $queuePatientId = RequestValidator::requireInt($data, 'queue_patient_id', 1);
                 // Avoid duplicate active queue rows for same patient
                 $active = $db->prepare("SELECT id FROM patient_queue
                                         WHERE patient_id = ?
                                           AND LOWER(status) NOT IN ('completed','cancelled','discharged')
                                         ORDER BY created_at DESC, id DESC
                                         LIMIT 1");
-                $active->execute([$data->queue_patient_id]);
+                $active->execute([$queuePatientId]);
                 $activeId = $active->fetchColumn();
                 if ($activeId) {
                     if (!empty($data->doctor_assigned)) {
+                        $doctorAssigned = RequestValidator::requireInt($data, 'doctor_assigned', 1);
                         $upd = $db->prepare("UPDATE patient_queue SET doctor_assigned = ? WHERE id = ?");
-                        $upd->execute([$data->doctor_assigned, $activeId]);
+                        $upd->execute([$doctorAssigned, $activeId]);
                     }
                 } else {
                     $stmt2 = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, 'Waiting')");
-                    $stmt2->execute([$data->queue_patient_id, $data->doctor_assigned ?? null]);
+                    $doctorAssigned = !empty($data->doctor_assigned) ? RequestValidator::requireInt($data, 'doctor_assigned', 1) : null;
+                    $stmt2->execute([$queuePatientId, $doctorAssigned]);
                 }
             }
-            Realtime::emit('reception.checkin', ['appointment_id' => $data->appointment_id]);
+            Realtime::emit('reception.checkin', ['appointment_id' => $appointmentId]);
             echo json_encode(["message" => "Checked in"]);
         }
         break;
@@ -332,24 +335,21 @@ switch ($action) {
     // 4g. QUEUE UPDATE (cancel, reassign, no_show, move_top)
     case 'queue_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->queue_id) || !isset($data->action)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Queue ID and action required"]);
-                exit;
-            }
-            $actionType = $data->action;
+            $data = RequestValidator::json();
+            $queueId = RequestValidator::requireInt($data, 'queue_id', 1);
+            $actionType = RequestValidator::enum($data->action ?? '', ['cancel', 'no_show', 'reassign', 'move_top'], 'action');
             if ($actionType === 'cancel' || $actionType === 'no_show') {
                 $stmt = $db->prepare("UPDATE patient_queue SET status = 'Cancelled' WHERE id = ?");
-                $stmt->execute([$data->queue_id]);
+                $stmt->execute([$queueId]);
             } else if ($actionType === 'reassign') {
+                $doctorAssigned = isset($data->doctor_assigned) && $data->doctor_assigned !== '' ? RequestValidator::requireInt($data, 'doctor_assigned', 1) : null;
                 $stmt = $db->prepare("UPDATE patient_queue SET doctor_assigned = ? WHERE id = ?");
-                $stmt->execute([$data->doctor_assigned ?? null, $data->queue_id]);
+                $stmt->execute([$doctorAssigned, $queueId]);
             } else if ($actionType === 'move_top') {
                 $stmt = $db->prepare("UPDATE patient_queue SET created_at = NOW() WHERE id = ?");
-                $stmt->execute([$data->queue_id]);
+                $stmt->execute([$queueId]);
             }
-            Realtime::emit('reception.queue_update', ['queue_id' => $data->queue_id]);
+            Realtime::emit('reception.queue_update', ['queue_id' => $queueId]);
             echo json_encode(["message" => "Queue updated"]);
         }
         break;
@@ -357,16 +357,14 @@ switch ($action) {
     // 4h. REFERRAL LOG (create)
     case 'create_referral':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || !isset($data->report_name)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient and report name required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $reportName = RequestValidator::requireString($data, 'report_name', 3, 255);
+            $filePath = RequestValidator::optionalString($data, 'file_path', 255);
             $stmt = $db->prepare("INSERT INTO medical_reports (patient_id, report_type, report_name, file_path)
                                   VALUES (?, 'Referral', ?, ?)");
-            $stmt->execute([$data->patient_id, $data->report_name, $data->file_path ?? null]);
-            Realtime::emit('reception.referral', ['patient_id' => $data->patient_id]);
+            $stmt->execute([$patientId, $reportName, $filePath]);
+            Realtime::emit('reception.referral', ['patient_id' => $patientId]);
             echo json_encode(["message" => "Referral logged"]);
         }
         break;
@@ -374,16 +372,14 @@ switch ($action) {
     // 4i. CONSENT LOG (create)
     case 'create_consent':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || !isset($data->report_name)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient and report name required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $reportName = RequestValidator::requireString($data, 'report_name', 3, 255);
+            $filePath = RequestValidator::optionalString($data, 'file_path', 255);
             $stmt = $db->prepare("INSERT INTO medical_reports (patient_id, report_type, report_name, file_path)
                                   VALUES (?, 'Consent', ?, ?)");
-            $stmt->execute([$data->patient_id, $data->report_name, $data->file_path ?? null]);
-            Realtime::emit('reception.consent', ['patient_id' => $data->patient_id]);
+            $stmt->execute([$patientId, $reportName, $filePath]);
+            Realtime::emit('reception.consent', ['patient_id' => $patientId]);
             echo json_encode(["message" => "Consent logged"]);
         }
         break;
@@ -441,16 +437,15 @@ switch ($action) {
     // 4k. SHIFT HANDOVER
     case 'handover_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->user_id) || !isset($data->notes)) {
-                http_response_code(400);
-                echo json_encode(["message" => "User ID and notes required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $userId = RequestValidator::requireInt($data, 'user_id', 1);
+            $notes = RequestValidator::requireString($data, 'notes', 3, 2000);
+            $shiftStart = RequestValidator::optionalString($data, 'shift_start', 40);
+            $shiftEnd = RequestValidator::optionalString($data, 'shift_end', 40);
             $stmt = $db->prepare("INSERT INTO reception_handover (user_id, shift_start, shift_end, notes)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->user_id, $data->shift_start ?? null, $data->shift_end ?? null, $data->notes]);
-            Realtime::emit('reception.handover', ['user_id' => $data->user_id]);
+            $stmt->execute([$userId, $shiftStart, $shiftEnd, $notes]);
+            Realtime::emit('reception.handover', ['user_id' => $userId]);
             echo json_encode(["message" => "Handover saved"]);
         }
         break;
@@ -469,22 +464,22 @@ switch ($action) {
     // 6b. REFILL REQUEST (Receptionist)
     case 'refill_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || empty($data->medicine_name)) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient and medicine required"]);
-                exit;
-            }
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+            $medicineName = RequestValidator::requireString($data, 'medicine_name', 2, 120);
+            $quantity = isset($data->quantity) ? RequestValidator::requireInt($data, 'quantity', 1, 1000) : 1;
+            $notes = RequestValidator::optionalString($data, 'notes', 1000);
+            $requestedBy = isset($data->requested_by) && $data->requested_by !== '' ? RequestValidator::requireInt($data, 'requested_by', 1) : null;
             $stmt = $db->prepare("INSERT INTO refill_requests (patient_id, medicine_name, quantity, notes, requested_by, status)
                                   VALUES (?, ?, ?, ?, ?, 'Requested')");
             $stmt->execute([
-                $data->patient_id,
-                $data->medicine_name,
-                $data->quantity ?? 1,
-                $data->notes ?? null,
-                $data->requested_by ?? null
+                $patientId,
+                $medicineName,
+                $quantity,
+                $notes,
+                $requestedBy
             ]);
-            Realtime::emit('pharmacy.refill', ['patient_id' => $data->patient_id]);
+            Realtime::emit('pharmacy.refill', ['patient_id' => $patientId]);
             echo json_encode(["message" => "Refill request submitted"]);
         }
         break;
@@ -507,6 +502,10 @@ switch ($action) {
                 $stmt = $db->prepare("SELECT * FROM patient_vitals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50");
                 $stmt->execute([$pid]);
                 $vitals = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($vitals as &$v) {
+                    $v = array_merge($v, VitalRisk::classify($v['temperature'] ?? null, $v['pulse'] ?? null, $v['bp'] ?? null, $v['spo2'] ?? null));
+                }
+                unset($v);
 
                 $stmt = $db->prepare("SELECT * FROM patient_queue WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50");
                 $stmt->execute([$pid]);

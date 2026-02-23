@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>Changelog - 2026-02-12</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #111827; line-height: 1.45; }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 { font-size: 20px; margin-top: 24px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    ul { margin-top: 6px; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Changelog - 2026-02-12</h1>
+  <h2>Summary</h2>
+  <p>This changelog records updates completed on February 12, 2026 for API stability, Admin dashboard data accuracy, and Doctor module consolidation.</p>
+
+  <h2>Backend Changes</h2>
+  <h3>1) Users API JSON parse failure fix</h3>
+  <ul>
+    <li>File: <code>backend/routes/users.php</code></li>
+    <li>Change: Updated <code>GROUP BY</code> to include <code>u.gender</code> in <code>/users</code> list query.</li>
+    <li>Why: Prevent SQL errors on strict MySQL modes (for example <code>ONLY_FULL_GROUP_BY</code>) that can emit PHP/HTML error output and break frontend JSON parsing.</li>
+  </ul>
+
+  <h3>2) Admin staff performance now reflects live DB session presence</h3>
+  <ul>
+    <li>File: <code>backend/routes/admin.php</code></li>
+    <li>Endpoint: <code>GET /admin/staff_perf</code></li>
+    <li>Ensured session schema/table availability (<code>AuthMiddleware::ensureSessionColumns</code>, <code>AuthMiddleware::ensureSessionTable</code>).</li>
+    <li>Added live active-session presence aggregation from <code>users</code> + <code>user_sessions</code>.</li>
+    <li>Combined presence result using <code>max(presentByShifts, presentBySessions)</code>.</li>
+    <li>Added role-presence fallback from live sessions when shift-based role presence is empty.</li>
+    <li>Why: Top Admin overview tiles should use real database session state, not only current shift window overlap.</li>
+  </ul>
+
+  <h2>Frontend Changes</h2>
+  <h3>3) Admin overview metric source cleanup</h3>
+  <ul>
+    <li>File: <code>frontend/pages/admin/dashboard.html</code></li>
+    <li>Removed metric-tile overwrite logic from <code>loadUsers()</code>.</li>
+    <li>Kept overview tiles sourced from <code>/admin/staff_perf</code> via <code>loadStaffPerformance()</code>.</li>
+    <li>Why: Avoid race conditions where <code>loadUsers()</code> and <code>loadStaffPerformance()</code> disagree.</li>
+  </ul>
+
+  <h3>4) Doctor module unified to one entry page</h3>
+  <ul>
+    <li>File: <code>frontend/pages/doctor/dashboard.html</code></li>
+    <li>Added hash-based tab deep-linking support and initial hash activation on page load.</li>
+    <li>Updated tab switching to sync URL hash.</li>
+    <li>Why: Consolidate multiple doctor pages into a single module shell.</li>
+  </ul>
+
+  <h3>5) Legacy doctor pages removed</h3>
+  <ul>
+    <li><code>frontend/pages/doctor/appointments.html</code></li>
+    <li><code>frontend/pages/doctor/my_patients.html</code></li>
+    <li><code>frontend/pages/doctor/reports.html</code></li>
+    <li>Why: Complete unification of Doctor UI under <code>dashboard.html</code>.</li>
+  </ul>
+
+  <h2>Validation Performed</h2>
+  <ul>
+    <li><code>php -l backend/routes/users.php</code> -> no syntax errors.</li>
+    <li><code>php -l backend/routes/admin.php</code> -> no syntax errors.</li>
+  </ul>
+
+  <h2>Notes</h2>
+  <p>Existing unrelated workspace changes and historical log file updates were left intact.</p>
+</body>
+</html>

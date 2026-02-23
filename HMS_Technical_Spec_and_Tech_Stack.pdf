@@ -1,0 +1,306 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R 9 0 R 11 0 R 13 0 R] /Count 5 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Length 2621 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+12 TL
+(# Hospital Management System \(HMS\)) Tj
+T* (## Technical Specification and Tech Stack) Tj
+T* () Tj
+T* (Document date: February 17, 2026) Tj
+T* (Scope baseline: repository state in `c:\\xampp\\htdocs\\Hospital_Management_System`) Tj
+T* () Tj
+T* (## 1. System Overview) Tj
+T* (HMS is a role-based, multi-module web application for hospital operations. It supports Admin, ) Tj
+T* (Doctor, Nurse, Nurse Aid, Reception, Pharmacy \(including Senior Pharmacist\), and IT Support ) Tj
+T* (workflows.) Tj
+T* () Tj
+T* (Primary design goals:) Tj
+T* (- Centralized patient flow from registration to consultation and pharmacy.) Tj
+T* (- Role-based access control and protected API endpoints.) Tj
+T* (- Near real-time dashboard refresh across roles.) Tj
+T* (- Operational observability through health checks and audit logs.) Tj
+T* () Tj
+T* (## 2. Architecture) Tj
+T* (HMS follows a modular monolith + realtime sidecar pattern:) Tj
+T* (- Frontend: static HTML pages per role with vanilla JavaScript.) Tj
+T* (- Backend API: PHP entry router \(`backend/index.php`\) dispatching to route modules.) Tj
+T* (- Database: MySQL \(`hospital_db`\) with core schema + runtime ensure/migration helpers.) Tj
+T* (- Realtime service: Node.js WebSocket server \(`realtime/server.js`\) with HTTP emit bridge.) Tj
+T* () Tj
+T* (Data flow:) Tj
+T* (1. Browser calls REST-like endpoints on `backend/index.php/<module>/<action>`.) Tj
+T* (2. Backend authenticates JWT and enforces roles.) Tj
+T* (3. Backend reads/writes MySQL and logs audit events.) Tj
+T* (4. Backend emits realtime events to Node sidecar \(`/emit`\).) Tj
+T* (5. Connected dashboards refresh data through WebSocket + periodic auto-refresh.) Tj
+T* () Tj
+T* (## 3. Technology Stack) Tj
+T* (### 3.1 Backend) Tj
+T* (- Language: PHP \(XAMPP environment\).) Tj
+T* (- Dependency manager: Composer.) Tj
+T* (- Auth library: `firebase/php-jwt` ^7.0.) Tj
+T* (- API style: module/action routes through a single front controller.) Tj
+T* (- Realtime integration: HTTP POST to sidecar \(`backend/utils/Realtime.php`\).) Tj
+T* () Tj
+T* (### 3.2 Frontend) Tj
+T* (- HTML5 + CSS3 + Vanilla JavaScript.) Tj
+T* (- CSS/JS framework: Bootstrap 5.3.3.) Tj
+T* (- Icons: Bootstrap Icons 1.11.x.) Tj
+T* (- Charts: Chart.js 4.4.1 in analytics-heavy dashboards.) Tj
+T* (- Session storage: `localStorage` for JWT and user payload.) Tj
+T* () Tj
+T* (### 3.3 Realtime Service) Tj
+T* (- Runtime: Node.js 18+ \(project requirement\).) Tj
+T* (- Library: `ws` ^8.17.0.) Tj
+T* (- Ports: default HTTP + WebSocket on 8090.) Tj
+T* (- Interfaces:) Tj
+T* (  - POST `/emit` for backend event fanout.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 2942 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+12 TL
+(  - WebSocket for dashboard client subscriptions.) Tj
+T* () Tj
+T* (### 3.4 Database) Tj
+T* (- Engine: MySQL \(InnoDB + utf8mb4\).) Tj
+T* (- Bootstrap schema: `backend/config/database/hospital_db.sql`.) Tj
+T* (- Runtime schema hardening/extensions: `backend/utils/DbSchema.php`.) Tj
+T* () Tj
+T* (## 4. Key Functional Modules) Tj
+T* (- Authentication: login/logout, JWT issuance/validation, session tracking.) Tj
+T* (- Admin: user management, shifts, settings, logs, monitoring dashboards.) Tj
+T* (- Reception: patient registration, appointments, queue/check-in, referrals/consents.) Tj
+T* (- Doctor: waiting list, consultations, prescriptions, tasks/escalations/discharge.) Tj
+T* (- Nurse: beds, urgent care queues, tasks/escalations/handover, pharmacy request trigger.) Tj
+T* (- Nurse Aid: triage queue handling, admitted/discharge views, triage analytics.) Tj
+T* (- Pharmacy: pending prescriptions, dispensing, stock management, advanced pharmacy workflows.) Tj
+T* (- IT Support: system overview, ticketing, audit search and operational checks.) Tj
+T* () Tj
+T* (## 5. Authentication and Authorization) Tj
+T* (### 5.1 Authentication) Tj
+T* (- Login endpoint: `auth/login` \(POST\).) Tj
+T* (- Token format: JWT \(HS256\) with configurable issuer/audience/expiration.) Tj
+T* (- Default token lifetime: 1800 seconds \(30 minutes\).) Tj
+T* (- Session model: JWT `sid` plus database-backed `user_sessions`/session metadata.) Tj
+T* () Tj
+T* (### 5.2 Authorization) Tj
+T* (- Route-level role checks through middleware.) Tj
+T* (- Role normalization handles case/space/hyphen variants.) Tj
+T* (- Supported roles include:) Tj
+T* (  `admin`, `doctor`, `nurse`, `nurse_aid`, `pharmacist`, `senior_pharmacist`, `receptionist`, ) Tj
+T* (`it_support`.) Tj
+T* () Tj
+T* (## 6. API Surface \(High-Level\)) Tj
+T* (Routing pattern:) Tj
+T* (- Base: `/backend/index.php`) Tj
+T* (- Module dispatch by first URI segment: `auth`, `admin`, `users`, `reception`, `doctor`, ) Tj
+T* (`patients`, `nurse`, `nurse_aid`, `pharmacy`, `inventory`, `reports`, `logs`, `shifts`, ) Tj
+T* (`settings`, `it`, `health`.) Tj
+T* () Tj
+T* (Representative endpoints \(examples\):) Tj
+T* (- Auth: `/auth/login`, `/auth/logout`.) Tj
+T* (- Reception: `/reception/register`, `/reception/appointments`, `/reception/queue_list`.) Tj
+T* (- Doctor: `/doctor/waiting_list`, `/doctor/complete_refer`, `/doctor/analytics`.) Tj
+T* (- Nurse: `/nurse/beds`, `/nurse/assign_bed`, `/nurse/pharmacy_request`.) Tj
+T* (- Nurse Aid: `/nurse_aid/triage_queue`, `/nurse_aid/start_triage`.) Tj
+T* (- Pharmacy: `/pharmacy/pending`, `/pharmacy/dispense`, `/pharmacy/analytics` and advanced ) Tj
+T* (actions.) Tj
+T* (- Inventory: `/inventory/list`, `/inventory/add`, `/inventory/update`.) Tj
+T* (- IT: `/it/overview`, `/it/tickets`, `/it/ticket_create`, `/it/audit`.) Tj
+T* (- Health: `/health`.) Tj
+T* () Tj
+T* (## 7. Data Model) Tj
+T* (### 7.1 Core Tables \(bootstrap SQL\)) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 2030 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+12 TL
+(- `users`) Tj
+T* (- `user_sessions`) Tj
+T* (- `patients`) Tj
+T* (- `medicines`) Tj
+T* (- `it_tickets`) Tj
+T* (- `visits`) Tj
+T* (- `vital_signs`) Tj
+T* (- `prescriptions`) Tj
+T* (- `billings`) Tj
+T* (- `notifications`) Tj
+T* (- `contact_inquiries`) Tj
+T* () Tj
+T* (### 7.2 Runtime Extended Tables \(DbSchema helpers\)) Tj
+T* (Examples include:) Tj
+T* (- `staff_shifts`, `appointments`) Tj
+T* (- `reception_handover`, `nurse_handover`, `doctor_handover`) Tj
+T* (- `nurse_tasks`, `doctor_tasks`, escalation/discharge helper tables) Tj
+T* (- Pharmacy advanced domain tables: interactions, controlled requests, refills, suppliers, ) Tj
+T* (PO/GRN/invoices, quarantine, adjustments, insurance claims) Tj
+T* (- Audit/activity tables managed by `ActivityLogger`) Tj
+T* () Tj
+T* (## 8. Realtime and Synchronization) Tj
+T* (- Frontend connects to `ws://<hostname>:8090`.) Tj
+T* (- Backend emits events through HTTP POST to sidecar \(`/emit`\).) Tj
+T* (- Frontend combines:) Tj
+T* (  - WebSocket event-triggered refresh.) Tj
+T* (  - Fixed interval refresh \(10s\).) Tj
+T* (  - Cross-tab sync via `BroadcastChannel` and storage events.) Tj
+T* () Tj
+T* (## 9. Observability and Operations) Tj
+T* (- Health endpoint returns:) Tj
+T* (  - API status/version/time.) Tj
+T* (  - Database connectivity status.) Tj
+T* (  - Realtime socket reachability status.) Tj
+T* (- Logging:) Tj
+T* (  - Activity and audit logs through utility layer.) Tj
+T* (  - Additional auth/login debug logs under `backend/logs`.) Tj
+T* (- Monitoring scripts:) Tj
+T* (  - `scripts/monitor_watch.ps1`) Tj
+T* (  - `scripts/run_tests.ps1`) Tj
+T* (  - `scripts/smoke_test.ps1`) Tj
+T* () Tj
+T* (## 10. Deployment and Environment) Tj
+T* (Minimum local requirements:) Tj
+T* (- XAMPP \(Apache + PHP + MySQL\).) Tj
+T* (- Node.js 18+ for realtime service.) Tj
+T* () Tj
+T* (Baseline local path assumptions:) Tj
+T* (- `C:\\xampp\\htdocs\\Hospital_Management_System`) Tj
+T* () Tj
+T* (Startup order \(local\):) Tj
+T* (1. Start Apache + MySQL \(XAMPP\).) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 2531 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+12 TL
+(2. Ensure `hospital_db` schema imported.) Tj
+T* (3. Configure `backend/config/database.php` and `backend/config/jwt.php`.) Tj
+T* (4. Start realtime service in `realtime` \(`npm install`, `node server.js`\).) Tj
+T* (5. Open `frontend/pages/auth/login.html`.) Tj
+T* () Tj
+T* (## 11. Security Notes) Tj
+T* (Current implementation strengths:) Tj
+T* (- JWT-based auth.) Tj
+T* (- Role middleware.) Tj
+T* (- Session invalidation/support logic.) Tj
+T* () Tj
+T* (Hardening recommendations:) Tj
+T* (- Replace default JWT secret immediately.) Tj
+T* (- Externalize DB credentials and secrets to environment or vault.) Tj
+T* (- Restrict CORS and backend direct file access in production.) Tj
+T* (- Remove or protect utility/debug scripts before production release.) Tj
+T* (- Move to HTTPS-only deployment and secure cookie/session strategy where possible.) Tj
+T* () Tj
+T* (## 12. Known Technical Risks) Tj
+T* (- Single entry router and dynamic schema expansion may complicate strict change control.) Tj
+T* (- Some modules rely on runtime table creation; migration discipline is needed for production.) Tj
+T* (- Realtime sidecar is unauthenticated by default on local endpoint and should be network-) Tj
+T* (restricted.) Tj
+T* (- Logs may include sensitive operational metadata if not rotated/sanitized.) Tj
+T* () Tj
+T* (## 13. Suggested Next Engineering Steps) Tj
+T* (1. Introduce versioned database migrations as a mandatory deployment gate.) Tj
+T* (2. Add OpenAPI/endpoint contract documentation from route modules.) Tj
+T* (3. Add CI smoke tests for all role dashboards and critical APIs.) Tj
+T* (4. Add centralized secret management + environment-specific config.) Tj
+T* (5. Add structured logging sink and retention policy.) Tj
+T* () Tj
+T* (## 14. Source Files Used) Tj
+T* (- `README.md`) Tj
+T* (- `backend/index.php`) Tj
+T* (- `backend/composer.json`) Tj
+T* (- `backend/config/database.php`) Tj
+T* (- `backend/config/jwt.php`) Tj
+T* (- `backend/config/database/hospital_db.sql`) Tj
+T* (- `backend/middleware/AuthMiddleware.php`) Tj
+T* (- `backend/middleware/RoleMiddleware.php`) Tj
+T* (- `backend/routes/auth.php`) Tj
+T* (- `backend/routes/health.php`) Tj
+T* (- `backend/routes/pharmacy.php`) Tj
+T* (- `backend/routes/it.php`) Tj
+T* (- `backend/utils/DbSchema.php`) Tj
+T* (- `backend/utils/Realtime.php`) Tj
+T* (- `backend/services/NotificationService.php`) Tj
+T* (- `realtime/package.json`) Tj
+T* (- `realtime/server.js`) Tj
+T* (- `frontend/assets/js/app.js`) Tj
+T* (- `frontend/pages/auth/login.html`) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 94 >>
+stream
+BT
+/F1 10 Tf
+50 790 Td
+12 TL
+(- role dashboards under `frontend/pages/*/dashboard.html`) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 12 0 R >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000147 00000 n 
+0000000217 00000 n 
+0000002890 00000 n 
+0000003016 00000 n 
+0000006010 00000 n 
+0000006136 00000 n 
+0000008218 00000 n 
+0000008344 00000 n 
+0000010928 00000 n 
+0000011056 00000 n 
+0000011201 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+11329
+%%EOF

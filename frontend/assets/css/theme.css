@@ -138,3 +138,211 @@ body {
 h2, h3, h4, h5 {
     color: #0f172a;
 }
+
+/* HMS module dashboards (shared shell) */
+.hms-module {
+    --module-bg: #eaf0f6;
+    --module-surface: #ffffff;
+    --module-border: #dbe6f2;
+    --module-text: #0f172a;
+    --module-muted: #64748b;
+    --module-primary: #2563eb;
+    --module-primary-strong: #1d4ed8;
+    --module-sidebar-start: #1e3a8a;
+    --module-sidebar-end: #0f172a;
+    --module-sidebar-text: #c7d4ea;
+    --module-sidebar-title: #dbeafe;
+    --module-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
+    color: var(--module-text);
+    background:
+        radial-gradient(circle at 10% -5%, #dbeafe 0%, transparent 40%),
+        radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
+        var(--module-bg);
+}
+
+.hms-module .sidebar {
+    background: linear-gradient(180deg, var(--module-sidebar-start) 0%, var(--module-sidebar-end) 100%);
+    border-right: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.hms-module .sidebar .nav-link {
+    color: var(--module-sidebar-text);
+    border-radius: 12px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.hms-module .sidebar .nav-link:hover {
+    color: #ffffff;
+    background: color-mix(in srgb, var(--module-primary) 18%, transparent);
+}
+
+.hms-module .sidebar .nav-link.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--module-primary), color-mix(in srgb, var(--module-primary) 68%, #ffffff 32%));
+    box-shadow: 0 10px 20px -14px color-mix(in srgb, var(--module-primary) 78%, black 22%);
+}
+
+.hms-module .sidebar h4,
+.hms-module .sidebar .brand {
+    color: var(--module-sidebar-title) !important;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 0 rgba(2, 6, 23, 0.45);
+}
+
+.hms-module .mobile-topbar {
+    background: #ffffff;
+    border: 1px solid var(--module-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: var(--module-shadow);
+}
+
+.hms-module .card,
+.hms-module .stat-card,
+.hms-module .metric-tile,
+.hms-module .chart-card,
+.hms-module .soft-panel,
+.hms-module .stat-widget,
+.hms-module .ward-card,
+.hms-module .ward-toolbar,
+.hms-module .inventory-metrics {
+    border: 1px solid var(--module-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--module-shadow) !important;
+    background: var(--module-surface);
+}
+
+.hms-module .card.p-3,
+.hms-module .card.p-4 {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.hms-module .table thead th {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--module-muted);
+    background: #f1f6fc !important;
+    border-bottom: 1px solid #dce7f2;
+}
+
+.hms-module .table > :not(caption) > * > * {
+    border-bottom-color: #e6edf5;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.hms-module .table-hover tbody tr:hover {
+    background-color: #f3f8ff;
+}
+
+.hms-module .btn {
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.hms-module .btn-primary,
+.hms-module .btn-info {
+    background: linear-gradient(135deg, var(--module-primary), color-mix(in srgb, var(--module-primary) 68%, #ffffff 32%));
+    border-color: transparent;
+}
+
+.hms-module .btn-primary:hover,
+.hms-module .btn-info:hover {
+    background: linear-gradient(135deg, var(--module-primary-strong), var(--module-primary));
+    border-color: transparent;
+}
+
+.hms-module .btn-outline-dark {
+    border-color: #c9d7e6;
+    color: #1e3a5f;
+    background: #ffffff;
+}
+
+.hms-module .btn-outline-dark:hover {
+    border-color: #9eb5cc;
+    color: #0f2f4d;
+    background: #f3f8fd;
+}
+
+.hms-module .form-control,
+.hms-module .form-select {
+    border-radius: 10px;
+    border-color: #cfdcea;
+    background-color: #fbfdff;
+}
+
+.hms-module .form-control:focus,
+.hms-module .form-select:focus {
+    border-color: color-mix(in srgb, var(--module-primary) 45%, #ffffff 55%);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--module-primary) 22%, transparent);
+}
+
+.hms-module .form-label.small.fw-bold {
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.72rem !important;
+}
+
+.hms-module .modal-content {
+    border: 1px solid var(--module-border) !important;
+    border-radius: 16px !important;
+}
+
+.hms-module .modal-header {
+    background: #f7fbff;
+    border-bottom: 1px solid #e4edf7 !important;
+}
+
+.hms-module .modal-footer {
+    border-top: 1px solid #e4edf7 !important;
+}
+
+/* Role accent presets */
+.module-admin {
+    --module-primary: #2563eb;
+    --module-primary-strong: #1d4ed8;
+    --module-sidebar-start: #1e3a8a;
+    --module-sidebar-end: #0f172a;
+}
+.module-doctor {
+    --module-primary: #2563eb;
+    --module-primary-strong: #1d4ed8;
+    --module-sidebar-start: #1e3a8a;
+    --module-sidebar-end: #0f172a;
+}
+.module-nurse,
+.module-nurse-aid {
+    --module-primary: #10b981;
+    --module-primary-strong: #059669;
+    --module-sidebar-start: #064e3b;
+    --module-sidebar-end: #0f172a;
+    --module-sidebar-text: #c7d8d0;
+    --module-sidebar-title: #d1fae5;
+}
+.module-pharmacy {
+    --module-primary: #0b7db6;
+    --module-primary-strong: #075985;
+    --module-sidebar-start: #082f49;
+    --module-sidebar-end: #0f172a;
+    --module-sidebar-text: #c9d8e8;
+    --module-sidebar-title: #e0f2fe;
+}
+.module-reception {
+    --module-primary: #1d4ed8;
+    --module-primary-strong: #1e40af;
+    --module-sidebar-start: #0b3a66;
+    --module-sidebar-end: #0f172a;
+    --module-sidebar-text: #c9d8e8;
+    --module-sidebar-title: #e0f2fe;
+}
+.module-it {
+    --module-primary: #0b7db6;
+    --module-primary-strong: #075985;
+    --module-sidebar-start: #082f49;
+    --module-sidebar-end: #0f172a;
+    --module-sidebar-text: #c9d8e8;
+    --module-sidebar-title: #e0f2fe;
+}

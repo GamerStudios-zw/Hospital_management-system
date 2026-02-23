@@ -63,6 +63,47 @@ const Api = {
     post: (endpoint, data) => Api.request(endpoint, "POST", data)
 };
 
+function parseBpValue(bp) {
+    const m = String(bp || "").trim().match(/^(\d{2,3})\s*\/\s*(\d{2,3})$/);
+    if (!m) return null;
+    return { sys: Number(m[1]), dia: Number(m[2]) };
+}
+
+function classifyVitalsRisk(v) {
+    const temp = Number(v.temperature);
+    const pulse = Number(v.pulse);
+    const spo2 = Number(v.spo2);
+    const bp = parseBpValue(v.bp);
+    const red = [];
+    const orange = [];
+
+    if (Number.isFinite(temp)) {
+        if (temp < 35 || temp >= 39.5) red.push("temperature");
+        else if ((temp >= 35 && temp < 36) || (temp > 37.5 && temp < 39.5)) orange.push("temperature");
+    }
+    if (Number.isFinite(pulse)) {
+        if (pulse < 40 || pulse > 130) red.push("pulse");
+        else if ((pulse >= 40 && pulse < 50) || (pulse > 100 && pulse <= 130)) orange.push("pulse");
+    }
+    if (bp) {
+        if (bp.sys < 90 || bp.sys > 180 || bp.dia < 60 || bp.dia > 120) red.push("bp");
+        else if ((bp.sys >= 90 && bp.sys < 100) || (bp.sys > 140 && bp.sys <= 180) || (bp.dia >= 60 && bp.dia < 65) || (bp.dia > 90 && bp.dia <= 120)) orange.push("bp");
+    }
+    if (Number.isFinite(spo2)) {
+        if (spo2 < 90) red.push("spo2");
+        else if (spo2 >= 90 && spo2 <= 94) orange.push("spo2");
+    }
+
+    if (red.length) return { level: "red", label: "Urgent Care", badge: "bg-danger-subtle text-danger border border-danger" };
+    if (orange.length) return { level: "orange", label: "In Between", badge: "bg-warning-subtle text-warning border border-warning" };
+    return { level: "green", label: "Normal", badge: "bg-success-subtle text-success border border-success" };
+}
+
+function renderVitalsRiskBadge(v) {
+    const r = classifyVitalsRisk(v || {});
+    return `<span class="badge ${r.badge}">${r.label}</span>`;
+}
+
 // Global notification modal (replaces browser alerts)
 const __nativeAlert = window.alert ? window.alert.bind(window) : null;
 const __bannerState = { containerId: 'appBannerContainer', styleId: 'appBannerStyles' };

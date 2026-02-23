@@ -42,14 +42,19 @@ switch ($action) {
                       WHERE q.status IN ('With Doctor', 'with doctor')
                       ORDER BY q.created_at ASC";
             $stmt = $db->query($query);
-            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            foreach ($rows as &$row) {
+                $row = array_merge($row, VitalRisk::classify($row['temperature'] ?? null, $row['pulse'] ?? null, $row['bp'] ?? null, $row['spo2'] ?? null));
+            }
+            unset($row);
+            echo json_encode($rows);
         }
         break;
 
     // 2. COMPLETE VISIT WITH MULTIPLE/EXTERNAL PRESCRIPTIONS
     case 'complete_multiple':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->queue_id) || empty($data->notes)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Queue ID and Clinical Notes are required."]);
@@ -114,7 +119,7 @@ switch ($action) {
     // 2b. SEND PATIENT BACK TO NURSE (Urgent Care)
     case 'urgent_care':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->queue_id)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Queue ID required."]);
@@ -178,7 +183,7 @@ switch ($action) {
     // 2a. COMPLETE VISIT + REFER FOR ADMISSION (Urgent Care)
     case 'complete_refer':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->queue_id) || empty($data->notes)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Queue ID and Clinical Notes are required."]);
@@ -294,7 +299,7 @@ switch ($action) {
     // 2d. UPDATE APPOINTMENT STATUS (Doctor-specific)
     case 'appointment_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->appointment_id) || !isset($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Appointment ID and status required"]);
@@ -344,13 +349,33 @@ switch ($action) {
     // 4. GET PATIENT HISTORY
     case 'history':
         if ($method === 'GET') {
-            $pid = $_GET['patient_id'] ?? 0;
+            $pid = (int)($_GET['patient_id'] ?? 0);
+            if ($pid <= 0) {
+                http_response_code(400);
+                echo json_encode(["message" => "Patient ID required"]);
+                exit;
+            }
+            $patientStmt = $db->prepare("SELECT * FROM patients WHERE id = ?");
+            $patientStmt->execute([$pid]);
+            $vitalsStmt = $db->prepare("SELECT * FROM patient_vitals WHERE patient_id = ? ORDER BY created_at DESC");
+            $vitalsStmt->execute([$pid]);
+            $vitals = $vitalsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            foreach ($vitals as &$v) {
+                $v = array_merge($v, VitalRisk::classify($v['temperature'] ?? null, $v['pulse'] ?? null, $v['bp'] ?? null, $v['spo2'] ?? null));
+            }
+            unset($v);
+            $visitStmt = $db->prepare("SELECT * FROM patient_queue WHERE patient_id = ? ORDER BY created_at DESC");
+            $visitStmt->execute([$pid]);
+            $rxStmt = $db->prepare("SELECT pr.*, m.name as medicine_name FROM prescriptions pr LEFT JOIN medicines m ON pr.medicine_id = m.id WHERE pr.patient_id = ? ORDER BY pr.created_at DESC");
+            $rxStmt->execute([$pid]);
+            $fileStmt = $db->prepare("SELECT * FROM medical_reports WHERE patient_id = ? ORDER BY created_at DESC");
+            $fileStmt->execute([$pid]);
             $history = [
-                "patient" => $db->query("SELECT * FROM patients WHERE id = $pid")->fetch(PDO::FETCH_ASSOC),
-                "vitals" => $db->query("SELECT * FROM patient_vitals WHERE patient_id = $pid ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC),
-                "visits" => $db->query("SELECT * FROM patient_queue WHERE patient_id = $pid ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC),
-                "prescriptions" => $db->query("SELECT pr.*, m.name as medicine_name FROM prescriptions pr LEFT JOIN medicines m ON pr.medicine_id = m.id WHERE pr.patient_id = $pid ORDER BY pr.created_at DESC")->fetchAll(PDO::FETCH_ASSOC),
-                "files" => $db->query("SELECT * FROM medical_reports WHERE patient_id = $pid ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC)
+                "patient" => $patientStmt->fetch(PDO::FETCH_ASSOC),
+                "vitals" => $vitals,
+                "visits" => $visitStmt->fetchAll(PDO::FETCH_ASSOC),
+                "prescriptions" => $rxStmt->fetchAll(PDO::FETCH_ASSOC),
+                "files" => $fileStmt->fetchAll(PDO::FETCH_ASSOC)
             ];
             echo json_encode($history);
         }
@@ -415,7 +440,7 @@ switch ($action) {
     // 7. DOCTOR HANDOVER
     case 'handover_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->user_id) || empty($data->notes)) {
                 http_response_code(400);
                 echo json_encode(["message" => "User and notes required"]);
@@ -438,7 +463,7 @@ switch ($action) {
     // 8. DOCTOR TASK BOARD
     case 'task_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (empty($data->task)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Task required"]);
@@ -473,7 +498,7 @@ switch ($action) {
 
     case 'task_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->task_id) || !isset($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Task ID and status required"]);
@@ -489,7 +514,7 @@ switch ($action) {
     // 9. DOCTOR ESCALATIONS
     case 'escalation_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->patient_id) || empty($data->reason)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient and reason required"]);
@@ -528,7 +553,7 @@ switch ($action) {
 
     case 'discharge_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->patient_id) || empty($data->summary)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient and summary required"]);
@@ -564,16 +589,33 @@ switch ($action) {
     // 11. PATIENT TIMELINE
     case 'timeline':
         if ($method === 'GET') {
-            $pid = $_GET['patient_id'] ?? 0;
-            if (!$pid) {
+            $pid = (int)($_GET['patient_id'] ?? 0);
+            if ($pid <= 0) {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient ID required"]);
                 exit;
             }
-            $vitals = $db->query("SELECT created_at, CONCAT('Vitals: BP ', bp, ', T ', temperature, '°C', IF(notes IS NOT NULL AND notes <> '', CONCAT(' | Nurse notes: ', notes), '')) as note FROM patient_vitals WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-            $visits = $db->query("SELECT created_at, CONCAT('Visit status: ', status) as note FROM patient_queue WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-            $meds = $db->query("SELECT created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note FROM prescriptions pr LEFT JOIN medicines m ON pr.medicine_id = m.id WHERE pr.patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-            $docs = $db->query("SELECT created_at, CONCAT('Document: ', report_name) as note FROM medical_reports WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
+            $vitalsStmt = $db->prepare("SELECT created_at, bp, temperature, pulse, spo2, notes FROM patient_vitals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 30");
+            $vitalsStmt->execute([$pid]);
+            $vitalsRaw = $vitalsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $vitals = [];
+            foreach ($vitalsRaw as $v) {
+                $risk = VitalRisk::classify($v['temperature'] ?? null, $v['pulse'] ?? null, $v['bp'] ?? null, $v['spo2'] ?? null);
+                $note = "Vitals: BP {$v['bp']}, T {$v['temperature']}°C, SpO2 {$v['spo2']}% | {$risk['risk_label']}";
+                if (!empty($v['notes'])) {
+                    $note .= " | Nurse notes: " . $v['notes'];
+                }
+                $vitals[] = ['created_at' => $v['created_at'], 'note' => $note];
+            }
+            $visitsStmt = $db->prepare("SELECT created_at, CONCAT('Visit status: ', status) as note FROM patient_queue WHERE patient_id = ? ORDER BY created_at DESC LIMIT 30");
+            $visitsStmt->execute([$pid]);
+            $visits = $visitsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $medsStmt = $db->prepare("SELECT created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note FROM prescriptions pr LEFT JOIN medicines m ON pr.medicine_id = m.id WHERE pr.patient_id = ? ORDER BY created_at DESC LIMIT 30");
+            $medsStmt->execute([$pid]);
+            $meds = $medsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $docsStmt = $db->prepare("SELECT created_at, CONCAT('Document: ', report_name) as note FROM medical_reports WHERE patient_id = ? ORDER BY created_at DESC LIMIT 30");
+            $docsStmt->execute([$pid]);
+            $docs = $docsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             $timeline = array_merge($vitals ?: [], $visits ?: [], $meds ?: [], $docs ?: []);
             usort($timeline, function($a, $b) {

@@ -1,0 +1,119 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HMS Daily Changelog - 2026-02-23</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #111827; }
+h1 { margin: 0 0 8px 0; font-size: 24px; }
+.meta { color: #4b5563; margin-bottom: 18px; }
+h2 { margin-top: 24px; font-size: 18px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+pre { white-space: pre-wrap; word-break: break-word; font-family: Consolas, monospace; background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Hospital Management System - Daily Changelog</h1>
+<div class="meta">Date: 2026-02-23 | Generated: 2026-02-23 16:15:25</div>
+<h2>Commits Today</h2>
+<pre>No commits found for today.</pre>
+<h2>Working Tree Status</h2>
+<pre>D  CHANGELOG_2026-02-09.html
+D  CHANGELOG_2026-02-09.md
+D  CHANGELOG_2026-02-09_addendum.html
+D  CHANGELOG_2026-02-09_addendum.md
+D  CHANGELOG_2026-02-10.html
+D  CHANGELOG_2026-02-10.md
+A  CHANGELOG_2026-02-12.html
+A  CHANGELOG_2026-02-12.md
+A  CHANGELOG_2026-02-12.pdf
+A  HMS_Technical_Spec_and_Tech_Stack.md
+A  HMS_Technical_Spec_and_Tech_Stack.pdf
+ M backend/index.php
+M  backend/logs/auth_debug.log
+M  backend/logs/logout_debug.log
+M  backend/logs/system.jsonl
+MM backend/routes/admin.php
+ M backend/routes/doctor.php
+ M backend/routes/inventory.php
+ M backend/routes/it.php
+ M backend/routes/logs.php
+ M backend/routes/nurse.php
+ M backend/routes/nurse_aid.php
+ M backend/routes/pharmacy.php
+ M backend/routes/reception.php
+ M backend/routes/settings.php
+MM backend/routes/users.php
+M  frontend/assets/css/theme.css
+ M frontend/assets/js/app.js
+M  frontend/pages/admin/dashboard.html
+D  frontend/pages/admin/settings.html
+D  frontend/pages/admin/staff_management.html
+D  frontend/pages/admin/system_logs.html
+D  frontend/pages/doctor/appointments.html
+MM frontend/pages/doctor/dashboard.html
+D  frontend/pages/doctor/my_patients.html
+D  frontend/pages/doctor/reports.html
+M  frontend/pages/it/itdashboard.html
+MM frontend/pages/nurse/dashboard.html
+MM frontend/pages/nurse_aid/dashboard.html
+MM frontend/pages/pharmacy/dashboard.html
+MM frontend/pages/reception/dashboard.html
+M  realtime/start-realtime.bat
+?? HMS_PRINCIPLES_ALIGNMENT.md
+?? backend/utils/RequestValidator.php
+?? backend/utils/VitalRisk.php</pre>
+<h2>Unstaged Diff Stat</h2>
+<pre> backend/index.php                       |  38 ++++--
+ backend/routes/admin.php                |   6 +-
+ backend/routes/doctor.php               |  86 ++++++++++----
+ backend/routes/inventory.php            |   6 +-
+ backend/routes/it.php                   |   4 +-
+ backend/routes/logs.php                 |   2 +-
+ backend/routes/nurse.php                | 144 +++++++++++------------
+ backend/routes/nurse_aid.php            | 188 ++++++++++++++++--------------
+ backend/routes/pharmacy.php             | 182 ++++++++++++++++++-----------
+ backend/routes/reception.php            | 199 ++++++++++++++++----------------
+ backend/routes/settings.php             |   2 +-
+ backend/routes/users.php                |   4 +-
+ frontend/assets/js/app.js               |  41 +++++++
+ frontend/pages/doctor/dashboard.html    |  53 ++++++++-
+ frontend/pages/nurse/dashboard.html     |  52 ++++++++-
+ frontend/pages/nurse_aid/dashboard.html |  76 +++++++++++-
+ frontend/pages/pharmacy/dashboard.html  | 146 +++++++++++++++--------
+ frontend/pages/reception/dashboard.html |   8 +-
+ 18 files changed, 800 insertions(+), 437 deletions(-)</pre>
+<h2>Staged Diff Stat</h2>
+<pre> CHANGELOG_2026-02-09.html                  |  64 --
+ CHANGELOG_2026-02-09.md                    |  51 --
+ CHANGELOG_2026-02-09_addendum.html         |  50 --
+ CHANGELOG_2026-02-09_addendum.md           |  36 --
+ CHANGELOG_2026-02-10.html                  |  22 -
+ CHANGELOG_2026-02-10.md                    |  38 --
+ CHANGELOG_2026-02-12.html                  |  74 +++
+ CHANGELOG_2026-02-12.md                    |  52 ++
+ CHANGELOG_2026-02-12.pdf                   | Bin 0 -&gt; 99996 bytes
+ HMS_Technical_Spec_and_Tech_Stack.md       | 201 ++++++
+ HMS_Technical_Spec_and_Tech_Stack.pdf      | 306 +++++++++
+ backend/logs/auth_debug.log                |  81 +++
+ backend/logs/logout_debug.log              | 956 +++++++++++++++++++++++++++++
+ backend/logs/system.jsonl                  |  39 ++
+ backend/routes/admin.php                   |  35 +-
+ backend/routes/users.php                   |   5 +-
+ frontend/assets/css/theme.css              | 208 +++++++
+ frontend/pages/admin/dashboard.html        | 384 +++++++++++-
+ frontend/pages/admin/settings.html         | 152 -----
+ frontend/pages/admin/staff_management.html | 121 ----
+ frontend/pages/admin/system_logs.html      | 400 ------------
+ frontend/pages/doctor/appointments.html    | 165 -----
+ frontend/pages/doctor/dashboard.html       | 154 ++++-
+ frontend/pages/doctor/my_patients.html     | 240 --------
+ frontend/pages/doctor/reports.html         | 191 ------
+ frontend/pages/it/itdashboard.html         |  94 ++-
+ frontend/pages/nurse/dashboard.html        |   4 +-
+ frontend/pages/nurse_aid/dashboard.html    |   4 +-
+ frontend/pages/pharmacy/dashboard.html     | 257 +++++++-
+ frontend/pages/reception/dashboard.html    | 195 +++++-
+ realtime/start-realtime.bat                |  49 +-
+ 31 files changed, 3021 insertions(+), 1607 deletions(-)</pre>
+</body>
+</html>

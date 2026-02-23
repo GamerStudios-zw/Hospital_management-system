@@ -33,7 +33,7 @@ switch ($action) {
     // 2. ADD NEW STOCK
     case 'add':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if(!isset($data->name) || !isset($data->quantity)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Name and Quantity are required"]);
@@ -53,7 +53,7 @@ switch ($action) {
     // 3. UPDATE STOCK (Fixed to include price)
     case 'update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if(!isset($data->id)) { http_response_code(400); exit; }
 
             // UPDATED: Added price=? to the query
@@ -87,7 +87,7 @@ switch ($action) {
     // 5. DELETE STOCK
     case 'delete':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if(!isset($data->id)) { http_response_code(400); exit; }
             $stmt = $db->prepare("DELETE FROM medicines WHERE id = ?");
             if($stmt->execute([$data->id])) {

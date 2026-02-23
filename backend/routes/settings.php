@@ -63,7 +63,7 @@ switch ($action) {
             break;
         }
 
-        $data = json_decode(file_get_contents("php://input"));
+        $data = RequestValidator::json();
         $name = trim($data->hospital_name ?? '');
         $email = trim($data->contact_email ?? '');
         $maintenance = !empty($data->maintenance_mode) ? 1 : 0;

@@ -207,7 +207,7 @@ switch ($action) {
 
     case 'ticket_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             $title = trim($data->title ?? '');
             $description = trim($data->description ?? '');
             $priority = strtolower(trim($data->priority ?? 'normal'));
@@ -274,7 +274,7 @@ switch ($action) {
     case 'ticket_update':
         $requireIt();
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->id)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Ticket ID required"]);

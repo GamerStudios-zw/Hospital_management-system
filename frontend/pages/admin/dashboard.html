@@ -35,6 +35,10 @@
         .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
         .sidebar-backdrop.show { display: block; }
         .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .chart-compact { height: 170px; }
+        .chart-compact canvas { height: 170px !important; max-height: 170px; }
+        .log-table-wrap { max-height: 480px; overflow-y: auto; }
+        .log-table-wrap thead th { position: sticky; top: 0; z-index: 2; background: #f8fafc; box-shadow: inset 0 -1px 0 #dee2e6; }
 
         @media (max-width: 992px) {
             .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; width: 240px; z-index: 1040; transition: left 0.25s ease; }
@@ -46,7 +50,7 @@
         }
     </style>
 </head>
-<body>
+<body class="hms-module module-admin">
 <div class="container-fluid">
     <div class="row">
         <nav class="col-md-2 sidebar px-3">
@@ -54,9 +58,9 @@
             <ul class="nav flex-column">
                 <li class="nav-item"><a onclick="showSection('overview')" class="nav-link active" id="nav-overview">Dashboard</a></li>
                 <li class="nav-item"><a onclick="showSection('shifts_admin')" class="nav-link" id="nav-shifts">Manage Shifts</a></li>
-                <li class="nav-item"><a href="staff_management.html" class="nav-link">Staff Management</a></li>
-                <li class="nav-item"><a href="system_logs.html" class="nav-link">System Logs</a></li>
-                <li class="nav-item"><a href="settings.html" class="nav-link">Settings</a></li>
+                <li class="nav-item"><a onclick="showSection('staff_admin')" class="nav-link" id="nav-staff">Staff Management</a></li>
+                <li class="nav-item"><a onclick="showSection('logs_admin')" class="nav-link" id="nav-logs">System Logs</a></li>
+                <li class="nav-item"><a onclick="showSection('settings_admin')" class="nav-link" id="nav-settings">Settings</a></li>
                 <li class="nav-item"><a onclick="openChangePasswordModal()" class="nav-link">Change Password</a></li>
                 <li class="nav-item">
                     <button id="logoutBtn" class="nav-link text-danger w-100 text-start border-0 bg-transparent">
@@ -261,6 +265,123 @@
                     </div>
                 </div>
             </div>
+
+            <div id="staff_admin" class="section">
+                <div class="header-nav">
+                    <div><h2 class="fw-bold m-0">Staff Directory</h2><p class="text-muted m-0">Manage accounts and sessions.</p></div>
+                    <button class="btn btn-outline-dark" onclick="loadUsers()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card stat-card">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr><th>Name</th><th>Username</th><th>Gender</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="logs_admin" class="section">
+                <div class="header-nav">
+                    <div><h2 class="fw-bold m-0">Activity Audit Logs</h2><p class="text-muted m-0">Trace user actions and system events.</p></div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm p-4 h-100">
+                            <h6 class="fw-bold mb-3">Logs by Severity</h6>
+                            <div class="chart-compact"><canvas id="logSeverityChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm p-4 h-100">
+                            <h6 class="fw-bold mb-3">Top Sources</h6>
+                            <div class="chart-compact"><canvas id="logSourceChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm p-4 h-100">
+                            <h6 class="fw-bold mb-3">Log Volume (Last 7 Days)</h6>
+                            <div class="chart-compact"><canvas id="logDayChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                            <h5 class="mb-0 fw-bold">Audit & Activity Logs</h5>
+                            <div class="d-flex gap-2 w-100 w-lg-auto">
+                                <button class="btn btn-sm btn-outline-secondary w-100 w-lg-auto" onclick="exportLogs()"><i class="bi bi-download me-1"></i> Export CSV</button>
+                                <button class="btn btn-sm btn-primary w-100 w-lg-auto" onclick="applyLogFilters()"><i class="bi bi-funnel me-1"></i> Apply Filters</button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-3">
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Start</label><input type="date" class="form-control form-control-sm" id="logFilterStart"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">End</label><input type="date" class="form-control form-control-sm" id="logFilterEnd"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">User</label><input type="text" class="form-control form-control-sm" id="logFilterUser" placeholder="username"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Event Type</label><input type="text" class="form-control form-control-sm" id="logFilterEventType" placeholder="audit, activity"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Entity</label><input type="text" class="form-control form-control-sm" id="logFilterEntityType" placeholder="user, patient"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Entity ID</label><input type="text" class="form-control form-control-sm" id="logFilterEntityId" placeholder="123"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Status</label><select class="form-select form-select-sm" id="logFilterStatus"><option value="">Any</option><option value="Success">Success</option><option value="Failed">Failed</option><option value="Warning">Warning</option></select></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Severity</label><select class="form-select form-select-sm" id="logFilterSeverity"><option value="">Any</option><option value="INFO">INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option></select></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Source</label><input type="text" class="form-control form-control-sm" id="logFilterSource" placeholder="route"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Request ID</label><input type="text" class="form-control form-control-sm" id="logFilterRequestId" placeholder="req id"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Search</label><input type="text" class="form-control form-control-sm" id="logFilterQuery" placeholder="action, error"></div>
+                            <div class="col-6 col-md-3 col-lg-2"><label class="form-label small mb-1">Limit</label><input type="number" min="1" max="500" class="form-control form-control-sm" id="logFilterLimit" value="100"></div>
+                            <div class="col-12 col-md-3 col-lg-2 d-flex align-items-end"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="logFilterIncludeAudit" checked><label class="form-check-label small" for="logFilterIncludeAudit">Include audit</label></div></div>
+                        </div>
+                    </div>
+                    <div class="table-responsive log-table-wrap">
+                        <table class="table table-hover align-middle mb-0 text-nowrap">
+                            <thead class="table-light">
+                                <tr><th>Timestamp</th><th>User</th><th>Role</th><th>Event</th><th>Action</th><th>Entity</th><th>Status</th><th>Severity</th><th>IP</th><th>Request</th><th>Duration</th></tr>
+                            </thead>
+                            <tbody id="adminLogsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings_admin" class="section">
+                <div class="header-nav">
+                    <div><h2 class="fw-bold m-0">System Configurations</h2><p class="text-muted m-0">General settings, backups, and security controls.</p></div>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold">General Information</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Hospital Name</label>
+                                    <input type="text" class="form-control" id="hospitalNameInput" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contact Email</label>
+                                    <input type="email" class="form-control" id="contactEmailInput" value="">
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="maintenanceMode">
+                                    <label class="form-check-label" for="maintenanceMode">Maintenance Mode (Block Access)</label>
+                                </div>
+                                <button type="button" class="btn btn-primary mt-3" onclick="saveSettings()">Save Changes</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold">Data & Security</div>
+                            <div class="card-body">
+                                <h6 class="fw-bold">Database Backup</h6>
+                                <p class="text-muted small">Download current users/settings snapshot.</p>
+                                <button class="btn btn-outline-success mb-4" onclick="downloadBackup()"><i class="bi bi-cloud-download me-2"></i> Download Backup</button>
+                                <h6 class="fw-bold text-danger">Danger Zone</h6>
+                                <button class="btn btn-outline-danger w-100 text-start" onclick="resetPasswords()"><i class="bi bi-exclamation-triangle-fill me-2"></i> Reset All System Passwords</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 </div>
@@ -344,6 +465,9 @@
     let shiftTypeChart = null;
     let presentRoleChart = null;
     let deptUtilChart = null;
+    let logSeverityChart = null;
+    let logSourceChart = null;
+    let logDayChart = null;
 
     document.addEventListener("DOMContentLoaded", () => {
         protectPage('admin');
@@ -352,15 +476,38 @@
         loadStaffPerformance();
         loadMonitorData();
         setupLogout();
+        activateInitialAdminSection();
     });
 
     function showSection(sectionId) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        document.getElementById(sectionId).classList.add('active');
-        document.getElementById('nav-' + (sectionId === 'overview' ? 'overview' : 'shifts')).classList.add('active');
+        const target = document.getElementById(sectionId);
+        if (!target) return;
+        target.classList.add('active');
+
+        const navMap = {
+            overview: 'nav-overview',
+            shifts_admin: 'nav-shifts',
+            staff_admin: 'nav-staff',
+            logs_admin: 'nav-logs',
+            settings_admin: 'nav-settings'
+        };
+        Object.values(navMap).forEach((id) => document.getElementById(id)?.classList.remove('active'));
+        document.getElementById(navMap[sectionId])?.classList.add('active');
+
+        history.replaceState(null, '', `#${sectionId}`);
         if (sectionId === 'shifts_admin') loadAllShifts();
+        if (sectionId === 'staff_admin') loadUsers();
+        if (sectionId === 'logs_admin') { loadLogs(); loadLogAnalytics(); }
+        if (sectionId === 'settings_admin') loadSettings();
         toggleSidebar(false);
+    }
+
+    function activateInitialAdminSection() {
+        const sectionId = (window.location.hash || '').replace('#', '').trim();
+        if (!sectionId) return;
+        const valid = ['overview', 'shifts_admin', 'staff_admin', 'logs_admin', 'settings_admin'];
+        if (valid.includes(sectionId)) showSection(sectionId);
     }
 
     function toggleSidebar(show) {
@@ -400,14 +547,9 @@
         cachedUsers = users || [];
         const tbody = document.getElementById('usersTableBody');
         if (tbody) tbody.innerHTML = '';
-        let doctors = 0, nurses = 0, receptionists = 0;
 
         cachedUsers.forEach(u => {
             const role = (u.role || '').toLowerCase();
-            if(role === 'doctor') doctors++;
-            else if(role === 'nurse') nurses++;
-            else if(role === 'receptionist') receptionists++;
-
             let badge = role === 'doctor' ? 'bg-primary'
                 : role === 'nurse' ? 'bg-success'
                 : role === 'receptionist' ? 'bg-warning text-dark'
@@ -420,18 +562,12 @@
             const statusBadge = isActive ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary';
             const statusLabel = isActive ? 'Online' : 'Offline';
             if (tbody) {
-                tbody.innerHTML += `<tr><td class="fw-bold">${u.full_name}</td><td>${u.username}</td><td><span class="badge ${badge}">${u.role.toUpperCase()}</span></td><td><span class="badge ${statusBadge}">${statusLabel}</span></td><td><button class="btn btn-sm btn-warning me-1" onclick="forceLogoutUser(${u.id}, '${(u.full_name || '').replace(/'/g, "\\'")}')"><i class="bi bi-box-arrow-right"></i></button><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+                tbody.innerHTML += `<tr><td class="fw-bold">${u.full_name}</td><td>${u.username}</td><td>${u.gender || '-'}</td><td><span class="badge ${badge}">${u.role.toUpperCase()}</span></td><td><span class="badge ${statusBadge}">${statusLabel}</span></td><td><button class="btn btn-sm btn-warning me-1" onclick="forceLogoutUser(${u.id}, '${(u.full_name || '').replace(/'/g, "\\'")}')"><i class="bi bi-box-arrow-right"></i></button><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="bi bi-trash"></i></button></td></tr>`;
             }
         });
-        const totalDoctorsEl = document.getElementById('totalDoctors');
-        const activeNursesEl = document.getElementById('activeNurses');
-        const totalReceptionistsEl = document.getElementById('totalReceptionists');
-        if (totalDoctorsEl && !totalDoctorsEl.dataset.locked) {
-            totalDoctorsEl.innerText = doctors;
-            if (activeNursesEl) activeNursesEl.innerText = nurses;
-            if (totalReceptionistsEl) totalReceptionistsEl.innerText = receptionists;
+        if (tbody && !cachedUsers.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No staff members found.</td></tr>';
         }
-
         const staffSelect = document.getElementById('monitorStaff');
         if (staffSelect) {
             const current = staffSelect.value;
@@ -647,6 +783,212 @@
         const receptionRecent = document.getElementById('receptionRecent');
         const receptionItems = (data.reception?.recent_activity || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         receptionRecent.innerHTML = receptionItems.map(formatRecent).join('') || '<li class="small text-muted">No recent activity.</li>';
+    }
+
+    function logLast7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(Date.now() - i * 86400000);
+            days.push({
+                key: d.toISOString().slice(0, 10),
+                label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+            });
+        }
+        return days;
+    }
+
+    function getLogFilters() {
+        return {
+            start: document.getElementById('logFilterStart')?.value || '',
+            end: document.getElementById('logFilterEnd')?.value || '',
+            username: document.getElementById('logFilterUser')?.value.trim() || '',
+            event_type: document.getElementById('logFilterEventType')?.value.trim() || '',
+            entity_type: document.getElementById('logFilterEntityType')?.value.trim() || '',
+            entity_id: document.getElementById('logFilterEntityId')?.value.trim() || '',
+            status: document.getElementById('logFilterStatus')?.value || '',
+            severity: document.getElementById('logFilterSeverity')?.value || '',
+            source: document.getElementById('logFilterSource')?.value.trim() || '',
+            request_id: document.getElementById('logFilterRequestId')?.value.trim() || '',
+            q: document.getElementById('logFilterQuery')?.value.trim() || '',
+            limit: document.getElementById('logFilterLimit')?.value || '100',
+            include_audit: document.getElementById('logFilterIncludeAudit')?.checked ? '1' : '0'
+        };
+    }
+
+    function buildLogQueryString(filters) {
+        const params = new URLSearchParams();
+        Object.keys(filters).forEach((key) => {
+            const value = filters[key];
+            if (value !== null && value !== undefined && value !== '') {
+                params.append(key, value);
+            }
+        });
+        return params.toString();
+    }
+
+    function applyLogFilters() {
+        loadLogs();
+        loadLogAnalytics();
+    }
+
+    async function loadLogAnalytics() {
+        if (!document.getElementById('logSeverityChart')) return;
+        const query = buildLogQueryString(getLogFilters());
+        const data = await Api.get('/logs/analytics' + (query ? `?${query}` : ''));
+        if (!data) return;
+
+        const severityRows = data.by_severity || [];
+        const severityLabels = severityRows.length ? severityRows.map(r => r.severity) : ['No Data'];
+        const severityValues = severityRows.length ? severityRows.map(r => Number(r.count) || 0) : [1];
+        if (logSeverityChart) logSeverityChart.destroy();
+        logSeverityChart = new Chart(document.getElementById('logSeverityChart'), {
+            type: 'doughnut',
+            data: { labels: severityLabels, datasets: [{ data: severityValues, backgroundColor: ['#10b981','#f59e0b','#ef4444','#6b7280','#94a3b8'] }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const sourceRows = data.by_source || [];
+        const sourceLabels = sourceRows.length ? sourceRows.map(r => r.source || 'unknown') : ['No Data'];
+        const sourceValues = sourceRows.length ? sourceRows.map(r => Number(r.count) || 0) : [0];
+        if (logSourceChart) logSourceChart.destroy();
+        logSourceChart = new Chart(document.getElementById('logSourceChart'), {
+            type: 'bar',
+            data: { labels: sourceLabels, datasets: [{ data: sourceValues, backgroundColor: '#2563eb' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
+        const days = logLast7Days();
+        const dayMap = Object.fromEntries((data.by_day || []).map(r => [r.day, r.count]));
+        if (logDayChart) logDayChart.destroy();
+        logDayChart = new Chart(document.getElementById('logDayChart'), {
+            type: 'line',
+            data: {
+                labels: days.map(d => d.label),
+                datasets: [{ label: 'Logs', data: days.map(d => dayMap[d.key] || 0), borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.2)', tension: 0.3 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function logStatusBadge(status) {
+        if (status === 'Failed') return 'danger';
+        if (status === 'Warning') return 'warning text-dark';
+        return 'success';
+    }
+
+    function logSeverityBadge(severity) {
+        if (severity === 'ERROR') return 'danger';
+        if (severity === 'WARN') return 'warning text-dark';
+        return 'secondary';
+    }
+
+    function safeLogVal(value, fallback = '-') {
+        if (value === null || value === undefined || value === '') return fallback;
+        return value;
+    }
+
+    async function loadLogs() {
+        const tbody = document.getElementById('adminLogsTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">Loading system logs...</td></tr>';
+
+        const query = buildLogQueryString(getLogFilters());
+        const logs = await Api.get('/logs/list' + (query ? `?${query}` : ''));
+        tbody.innerHTML = '';
+
+        if (logs && logs.length > 0) {
+            logs.forEach(log => {
+                const dateObj = new Date(log.created_at);
+                const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const statusBadge = logStatusBadge(log.status);
+                const severityBadge = logSeverityBadge(log.severity);
+                const entity = [log.entity_type, log.entity_id].filter(Boolean).join(':') || '-';
+                const duration = log.duration_ms ? `${log.duration_ms} ms` : '-';
+                const requestId = log.request_id ? log.request_id : '-';
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="text-muted small">${dateStr}</td>
+                        <td class="fw-bold">${safeLogVal(log.username)}</td>
+                        <td class="small">${safeLogVal(log.actor_role)}</td>
+                        <td class="small">${safeLogVal(log.event_type)}</td>
+                        <td>${safeLogVal(log.action)}</td>
+                        <td class="small">${safeLogVal(entity)}</td>
+                        <td><span class="badge bg-${statusBadge}">${safeLogVal(log.status)}</span></td>
+                        <td><span class="badge bg-${severityBadge}">${safeLogVal(log.severity)}</span></td>
+                        <td class="font-monospace small">${safeLogVal(log.ip_address)}</td>
+                        <td class="font-monospace small">${safeLogVal(requestId)}</td>
+                        <td class="small">${safeLogVal(duration)}</td>
+                    </tr>
+                `;
+            });
+            return;
+        }
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">No activity logs found.</td></tr>';
+    }
+
+    async function exportLogs() {
+        const query = buildLogQueryString(getLogFilters());
+        const url = `${CONFIG.BASE_URL}/logs/export${query ? '?' + query : ''}`;
+        const response = await fetch(url, { headers: { "Authorization": "Bearer " + Api.getToken() } });
+        if (!response.ok) {
+            notify("Export failed");
+            return;
+        }
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'system_logs.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    async function loadSettings() {
+        const data = await Api.get('/settings/load');
+        if (!data) return;
+        const hospitalInput = document.getElementById('hospitalNameInput');
+        const contactInput = document.getElementById('contactEmailInput');
+        const mode = document.getElementById('maintenanceMode');
+        if (hospitalInput) hospitalInput.value = data.hospital_name || '';
+        if (contactInput) contactInput.value = data.contact_email || '';
+        if (mode) mode.checked = !!data.maintenance_mode;
+    }
+
+    async function saveSettings() {
+        const payload = {
+            hospital_name: document.getElementById('hospitalNameInput')?.value.trim() || '',
+            contact_email: document.getElementById('contactEmailInput')?.value.trim() || '',
+            maintenance_mode: document.getElementById('maintenanceMode')?.checked || false
+        };
+        const result = await Api.post('/settings/update', payload);
+        if (result) notify('System settings saved.');
+    }
+
+    async function downloadBackup() {
+        try {
+            const res = await fetch(`${CONFIG.BACKEND_ROOT}/backup.php`, { headers: { "Authorization": "Bearer " + Api.getToken() } });
+            if (!res.ok) {
+                notify("Backup failed. Please try again.");
+                return;
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hms_users_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            notify("Backup failed. Please try again.");
+        }
+    }
+
+    async function resetPasswords() {
+        if (!confirm("DANGER: This will reset EVERY staff member's password to 'Staff123!'.\n\nAre you sure?")) return;
+        const result = await Api.post('/settings/reset_passwords', {});
+        if (result) notify('All passwords have been reset.');
     }
 </script>
 </body>

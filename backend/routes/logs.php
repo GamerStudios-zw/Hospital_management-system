@@ -382,7 +382,7 @@ switch ($action) {
     // 2. CREATE NEW LOG (Internal Use)
     case 'create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
 
             if(!isset($data->username) || !isset($data->action)) {
                 http_response_code(400);

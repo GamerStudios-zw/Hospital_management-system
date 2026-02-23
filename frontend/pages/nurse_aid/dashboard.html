@@ -6,6 +6,7 @@
     <title>Nurse Aid Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="../../assets/css/fonts.css" rel="stylesheet">
+    <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         body { font-family: var(--app-font); background: #f1f5f9; color: #1e293b; }
@@ -32,9 +33,10 @@
             .chart-compact { height: 150px; }
             .modal-dialog { max-width: 95%; margin: 1rem auto; }
         }
+
     </style>
 </head>
-<body>
+<body class="hms-module module-nurse-aid">
 
 <div class="container-fluid p-0">
     <div class="row g-0">
@@ -65,6 +67,17 @@
             <div class="mobile-topbar d-lg-none">
                 <button class="btn btn-outline-success btn-sm" onclick="toggleSidebar(true)"><i class="bi bi-list"></i></button>
                 <div class="fw-bold text-success">Nurse Aid Dashboard</div>
+            </div>
+            <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-8">
+                        <label for="nurseAidPatientSearch" class="form-label small fw-bold mb-1">Search Patient</label>
+                        <input id="nurseAidPatientSearch" type="text" class="form-control" placeholder="Search by patient name, ID, ward, status..." oninput="applyNurseAidPatientSearch()">
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <button class="btn btn-outline-dark btn-sm mt-4 mt-md-0" onclick="clearNurseAidPatientSearch()"><i class="bi bi-x-circle me-1"></i> Clear</button>
+                    </div>
+                </div>
             </div>
             <section id="triage" class="tab-section active">
                 <div class="d-flex justify-content-between align-items-end mb-4">
@@ -123,10 +136,11 @@
                                     <th>Pulse</th>
                                     <th>BP</th>
                                     <th>SpO2</th>
+                                    <th>Risk</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTableBody">
-                                <tr><td colspan="6" class="text-center text-muted py-4">Load history to view entries.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted py-4">Load history to view entries.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -209,19 +223,19 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">BP</label>
-                            <input id="vBp" type="text" class="form-control" placeholder="120/80" required>
+                            <input id="vBp" type="text" class="form-control" placeholder="120/80" pattern="\d{2,3}/\d{2,3}" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Weight (kg)</label>
-                            <input id="vWeight" type="number" step="0.1" class="form-control">
+                            <input id="vWeight" type="number" min="1" max="500" step="0.1" class="form-control" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">SpO2</label>
-                            <input id="vSpo2" type="number" class="form-control">
+                            <input id="vSpo2" type="number" min="50" max="100" class="form-control" required>
                         </div>
                         <div class="col-md-12">
                             <label class="form-label small fw-bold">Nurse Aid Notes</label>
-                            <textarea id="vNotes" class="form-control" rows="3" placeholder="Add clinical notes..."></textarea>
+                            <textarea id="vNotes" class="form-control" rows="3" maxlength="2000" placeholder="Add clinical notes..." required></textarea>
                         </div>
                     </div>
                 </div>
@@ -247,6 +261,35 @@
     let triageChart = null;
     let vitalsMode = 'triage';
     let reminderIntervalId = null;
+
+    function filterNurseAidTable(tbodyId, query) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        const q = String(query || '').trim().toLowerCase();
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.forEach((row) => {
+            const text = (row.textContent || '').toLowerCase();
+            const isPlaceholder = row.querySelector('td[colspan]') !== null;
+            if (!q || isPlaceholder) {
+                row.style.display = '';
+                return;
+            }
+            row.style.display = text.includes(q) ? '' : 'none';
+        });
+    }
+
+    function applyNurseAidPatientSearch() {
+        const input = document.getElementById('nurseAidPatientSearch');
+        const query = input ? input.value : '';
+        ['triageTable', 'historyTableBody', 'dailyVitalsTable', 'dischargeTable'].forEach(id => filterNurseAidTable(id, query));
+    }
+
+    function clearNurseAidPatientSearch() {
+        const input = document.getElementById('nurseAidPatientSearch');
+        if (!input) return;
+        input.value = '';
+        applyNurseAidPatientSearch();
+    }
 
     function switchTab(id, el) {
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -315,6 +358,7 @@
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No patients awaiting triage.</td></tr>';
             document.getElementById('statPending').innerText = '0';
         }
+        applyNurseAidPatientSearch();
     }
 
     function openVitalsModal(q, mode) {
@@ -356,6 +400,12 @@
         const spo2 = document.getElementById('vSpo2').value.trim();
         const notes = document.getElementById('vNotes').value.trim();
 
+        const bpOk = /^\d{2,3}\/\d{2,3}$/.test(bp);
+        const temperatureNum = Number(temperature);
+        const pulseNum = Number(pulse);
+        const weightNum = Number(weight);
+        const spo2Num = Number(spo2);
+
         if (!temperature || !pulse || !bp || !weight || !spo2 || !notes) {
             if (saveBtn) {
                 saveBtn.disabled = false;
@@ -363,6 +413,14 @@
             }
             isSavingVitals = false;
             return notify("All vitals fields and notes are required");
+        }
+        if (!bpOk || temperatureNum < 30 || temperatureNum > 45 || pulseNum < 20 || pulseNum > 250 || weightNum < 1 || weightNum > 500 || spo2Num < 50 || spo2Num > 100 || notes.length < 3) {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Doctor';
+            }
+            isSavingVitals = false;
+            return notify("Invalid vitals. Check ranges and BP format (e.g., 120/80).", "warning");
         }
 
         const data = {
@@ -430,11 +488,13 @@
                         <td>${r.pulse ?? '-'}</td>
                         <td>${r.bp ?? '-'}</td>
                         <td>${r.spo2 ?? '-'}</td>
+                        <td>${renderVitalsRiskBadge(r)}</td>
                     </tr>`;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No history found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No history found.</td></tr>';
         }
+        applyNurseAidPatientSearch();
     }
 
 
@@ -486,6 +546,9 @@
                 const lastVitalsText = lastVitalsAt
                     ? `T: ${lastTemp ?? '-'}°C | P: ${lastPulse ?? '-'} | BP: ${r.last_bp || '-'} | SpO2: ${lastSpO2 ?? '-'}`
                     : 'No vitals recorded';
+                const vitalsRiskBadge = lastVitalsAt
+                    ? renderVitalsRiskBadge({ temperature: lastTemp, pulse: lastPulse, bp: r.last_bp, spo2: lastSpO2 })
+                    : '<span class="badge bg-secondary-subtle text-secondary">No Data</span>';
 
                 const trends = [];
                 const tempTrend = diffLabel('Temp', lastTemp, prevTemp, '°C');
@@ -518,6 +581,7 @@
                         <td>
                             <div class="small text-muted">${lastVitalsLabel}</div>
                             <div class="small">${lastVitalsText}</div>
+                            <div class="mt-1">${vitalsRiskBadge}</div>
                         </td>
                         <td><div class="small text-muted">${trendText}</div></td>
                         <td>${statusBadge}</td>
@@ -527,6 +591,7 @@
         } else {
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No admitted or urgent care patients.</td></tr>';
         }
+        applyNurseAidPatientSearch();
     }
 
     function startVitalsReminders() {
@@ -576,6 +641,7 @@
         } else {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No discharge summaries yet.</td></tr>';
         }
+        applyNurseAidPatientSearch();
     }
 
     async function showNurseAidLoginBanner() {

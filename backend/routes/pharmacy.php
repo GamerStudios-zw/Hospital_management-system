@@ -26,11 +26,34 @@ $normalizeRequestStatus = function ($status) {
     if ($s === 'completed') return 'Completed';
     return 'Pending';
 };
+$normalizeDecisionStatus = function ($status, $allowed, $default = null) {
+    $candidate = strtolower(trim((string)$status));
+    foreach ($allowed as $v) {
+        if ($candidate === strtolower($v)) {
+            return $v;
+        }
+    }
+    return $default;
+};
 $requireSeniorPharmacy = function () use ($normalizedRole) {
     if ($normalizedRole !== 'senior_pharmacist') {
         http_response_code(403);
         echo json_encode(["message" => "This action requires senior pharmacist access."]);
         exit;
+    }
+};
+$audit = function ($actionName, $entityType = null, $entityId = null, $status = 'Success', $extra = []) use ($db, $user) {
+    try {
+        ActivityLogger::log($db, $user->full_name ?? 'pharmacist', $actionName, $status, null, array_merge([
+            'event_type' => 'audit',
+            'entity_type' => $entityType,
+            'entity_id' => $entityId ? (string)$entityId : null,
+            'actor_id' => isset($user->id) ? (string)$user->id : null,
+            'actor_role' => $user->role ?? 'pharmacist',
+            'source' => 'pharmacy'
+        ], $extra));
+    } catch (Exception $e) {
+        // ignore logging errors
     }
 };
 
@@ -96,7 +119,7 @@ switch ($action) {
     // 2. DISPENSE MEDICATION (Transaction Safe)
     case 'dispense':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
 
             if(!isset($data->prescription_id)) {
                 http_response_code(400);
@@ -118,7 +141,7 @@ switch ($action) {
                     $ctrl = $db->prepare("SELECT requires_approval FROM controlled_substances WHERE medicine_id = ?");
                     $ctrl->execute([$presc['medicine_id']]);
                     $requires = $ctrl->fetchColumn();
-                    if ($requires && !in_array($normalizedRole, ['pharmacist', 'senior_pharmacist', 'admin'], true)) {
+                    if ((int)$requires === 1 && !in_array($normalizedRole, ['senior_pharmacist', 'admin'], true)) {
                         $appr = $db->prepare("SELECT COUNT(*) FROM controlled_requests WHERE prescription_id = ? AND status = 'Approved'");
                         $appr->execute([$data->prescription_id]);
                         if ((int)$appr->fetchColumn() === 0) {
@@ -159,18 +182,7 @@ switch ($action) {
                 }
 
                 $db->commit();
-                try {
-                    ActivityLogger::log($db, $user->full_name ?? 'pharmacist', 'Dispensed medication', 'Success', null, [
-                        'event_type' => 'audit',
-                        'entity_type' => 'prescription',
-                        'entity_id' => (string)$data->prescription_id,
-                        'actor_id' => isset($user->id) ? (string)$user->id : null,
-                        'actor_role' => $user->role ?? 'pharmacist',
-                        'source' => 'pharmacy/dispense'
-                    ]);
-                } catch (Exception $e) {
-                    // ignore logging errors
-                }
+                $audit('Dispensed medication', 'prescription', $data->prescription_id, 'Success', ['source' => 'pharmacy/dispense']);
                 Realtime::emit('pharmacy.dispense', ['prescription_id' => $data->prescription_id]);
                 echo json_encode(["message" => "Medication dispensed successfully"]);
 
@@ -185,7 +197,7 @@ switch ($action) {
     // 2b. UPDATE NURSE REQUEST STATUS
     case 'nurse_request_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->request_id) || !isset($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Request ID and status are required."]);
@@ -195,18 +207,10 @@ switch ($action) {
                 $status = $normalizeRequestStatus($data->status);
                 $stmt = $db->prepare("UPDATE pharmacy_requests SET status = ? WHERE id = ?");
                 $stmt->execute([$status, $data->request_id]);
-                try {
-                    ActivityLogger::log($db, $user->full_name ?? 'pharmacist', 'Updated nurse pharmacy request', 'Success', null, [
-                        'event_type' => 'audit',
-                        'entity_type' => 'pharmacy_request',
-                        'entity_id' => (string)$data->request_id,
-                        'actor_id' => isset($user->id) ? (string)$user->id : null,
-                        'actor_role' => $user->role ?? 'pharmacist',
-                        'source' => 'pharmacy/nurse_request_update'
-                    ]);
-                } catch (Exception $e) {
-                    // ignore logging errors
-                }
+                $audit('Updated nurse pharmacy request', 'pharmacy_request', $data->request_id, 'Success', [
+                    'source' => 'pharmacy/nurse_request_update',
+                    'new_values' => ['status' => $status]
+                ]);
                 Realtime::emit('pharmacy.request_update', ['request_id' => $data->request_id]);
                 echo json_encode(["message" => "Request updated."]);
             } catch (Exception $e) {
@@ -307,7 +311,7 @@ switch ($action) {
 
     case 'interactions_add':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (empty($data->drug_a) || empty($data->drug_b)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Both drugs required"]);
@@ -321,25 +325,28 @@ switch ($action) {
                 $data->severity ?? 'moderate',
                 $data->notes ?? null
             ]);
+            $audit('Added drug interaction rule', 'drug_interaction', $db->lastInsertId(), 'Success', ['source' => 'pharmacy/interactions_add']);
             echo json_encode(["message" => "Interaction rule added"]);
         }
         break;
 
     case 'interactions_check':
         if ($method === 'GET') {
-            $pid = $_GET['patient_id'] ?? 0;
+            $pid = (int)($_GET['patient_id'] ?? 0);
             $med = trim($_GET['medicine'] ?? '');
             if (!$pid || $med === '') {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient and medicine required"]);
                 exit;
             }
-            $current = $db->query("SELECT COALESCE(m.name, pr.notes) as med
-                                   FROM prescriptions pr
-                                   LEFT JOIN medicines m ON pr.medicine_id = m.id
-                                   WHERE pr.patient_id = $pid
-                                   ORDER BY pr.created_at DESC
-                                   LIMIT 20")->fetchAll(PDO::FETCH_COLUMN);
+            $currentStmt = $db->prepare("SELECT COALESCE(m.name, pr.notes) as med
+                                         FROM prescriptions pr
+                                         LEFT JOIN medicines m ON pr.medicine_id = m.id
+                                         WHERE pr.patient_id = ?
+                                         ORDER BY pr.created_at DESC
+                                         LIMIT 20");
+            $currentStmt->execute([$pid]);
+            $current = $currentStmt->fetchAll(PDO::FETCH_COLUMN);
             $matches = [];
             foreach ($current as $existing) {
                 $stmt = $db->prepare("SELECT * FROM drug_interactions
@@ -370,7 +377,7 @@ switch ($action) {
     case 'controlled_add':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->medicine_id) || empty($data->schedule)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Medicine and schedule required"]);
@@ -379,13 +386,14 @@ switch ($action) {
             $stmt = $db->prepare("INSERT INTO controlled_substances (medicine_id, schedule, requires_approval, notes)
                                   VALUES (?, ?, ?, ?)");
             $stmt->execute([$data->medicine_id, $data->schedule, $data->requires_approval ? 1 : 0, $data->notes ?? null]);
+            $audit('Saved controlled substance rule', 'controlled_substance', $db->lastInsertId(), 'Success', ['source' => 'pharmacy/controlled_add']);
             echo json_encode(["message" => "Controlled substance saved"]);
         }
         break;
 
     case 'controlled_request':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->prescription_id)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Prescription required"]);
@@ -393,7 +401,8 @@ switch ($action) {
             }
             $stmt = $db->prepare("INSERT INTO controlled_requests (prescription_id, requested_by, status, notes)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->prescription_id, $data->requested_by ?? null, 'Pending', $data->notes ?? null]);
+            $stmt->execute([$data->prescription_id, $user->id ?? null, 'Pending', $data->notes ?? null]);
+            $audit('Requested controlled substance approval', 'controlled_request', $db->lastInsertId(), 'Success', ['source' => 'pharmacy/controlled_request']);
             echo json_encode(["message" => "Approval requested"]);
         }
         break;
@@ -406,16 +415,26 @@ switch ($action) {
                 echo json_encode(["message" => "Approval requires admin or senior pharmacist"]);
                 exit;
             }
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->request_id) || empty($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Request and status required"]);
                 exit;
             }
+            $approvedStatus = $normalizeDecisionStatus($data->status, ['Approved', 'Rejected'], null);
+            if ($approvedStatus === null) {
+                http_response_code(400);
+                echo json_encode(["message" => "Status must be Approved or Rejected"]);
+                exit;
+            }
             $stmt = $db->prepare("UPDATE controlled_requests
                                   SET status = ?, approved_by = ?, approved_at = NOW()
                                   WHERE id = ?");
-            $stmt->execute([$data->status, $user->id ?? null, $data->request_id]);
+            $stmt->execute([$approvedStatus, $user->id ?? null, $data->request_id]);
+            $audit('Updated controlled request decision', 'controlled_request', $data->request_id, 'Success', [
+                'source' => 'pharmacy/controlled_approve',
+                'new_values' => ['status' => $approvedStatus]
+            ]);
             echo json_encode(["message" => "Approval updated"]);
         }
         break;
@@ -448,7 +467,7 @@ switch ($action) {
     case 'refill_update':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->request_id) || empty($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Request and status required"]);
@@ -456,6 +475,7 @@ switch ($action) {
             }
             $stmt = $db->prepare("UPDATE refill_requests SET status = ? WHERE id = ?");
             $stmt->execute([$data->status, $data->request_id]);
+            $audit('Updated refill request', 'refill_request', $data->request_id, 'Success', ['source' => 'pharmacy/refill_update']);
             echo json_encode(["message" => "Refill updated"]);
         }
         break;
@@ -472,7 +492,7 @@ switch ($action) {
     case 'supplier_create':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (empty($data->name)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Supplier name required"]);
@@ -481,6 +501,7 @@ switch ($action) {
             $stmt = $db->prepare("INSERT INTO suppliers (name, contact_name, phone, email, address)
                                   VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$data->name, $data->contact_name ?? null, $data->phone ?? null, $data->email ?? null, $data->address ?? null]);
+            $audit('Created supplier', 'supplier', $db->lastInsertId(), 'Success', ['source' => 'pharmacy/supplier_create']);
             echo json_encode(["message" => "Supplier created"]);
         }
         break;
@@ -489,29 +510,38 @@ switch ($action) {
     case 'po_create':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->supplier_id) || empty($data->items)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Supplier and items required"]);
                 exit;
             }
-            $db->beginTransaction();
-            $stmt = $db->prepare("INSERT INTO purchase_orders (supplier_id, order_date, status, total_amount, created_by)
-                                  VALUES (?, ?, ?, ?, ?)");
-            $total = 0;
-            foreach ($data->items as $i) {
-                $total += ((float)$i->unit_cost) * ((int)$i->quantity);
-            }
-            $stmt->execute([$data->supplier_id, $data->order_date ?? date('Y-m-d'), 'Pending', $total, $data->created_by ?? null]);
-            $orderId = $db->lastInsertId();
-            $itemStmt = $db->prepare("INSERT INTO purchase_order_items (order_id, medicine_name, quantity, unit_cost, total_cost)
+            try {
+                $db->beginTransaction();
+                $stmt = $db->prepare("INSERT INTO purchase_orders (supplier_id, order_date, status, total_amount, created_by)
                                       VALUES (?, ?, ?, ?, ?)");
-            foreach ($data->items as $i) {
-                $itemTotal = ((float)$i->unit_cost) * ((int)$i->quantity);
-                $itemStmt->execute([$orderId, $i->medicine_name, $i->quantity, $i->unit_cost, $itemTotal]);
+                $total = 0;
+                foreach ($data->items as $i) {
+                    $total += ((float)$i->unit_cost) * ((int)$i->quantity);
+                }
+                $stmt->execute([$data->supplier_id, $data->order_date ?? date('Y-m-d'), 'Pending', $total, $user->id ?? null]);
+                $orderId = $db->lastInsertId();
+                $itemStmt = $db->prepare("INSERT INTO purchase_order_items (order_id, medicine_name, quantity, unit_cost, total_cost)
+                                          VALUES (?, ?, ?, ?, ?)");
+                foreach ($data->items as $i) {
+                    $itemTotal = ((float)$i->unit_cost) * ((int)$i->quantity);
+                    $itemStmt->execute([$orderId, $i->medicine_name, $i->quantity, $i->unit_cost, $itemTotal]);
+                }
+                $db->commit();
+                $audit('Created purchase order', 'purchase_order', $orderId, 'Success', ['source' => 'pharmacy/po_create']);
+                echo json_encode(["message" => "PO created"]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) {
+                    $db->rollBack();
+                }
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to create PO: " . $e->getMessage()]);
             }
-            $db->commit();
-            echo json_encode(["message" => "PO created"]);
         }
         break;
 
@@ -539,7 +569,7 @@ switch ($action) {
     case 'grn_create':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->order_id)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Order required"]);
@@ -547,8 +577,9 @@ switch ($action) {
             }
             $stmt = $db->prepare("INSERT INTO goods_receipts (order_id, received_by, received_date, notes)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->order_id, $data->received_by ?? null, $data->received_date ?? date('Y-m-d'), $data->notes ?? null]);
+            $stmt->execute([$data->order_id, $user->id ?? null, $data->received_date ?? date('Y-m-d'), $data->notes ?? null]);
             $db->prepare("UPDATE purchase_orders SET status = 'Received' WHERE id = ?")->execute([$data->order_id]);
+            $audit('Recorded goods receipt', 'purchase_order', $data->order_id, 'Success', ['source' => 'pharmacy/grn_create']);
             echo json_encode(["message" => "GRN recorded"]);
         }
         break;
@@ -556,7 +587,7 @@ switch ($action) {
     case 'invoice_create':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->order_id) || empty($data->invoice_number)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Order and invoice number required"]);
@@ -566,6 +597,7 @@ switch ($action) {
                                   VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$data->order_id, $data->invoice_number, $data->amount ?? 0, $data->invoice_date ?? date('Y-m-d'), $data->status ?? 'Open']);
             $db->prepare("UPDATE purchase_orders SET status = 'Invoiced' WHERE id = ?")->execute([$data->order_id]);
+            $audit('Recorded supplier invoice', 'purchase_order', $data->order_id, 'Success', ['source' => 'pharmacy/invoice_create']);
             echo json_encode(["message" => "Invoice recorded"]);
         }
         break;
@@ -573,7 +605,7 @@ switch ($action) {
     // 13. QUARANTINE / RETURNS
     case 'quarantine_add':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->medicine_id) || empty($data->reason)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Medicine and reason required"]);
@@ -582,6 +614,7 @@ switch ($action) {
             $stmt = $db->prepare("INSERT INTO quarantine_batches (medicine_id, batch_number, quantity, reason, status)
                                   VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$data->medicine_id, $data->batch_number ?? null, $data->quantity ?? 0, $data->reason, $data->status ?? 'Quarantined']);
+            $audit('Created quarantine batch', 'quarantine_batch', $db->lastInsertId(), 'Success', ['source' => 'pharmacy/quarantine_add']);
             echo json_encode(["message" => "Quarantine recorded"]);
         }
         break;
@@ -598,7 +631,7 @@ switch ($action) {
 
     case 'quarantine_update':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->id) || empty($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Entry and status required"]);
@@ -606,6 +639,10 @@ switch ($action) {
             }
             $stmt = $db->prepare("UPDATE quarantine_batches SET status = ? WHERE id = ?");
             $stmt->execute([$data->status, $data->id]);
+            $audit('Updated quarantine batch', 'quarantine_batch', $data->id, 'Success', [
+                'source' => 'pharmacy/quarantine_update',
+                'new_values' => ['status' => $data->status]
+            ]);
             echo json_encode(["message" => "Quarantine updated"]);
         }
         break;
@@ -614,7 +651,7 @@ switch ($action) {
     case 'adjustment_add':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->medicine_id) || !isset($data->adjustment) || empty($data->reason)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Medicine, adjustment, and reason required"]);
@@ -622,8 +659,12 @@ switch ($action) {
             }
             $stmt = $db->prepare("INSERT INTO stock_adjustments (medicine_id, adjustment, reason, adjusted_by)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->medicine_id, $data->adjustment, $data->reason, $data->adjusted_by ?? null]);
+            $stmt->execute([$data->medicine_id, $data->adjustment, $data->reason, $user->id ?? null]);
             $db->prepare("UPDATE medicines SET stock_quantity = stock_quantity + ? WHERE id = ?")->execute([$data->adjustment, $data->medicine_id]);
+            $audit('Adjusted stock quantity', 'medicine', $data->medicine_id, 'Success', [
+                'source' => 'pharmacy/adjustment_add',
+                'new_values' => ['adjustment' => $data->adjustment, 'reason' => $data->reason]
+            ]);
             echo json_encode(["message" => "Stock adjusted"]);
         }
         break;
@@ -657,7 +698,7 @@ switch ($action) {
 
     case 'claim_create':
         if ($method === 'POST') {
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->prescription_id) || !isset($data->patient_id)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Prescription and patient required"]);
@@ -672,7 +713,8 @@ switch ($action) {
             }
             $stmt = $db->prepare("INSERT INTO insurance_claims (prescription_id, patient_id, status, submitted_by, submitted_at, notes)
                                   VALUES (?, ?, ?, ?, NOW(), ?)");
-            $stmt->execute([$data->prescription_id, $data->patient_id, $data->status ?? 'Submitted', $data->submitted_by ?? null, $data->notes ?? null]);
+            $stmt->execute([$data->prescription_id, $data->patient_id, $data->status ?? 'Submitted', $user->id ?? null, $data->notes ?? null]);
+            $audit('Submitted insurance claim', 'insurance_claim', $db->lastInsertId(), 'Success', ['source' => 'pharmacy/claim_create']);
             echo json_encode(["message" => "Claim submitted"]);
         }
         break;
@@ -693,7 +735,7 @@ switch ($action) {
     case 'claim_update':
         if ($method === 'POST') {
             $requireSeniorPharmacy();
-            $data = json_decode(file_get_contents("php://input"));
+            $data = RequestValidator::json();
             if (!isset($data->claim_id) || empty($data->status)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Claim and status required"]);
@@ -701,6 +743,10 @@ switch ($action) {
             }
             $stmt = $db->prepare("UPDATE insurance_claims SET status = ? WHERE id = ?");
             $stmt->execute([$data->status, $data->claim_id]);
+            $audit('Updated insurance claim', 'insurance_claim', $data->claim_id, 'Success', [
+                'source' => 'pharmacy/claim_update',
+                'new_values' => ['status' => $data->status]
+            ]);
             echo json_encode(["message" => "Claim updated"]);
         }
         break;

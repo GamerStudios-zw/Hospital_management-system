@@ -6,20 +6,137 @@
     <title>Doctor Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="../../assets/css/fonts.css" rel="stylesheet">
+    <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: var(--app-font); background: #f1f5f9; }
-        .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
-        .sidebar .nav-link { color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer; display: flex; align-items: center; }
-        .sidebar .nav-link.active { background: #2563eb; color: white; }
+        :root {
+            --doc-bg: #eaf0f6;
+            --doc-surface: #ffffff;
+            --doc-border: #dbe6f2;
+            --doc-primary: #2563eb;
+            --doc-primary-strong: #1d4ed8;
+            --doc-text: #0f172a;
+            --doc-muted: #64748b;
+            --doc-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
+        }
+        body {
+            font-family: var(--app-font);
+            color: var(--doc-text);
+            background:
+                radial-gradient(circle at 10% -5%, #dbeafe 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
+                var(--doc-bg);
+        }
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1e3a8a 0%, #0f172a 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            border-right: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .sidebar .nav-link {
+            color: #c7d4ea;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin: 4px 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .sidebar .nav-link:hover {
+            color: #ffffff;
+            background: rgba(37, 99, 235, 0.18);
+        }
+        .sidebar .nav-link.active {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            box-shadow: 0 10px 20px -14px rgba(37, 99, 235, 0.9);
+        }
+        .sidebar h4 {
+            color: #dbeafe !important;
+            letter-spacing: 0.02em;
+            text-shadow: 0 1px 0 rgba(2, 6, 23, 0.45);
+        }
         .tab-section { display: none; }
         .tab-section.active { display: block; }
         .vitals-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; font-weight: 600; }
+        .card {
+            border: 1px solid var(--doc-border) !important;
+            border-radius: 16px !important;
+            box-shadow: var(--doc-shadow) !important;
+            background: var(--doc-surface);
+        }
+        .card.p-4 {
+            background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+        }
+        .table thead th {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--doc-muted);
+            background: #f1f6fc !important;
+            border-bottom: 1px solid #dce7f2;
+        }
+        .table > :not(caption) > * > * {
+            border-bottom-color: #e6edf5;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+        .table-hover tbody tr:hover { background-color: #f3f8ff; }
+        .btn {
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--doc-primary), #3b82f6);
+            border-color: transparent;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--doc-primary-strong), #2563eb);
+        }
+        .btn-outline-dark {
+            border-color: #c9d7e6;
+            color: #1e3a5f;
+            background: #ffffff;
+        }
+        .btn-outline-dark:hover {
+            border-color: #9eb5cc;
+            color: #0f2f4d;
+            background: #f3f8fd;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border-color: #cfdcea;
+            background-color: #fbfdff;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.2);
+        }
+        .form-label.small.fw-bold {
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.72rem !important;
+        }
         .chart-compact { height: 170px; }
         .chart-compact canvas { height: 170px !important; max-height: 170px; }
         .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
         .sidebar-backdrop.show { display: block; }
-        .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .mobile-topbar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            background: #ffffff;
+            border: 1px solid var(--doc-border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: var(--doc-shadow);
+        }
 
         @media print {
             body.printing .sidebar,
@@ -37,6 +154,17 @@
             body.printing .modal-content { box-shadow: none !important; border: none !important; }
             body.printing .mobile-topbar { display: none !important; }
         }
+        .modal-content {
+            border: 1px solid var(--doc-border) !important;
+            border-radius: 16px !important;
+        }
+        .modal-header {
+            background: #f7fbff;
+            border-bottom: 1px solid #e4edf7 !important;
+        }
+        .modal-footer {
+            border-top: 1px solid #e4edf7 !important;
+        }
 
         @media (max-width: 992px) {
             .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; width: 240px; z-index: 1040; transition: left 0.25s ease; }
@@ -48,7 +176,7 @@
         }
     </style>
 </head>
-<body>
+<body class="hms-module module-doctor">
 
 <div class="container-fluid p-0">
     <div class="row g-0">
@@ -75,6 +203,17 @@
             <div class="mobile-topbar d-lg-none">
                 <button class="btn btn-outline-primary btn-sm" onclick="toggleSidebar(true)"><i class="bi bi-list"></i></button>
                 <div class="fw-bold text-primary">Doctor Dashboard</div>
+            </div>
+            <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-8">
+                        <label for="doctorPatientSearch" class="form-label small fw-bold mb-1">Search Patient</label>
+                        <input id="doctorPatientSearch" type="text" class="form-control" placeholder="Search by patient name, ID, status, or notes" oninput="applyDoctorPatientSearch()">
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <button class="btn btn-outline-dark btn-sm mt-4 mt-md-0" onclick="clearDoctorPatientSearch()"><i class="bi bi-x-circle me-1"></i> Clear</button>
+                    </div>
+                </div>
             </div>
             <section id="queue" class="tab-section active">
                 <div class="d-flex justify-content-between mb-4">
@@ -459,11 +598,48 @@
     let pendingCompleteId = null;
     const escapeHtml = (val) => String(val ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
+    function filterTbodyRows(tbodyId, query) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        const q = String(query || '').trim().toLowerCase();
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.forEach((row) => {
+            const text = (row.textContent || '').toLowerCase();
+            const isPlaceholder = row.querySelector('td[colspan]') !== null;
+            if (!q) {
+                row.style.display = '';
+                return;
+            }
+            if (isPlaceholder) {
+                row.style.display = '';
+                return;
+            }
+            row.style.display = text.includes(q) ? '' : 'none';
+        });
+    }
+
+    function applyDoctorPatientSearch() {
+        const input = document.getElementById('doctorPatientSearch');
+        const query = input ? input.value : '';
+        ['queueTableBody', 'appointmentTable', 'directoryTableBody', 'tasksTable', 'escalationsTable', 'dischargeTable'].forEach(id => filterTbodyRows(id, query));
+    }
+
+    function clearDoctorPatientSearch() {
+        const input = document.getElementById('doctorPatientSearch');
+        if (!input) return;
+        input.value = '';
+        applyDoctorPatientSearch();
+    }
+
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
         document.getElementById(id)?.classList.add('active');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        if (el) el.classList.add('active');
+        const navLink = el || document.querySelector(`.nav-link[onclick*="switchTab('${id}'"]`);
+        if (navLink) navLink.classList.add('active');
+        if (window.location.hash !== `#${id}`) {
+            history.replaceState(null, '', `#${id}`);
+        }
         if (window.innerWidth < 992) toggleSidebar(false);
         if(id === 'queue') loadQueue();
         if(id === 'appointments') loadAppointments();
@@ -474,6 +650,13 @@
         if(id === 'discharge') { loadDischarges(); loadDischargeCandidates(); }
         if(id === 'handover') loadHandover();
         if(id === 'roster') loadShifts();
+    }
+
+    function activateInitialDoctorTab() {
+        const hash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+        const validTabs = ['queue', 'appointments', 'directory', 'timeline', 'tasks', 'escalations', 'discharge', 'handover', 'roster'];
+        if (!hash || !validTabs.includes(hash)) return;
+        switchTab(hash);
     }
 
     function toggleSidebar(open) {
@@ -524,6 +707,7 @@
                 showBanner('Failed to load appointments.', { type: 'error' });
             }
         }
+        applyDoctorPatientSearch();
     }
 
     function openClinicalNotes(appointmentId) {
@@ -566,7 +750,8 @@
         tbody.innerHTML = '';
         if(queue && Array.isArray(queue)) {
             queue.forEach(p => {
-                const vitals = p.bp ? `<span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}°C</span>` : '<span class="badge bg-light text-muted border">Vitals Pending</span>';
+                const vitalsRisk = p.bp ? renderVitalsRiskBadge(p) : '';
+                const vitals = p.bp ? `<span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}°C</span> ${vitalsRisk}` : '<span class="badge bg-light text-muted border">Vitals Pending</span>';
                 const vitalsWithNotes = p.nurse_notes ? `${vitals}<span class="badge bg-info-subtle text-info border ms-2">Nurse notes available</span>` : vitals;
                 tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${vitalsWithNotes}</td><td><span class="badge bg-warning-subtle text-warning">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
             });
@@ -579,6 +764,7 @@
                 showBanner('Failed to load waiting room.', { type: 'error' });
             }
         }
+        applyDoctorPatientSearch();
         loadDoctorAnalytics();
     }
 
@@ -589,6 +775,7 @@
         if(patients) patients.forEach(p => {
             tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${p.gender} | ${p.dob}</td><td class="text-end pe-4"><button class="btn btn-outline-primary btn-sm" onclick="openHistory(${p.id})">View Records</button></td></tr>`;
         });
+        applyDoctorPatientSearch();
     }
 
     function renderPatientOptions(select, patients, placeholder) {
@@ -670,6 +857,7 @@
         } else {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No tasks yet.</td></tr>';
         }
+        applyDoctorPatientSearch();
     }
 
     async function createTask() {
@@ -722,6 +910,7 @@
                 showBanner('Failed to load escalations.', { type: 'error' });
             }
         }
+        applyDoctorPatientSearch();
     }
 
     async function createEscalation() {
@@ -754,6 +943,7 @@
         } else {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No discharge summaries yet.</td></tr>';
         }
+        applyDoctorPatientSearch();
     }
 
     async function createDischarge() {
@@ -1111,6 +1301,7 @@
         loadQueue();
         loadPatientOptions();
         showDoctorLoginBanner();
+        activateInitialDoctorTab();
     });
 </script>
 </body>
