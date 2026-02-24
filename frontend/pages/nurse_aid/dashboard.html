@@ -24,6 +24,44 @@
         .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
         .sidebar-backdrop.show { display: block; }
         .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .nurse-aid-search-wrap { position: relative; }
+        .nurse-aid-search-results {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px -14px rgba(15, 23, 42, 0.6);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1050;
+        }
+        .nurse-aid-search-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+        }
+        .nurse-aid-search-item:last-child { border-bottom: 0; }
+        .nurse-aid-search-item:hover { background: #f8fafc; }
+        .triage-risk-red > td { background: #fee2e2 !important; }
+        .triage-risk-orange > td { background: #ffedd5 !important; }
+        .triage-risk-yellow > td { background: #fef9c3 !important; }
+        .critical-alert-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ef4444;
+            margin-right: 6px;
+            animation: nurseAidPulseCritical 1s infinite;
+            vertical-align: middle;
+        }
+        @keyframes nurseAidPulseCritical {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.2; transform: scale(1.5); }
+        }
 
         @media (max-width: 992px) {
             .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; width: 240px; z-index: 1040; transition: left 0.25s ease; }
@@ -72,7 +110,10 @@
                 <div class="row g-2 align-items-center">
                     <div class="col-md-8">
                         <label for="nurseAidPatientSearch" class="form-label small fw-bold mb-1">Search Patient</label>
-                        <input id="nurseAidPatientSearch" type="text" class="form-control" placeholder="Search by patient name, ID, ward, status..." oninput="applyNurseAidPatientSearch()">
+                        <div class="nurse-aid-search-wrap">
+                            <input id="nurseAidPatientSearch" type="text" class="form-control" placeholder="Search REC-registered patients by name, ID, or phone..." oninput="applyNurseAidPatientSearch()" onfocus="applyNurseAidPatientSearch()">
+                            <div id="nurseAidSearchResults" class="nurse-aid-search-results d-none"></div>
+                        </div>
                     </div>
                     <div class="col-md-4 text-md-end">
                         <button class="btn btn-outline-dark btn-sm mt-4 mt-md-0" onclick="clearNurseAidPatientSearch()"><i class="bi bi-x-circle me-1"></i> Clear</button>
@@ -261,6 +302,34 @@
     let triageChart = null;
     let vitalsMode = 'triage';
     let reminderIntervalId = null;
+    let triageFeedInitialized = false;
+    let lastKnownTriageQueueId = 0;
+    let nurseAidTriageQueueRows = [];
+    let nurseAidRegisteredPatients = [];
+    let nurseAidSearchDebounce = null;
+    let nurseAidActiveTab = 'triage';
+    const NURSE_AID_SEARCH_CONTEXTS = {
+        triage: {
+            placeholder: 'Search REC-registered patients by name, ID, or phone...',
+            tables: ['triageTable'],
+            allowRegisteredLookup: true
+        },
+        history: {
+            placeholder: 'Search history by patient, date/time, vitals, or risk...',
+            tables: ['historyTableBody'],
+            allowRegisteredLookup: false
+        },
+        daily: {
+            placeholder: 'Search daily vitals by patient, ward, bed, ID, or status...',
+            tables: ['dailyVitalsTable'],
+            allowRegisteredLookup: false
+        },
+        discharge: {
+            placeholder: 'Search discharge summary by patient, summary, status, or time...',
+            tables: ['dischargeTable'],
+            allowRegisteredLookup: false
+        }
+    };
 
     function filterNurseAidTable(tbodyId, query) {
         const tbody = document.getElementById(tbodyId);
@@ -278,10 +347,35 @@
         });
     }
 
+    function getNurseAidSearchContext() {
+        const activeSectionId = document.querySelector('.tab-section.active')?.id || nurseAidActiveTab || 'triage';
+        return NURSE_AID_SEARCH_CONTEXTS[activeSectionId] || NURSE_AID_SEARCH_CONTEXTS.triage;
+    }
+
+    function updateNurseAidSearchContext(tabId) {
+        if (tabId) nurseAidActiveTab = tabId;
+        const input = document.getElementById('nurseAidPatientSearch');
+        const ctx = getNurseAidSearchContext();
+        if (input && ctx?.placeholder) {
+            input.placeholder = ctx.placeholder;
+        }
+        if (!ctx?.allowRegisteredLookup) {
+            hideNurseAidSearchResults();
+        }
+        applyNurseAidPatientSearch();
+    }
+
     function applyNurseAidPatientSearch() {
         const input = document.getElementById('nurseAidPatientSearch');
         const query = input ? input.value : '';
-        ['triageTable', 'historyTableBody', 'dailyVitalsTable', 'dischargeTable'].forEach(id => filterNurseAidTable(id, query));
+        const ctx = getNurseAidSearchContext();
+        const targetTables = Array.isArray(ctx?.tables) ? ctx.tables : [];
+        targetTables.forEach(id => filterNurseAidTable(id, query));
+        if (ctx?.allowRegisteredLookup) {
+            scheduleNurseAidRegisteredPatientSearch(query);
+        } else {
+            hideNurseAidSearchResults();
+        }
     }
 
     function clearNurseAidPatientSearch() {
@@ -289,6 +383,139 @@
         if (!input) return;
         input.value = '';
         applyNurseAidPatientSearch();
+        hideNurseAidSearchResults();
+    }
+
+    function normalizeNurseAidSearch(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function hideNurseAidSearchResults() {
+        const box = document.getElementById('nurseAidSearchResults');
+        if (!box) return;
+        box.classList.add('d-none');
+        box.innerHTML = '';
+    }
+
+    function findNurseAidQueueEntry(patientId) {
+        return nurseAidTriageQueueRows.find((row) => String(row.patient_id) === String(patientId)) || null;
+    }
+
+    async function openNurseAidPatientFromSearchById(patientId) {
+        let queueEntry = findNurseAidQueueEntry(patientId);
+        if (!queueEntry) {
+            const res = await Api.post('/nurse_aid/pull_registered_patient', { patient_id: Number(patientId) });
+            const routed = res && res.queue ? res.queue : null;
+            if (!routed || !routed.queue_id) {
+                notify((res && res.message) ? res.message : 'Patient could not be routed to triage.', 'warning');
+                return;
+            }
+            queueEntry = routed;
+            nurseAidTriageQueueRows = [queueEntry, ...nurseAidTriageQueueRows.filter((row) => String(row.queue_id) !== String(queueEntry.queue_id))];
+            if (res && res.message) {
+                notify(res.message, { type: 'success', timeoutMs: 7000 });
+            }
+        }
+
+        const status = String(queueEntry.status || '').toLowerCase();
+        if (status.includes('urgent')) {
+            notify('Urgent Care patient is awaiting doctor.');
+            return;
+        }
+
+        const triageNav = Array.from(document.querySelectorAll('.sidebar .nav-link'))
+            .find((link) => {
+                const handler = link.getAttribute('onclick') || '';
+                return handler.includes("switchTab('triage'");
+            });
+        if (triageNav) {
+            switchTab('triage', triageNav);
+        }
+
+        openVitalsModal(queueEntry, 'triage');
+        loadTriageQueue();
+        hideNurseAidSearchResults();
+    }
+
+    function renderNurseAidRegisteredPatientResults(query) {
+        const box = document.getElementById('nurseAidSearchResults');
+        if (!box) return;
+
+        const q = normalizeNurseAidSearch(query);
+        if (q.length < 2) {
+            hideNurseAidSearchResults();
+            return;
+        }
+
+        const queuePatients = nurseAidTriageQueueRows.map((row) => ({
+            id: row.patient_id,
+            full_name: row.full_name,
+            national_id: row.national_id,
+            phone: row.phone || ''
+        }));
+        const lookup = new Map();
+        [...queuePatients, ...nurseAidRegisteredPatients].forEach((patient) => {
+            if (!patient || !patient.id || lookup.has(String(patient.id))) return;
+            lookup.set(String(patient.id), patient);
+        });
+
+        const patients = Array.from(lookup.values());
+        const matches = patients.filter((patient) => {
+            const name = normalizeNurseAidSearch(patient.full_name);
+            const idText = normalizeNurseAidSearch(patient.national_id);
+            const phoneText = normalizeNurseAidSearch(patient.phone);
+            return name.includes(q) || idText.includes(q) || phoneText.includes(q);
+        }).slice(0, 12);
+
+        if (!matches.length) {
+            box.innerHTML = '<div class="nurse-aid-search-item text-muted small">No patient found.</div>';
+            box.classList.remove('d-none');
+            return;
+        }
+
+        box.innerHTML = matches.map((patient) => {
+            const queueEntry = findNurseAidQueueEntry(patient.id);
+            const status = queueEntry ? String(queueEntry.status || 'Waiting') : 'Not in waits';
+            const statusLc = status.toLowerCase();
+            const badgeClass = !queueEntry
+                ? 'bg-secondary-subtle text-secondary'
+                : (statusLc.includes('urgent')
+                    ? 'bg-danger-subtle text-danger'
+                    : (statusLc.includes('triage') ? 'bg-info-subtle text-info-emphasis' : 'bg-success-subtle text-success'));
+            const patientId = Number(patient.id);
+            if (!Number.isFinite(patientId)) return '';
+            const patientMeta = [patient.national_id || 'No National ID', patient.phone || ''].filter(Boolean).join(' | ');
+            return `
+                <div class="nurse-aid-search-item" onclick="openNurseAidPatientFromSearchById(${patientId})">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <div class="fw-semibold">${patient.full_name || 'Unknown'}</div>
+                            <div class="small text-muted">${patientMeta}</div>
+                        </div>
+                        <span class="badge ${badgeClass} border">${status}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        box.classList.remove('d-none');
+    }
+
+    async function refreshNurseAidRegisteredPatients(query) {
+        const q = normalizeNurseAidSearch(query);
+        if (q.length < 2) {
+            nurseAidRegisteredPatients = [];
+            return;
+        }
+        const rows = await Api.get(`/reception/search?q=${encodeURIComponent(q)}`);
+        nurseAidRegisteredPatients = Array.isArray(rows) ? rows : [];
+    }
+
+    function scheduleNurseAidRegisteredPatientSearch(query) {
+        clearTimeout(nurseAidSearchDebounce);
+        nurseAidSearchDebounce = setTimeout(async () => {
+            await refreshNurseAidRegisteredPatients(query);
+            renderNurseAidRegisteredPatientResults(query);
+        }, 180);
     }
 
     function switchTab(id, el) {
@@ -296,6 +523,7 @@
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
         el.classList.add('active');
         document.getElementById(id)?.classList.add('active');
+        updateNurseAidSearchContext(id);
         if (window.innerWidth < 992) toggleSidebar(false);
         if (id === 'triage') {
             loadTriageQueue();
@@ -327,38 +555,132 @@
         return days;
     }
 
+    function nurseAidStatusWeight(status) {
+        const s = String(status || '').trim().toLowerCase();
+        if (s === 'urgent care') return 3;
+        if (s === 'in triage') return 2;
+        return 1;
+    }
+
+    function nurseAidRiskRank(row) {
+        return classifyVitalsRisk(row || {}).rank || 0;
+    }
+
+    function sortNurseAidTriageRows(rows) {
+        const list = Array.isArray(rows) ? [...rows] : [];
+        list.sort((a, b) => {
+            const aRisk = nurseAidRiskRank(a);
+            const bRisk = nurseAidRiskRank(b);
+            if (aRisk !== bRisk) return bRisk - aRisk;
+
+            const aStatus = nurseAidStatusWeight(a.status);
+            const bStatus = nurseAidStatusWeight(b.status);
+            if (aStatus !== bStatus) return bStatus - aStatus;
+
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return aTime - bTime;
+        });
+        return list;
+    }
+
+    function nurseAidRowRiskClass(level) {
+        const key = String(level || '').toLowerCase();
+        if (key === 'red') return 'triage-risk-red';
+        if (key === 'orange') return 'triage-risk-orange';
+        if (key === 'yellow') return 'triage-risk-yellow';
+        return '';
+    }
+
+    function announceNewTriagePatients(queueRows) {
+        if (!Array.isArray(queueRows)) return;
+        const rows = queueRows;
+        const ids = rows
+            .map(r => Number(r.queue_id || 0))
+            .filter(id => Number.isFinite(id) && id > 0);
+
+        if (!ids.length) {
+            triageFeedInitialized = true;
+            return;
+        }
+
+        const newestId = Math.max(...ids);
+        if (!triageFeedInitialized) {
+            lastKnownTriageQueueId = newestId;
+            triageFeedInitialized = true;
+            return;
+        }
+
+        if (newestId <= lastKnownTriageQueueId) return;
+
+        const newRows = rows.filter(r => Number(r.queue_id || 0) > lastKnownTriageQueueId);
+        lastKnownTriageQueueId = newestId;
+        if (!newRows.length) return;
+
+        const names = newRows.slice(0, 3).map(r => r.full_name).join(', ');
+        const more = newRows.length > 3 ? ` +${newRows.length - 3} more` : '';
+        const message = `New patient in triage queue: ${names}${more}`;
+
+        if (typeof showBanner === 'function') {
+            showBanner(message, { type: 'info', timeoutMs: 10000 });
+        } else {
+            notify(message);
+        }
+    }
+
     async function loadTriageQueue() {
         const queue = await Api.get('/nurse_aid/triage_queue');
+        const rawRows = Array.isArray(queue) ? queue : [];
+        announceNewTriagePatients(rawRows);
+        const queueRows = sortNurseAidTriageRows(rawRows);
+        nurseAidTriageQueueRows = queueRows;
         const tbody = document.getElementById('triageTable');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        if (queue && Array.isArray(queue) && queue.length) {
-            queue.forEach(q => {
+        if (queueRows.length) {
+            queueRows.forEach(q => {
                 const status = q.status || 'Waiting';
                 const badgeClass = status.toLowerCase().includes('urgent') ? 'bg-danger'
                     : (status.toLowerCase().includes('triage') ? 'bg-info text-dark' : 'bg-warning text-dark');
                 const isUrgent = status.toLowerCase().includes('urgent');
+                const risk = classifyVitalsRisk(q);
+                const riskBadge = renderVitalsRiskBadge(q);
+                const riskTriggers = renderVitalsRiskTriggers(q, { className: 'small text-muted mt-1', prefix: 'Trigger' });
+                const rowClass = nurseAidRowRiskClass(risk.level);
+                const criticalAlert = risk.level === 'red'
+                    ? '<div class="small text-danger fw-semibold mt-1"><span class="critical-alert-dot"></span>Immediate Doctor Review</div>'
+                    : '';
                 const actionBtn = isUrgent
                     ? `<span class="badge bg-light text-muted border">Awaiting doctor</span>`
                     : `<button class="btn btn-success btn-sm rounded-pill px-3" onclick='openVitalsModal(${JSON.stringify(q)}, "triage")'>Capture</button>`;
                 tbody.innerHTML += `
-                    <tr>
+                    <tr class="${rowClass}">
                         <td class="ps-4 small">${new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                        <td><div class="fw-bold">${q.full_name}</div><small class="text-muted">${q.gender}, ${q.dob}</small></td>
+                        <td>
+                            <div class="fw-bold">${risk.level === 'red' ? '<span class="critical-alert-dot"></span>' : ''}${q.full_name}</div>
+                            <small class="text-muted">${q.gender}, ${q.dob}</small>
+                        </td>
                         <td class="small fw-medium">${q.national_id || 'N/A'}</td>
-                        <td><span class="badge ${badgeClass}">${status}</span></td>
+                        <td>
+                            <div><span class="badge ${badgeClass}">${status}</span></div>
+                            <div class="mt-1">${riskBadge}</div>
+                            ${riskTriggers}
+                            ${criticalAlert}
+                        </td>
                         <td class="text-end pe-4">
                             ${actionBtn}
                         </td>
                     </tr>`;
             });
-            document.getElementById('statPending').innerText = queue.length;
+            document.getElementById('statPending').innerText = queueRows.length;
         } else {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No patients awaiting triage.</td></tr>';
             document.getElementById('statPending').innerText = '0';
         }
         applyNurseAidPatientSearch();
+        const input = document.getElementById('nurseAidPatientSearch');
+        if (input) renderNurseAidRegisteredPatientResults(input.value);
     }
 
     function openVitalsModal(q, mode) {
@@ -488,7 +810,7 @@
                         <td>${r.pulse ?? '-'}</td>
                         <td>${r.bp ?? '-'}</td>
                         <td>${r.spo2 ?? '-'}</td>
-                        <td>${renderVitalsRiskBadge(r)}</td>
+                        <td>${renderVitalsRiskBadge(r)}${renderVitalsRiskTriggers(r, { className: 'small text-muted mt-1', prefix: 'Trigger' })}</td>
                     </tr>`;
             });
         } else {
@@ -549,6 +871,9 @@
                 const vitalsRiskBadge = lastVitalsAt
                     ? renderVitalsRiskBadge({ temperature: lastTemp, pulse: lastPulse, bp: r.last_bp, spo2: lastSpO2 })
                     : '<span class="badge bg-secondary-subtle text-secondary">No Data</span>';
+                const vitalsRiskTriggers = lastVitalsAt
+                    ? renderVitalsRiskTriggers({ temperature: lastTemp, pulse: lastPulse, bp: r.last_bp, spo2: lastSpO2 }, { className: 'small text-muted mt-1', prefix: 'Trigger' })
+                    : '';
 
                 const trends = [];
                 const tempTrend = diffLabel('Temp', lastTemp, prevTemp, '°C');
@@ -582,6 +907,7 @@
                             <div class="small text-muted">${lastVitalsLabel}</div>
                             <div class="small">${lastVitalsText}</div>
                             <div class="mt-1">${vitalsRiskBadge}</div>
+                            ${vitalsRiskTriggers}
                         </td>
                         <td><div class="small text-muted">${trendText}</div></td>
                         <td>${statusBadge}</td>
@@ -670,11 +996,17 @@
     document.addEventListener("DOMContentLoaded", () => {
         const user = JSON.parse(localStorage.getItem("hms_user"));
         if (user) document.getElementById('navUserName').innerText = user.full_name;
+        updateNurseAidSearchContext('triage');
         loadTriageQueue();
         loadAnalytics();
         loadAdmittedPatients();
         startVitalsReminders();
         showNurseAidLoginBanner();
+        document.addEventListener('click', (e) => {
+            const wrap = document.querySelector('.nurse-aid-search-wrap');
+            if (!wrap) return;
+            if (!wrap.contains(e.target)) hideNurseAidSearchResults();
+        });
     });
 </script>
 </body>

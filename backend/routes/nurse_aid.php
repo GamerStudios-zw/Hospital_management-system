@@ -85,9 +85,19 @@ switch ($action) {
     // 2. TRIAGE QUEUE (Matches triageTable in dashboard)
     case 'triage_queue':
         if ($method === 'GET') {
-            $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
+            $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, p.phone, q.created_at, q.status,
+                             v.temperature as last_temp, v.pulse as last_pulse, v.bp as last_bp, v.spo2 as last_spo2, v.created_at as last_vitals_at
                       FROM patient_queue q
                       JOIN patients p ON q.patient_id = p.id
+                      LEFT JOIN (
+                          SELECT pv1.patient_id, pv1.temperature, pv1.pulse, pv1.bp, pv1.spo2, pv1.created_at
+                          FROM patient_vitals pv1
+                          INNER JOIN (
+                              SELECT patient_id, MAX(id) as latest_id
+                              FROM patient_vitals
+                              GROUP BY patient_id
+                          ) lv ON lv.latest_id = pv1.id
+                      ) v ON v.patient_id = p.id
                       WHERE q.status IN ('Waiting', 'waiting', 'Urgent Care', 'urgent care', 'In Triage', 'in triage')
                         AND NOT EXISTS (
                             SELECT 1 FROM appointments a
@@ -95,7 +105,7 @@ switch ($action) {
                               AND DATE(a.scheduled_at) = CURDATE()
                               AND a.status IN ('scheduled','confirmed','checked_in')
                         )
-                      ORDER BY (q.status IN ('Urgent Care', 'urgent care')) DESC, q.created_at ASC";
+                      ORDER BY q.created_at ASC";
             $stmt = $db->query($query);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
             foreach ($rows as &$row) {
@@ -103,6 +113,25 @@ switch ($action) {
                 $row = array_merge($row, $risk);
             }
             unset($row);
+            $statusWeight = function($status) {
+                $s = strtolower(trim((string)$status));
+                if ($s === 'urgent care') return 3;
+                if ($s === 'in triage') return 2;
+                return 1;
+            };
+            usort($rows, function($a, $b) use ($statusWeight) {
+                $aPriority = (int)($a['risk_priority'] ?? 0);
+                $bPriority = (int)($b['risk_priority'] ?? 0);
+                if ($aPriority !== $bPriority) return $bPriority <=> $aPriority;
+
+                $aStatus = $statusWeight($a['status'] ?? '');
+                $bStatus = $statusWeight($b['status'] ?? '');
+                if ($aStatus !== $bStatus) return $bStatus <=> $aStatus;
+
+                $aTime = isset($a['created_at']) ? strtotime((string)$a['created_at']) : 0;
+                $bTime = isset($b['created_at']) ? strtotime((string)$b['created_at']) : 0;
+                return $aTime <=> $bTime;
+            });
             echo json_encode($rows);
         }
         break;
@@ -409,6 +438,126 @@ switch ($action) {
         if ($method === 'GET') {
             $stmt = $db->query("SELECT id, full_name, national_id, dob, gender FROM patients ORDER BY full_name ASC");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
+        break;
+
+    // 6b. PULL REGISTERED PATIENT TO TRIAGE (from Nurse Aid search)
+    case 'pull_registered_patient':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $patientId = RequestValidator::requireInt($data, 'patient_id', 1);
+
+            try {
+                $patientStmt = $db->prepare("SELECT id, full_name, national_id, dob, gender, phone FROM patients WHERE id = ? LIMIT 1");
+                $patientStmt->execute([$patientId]);
+                $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$patient) {
+                    http_response_code(404);
+                    echo json_encode(["message" => "Patient not found."]);
+                    exit;
+                }
+
+                $triageStmt = $db->prepare("SELECT id as queue_id, status, created_at
+                                            FROM patient_queue
+                                            WHERE patient_id = ?
+                                              AND status IN ('Waiting','waiting','Urgent Care','urgent care','In Triage','in triage')
+                                            ORDER BY id DESC
+                                            LIMIT 1");
+                $triageStmt->execute([$patientId]);
+                $existingTriage = $triageStmt->fetch(PDO::FETCH_ASSOC);
+
+                $created = false;
+                if ($existingTriage) {
+                    $queueId = (int)$existingTriage['queue_id'];
+                } else {
+                    $activeStmt = $db->prepare("SELECT id as queue_id, status, created_at
+                                                FROM patient_queue
+                                                WHERE patient_id = ?
+                                                  AND LOWER(status) NOT IN ('completed','cancelled','discharged')
+                                                ORDER BY id DESC
+                                                LIMIT 1");
+                    $activeStmt->execute([$patientId]);
+                    $existingActive = $activeStmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($existingActive) {
+                        $status = (string)($existingActive['status'] ?? 'Active');
+                        Realtime::emit('reception.nurse_pull_blocked', [
+                            'patient_id' => $patientId,
+                            'patient_name' => $patient['full_name'],
+                            'status' => $status,
+                            'queue_id' => (int)$existingActive['queue_id']
+                        ]);
+                        http_response_code(409);
+                        echo json_encode(["message" => "Patient is already active under status '{$status}'. Reception has been notified."]);
+                        exit;
+                    }
+
+                    $insertStmt = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, 'Waiting')");
+                    $insertStmt->execute([$patientId, null]);
+                    $queueId = (int)$db->lastInsertId();
+                    $created = true;
+                }
+
+                $queueRowStmt = $db->prepare("SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, p.phone, q.created_at, q.status
+                                              FROM patient_queue q
+                                              JOIN patients p ON q.patient_id = p.id
+                                              WHERE q.id = ?
+                                              LIMIT 1");
+                $queueRowStmt->execute([$queueId]);
+                $queueRow = $queueRowStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$queueRow) {
+                    $queueRow = [
+                        'queue_id' => $queueId,
+                        'patient_id' => (int)$patient['id'],
+                        'full_name' => $patient['full_name'],
+                        'national_id' => $patient['national_id'],
+                        'dob' => $patient['dob'],
+                        'gender' => $patient['gender'],
+                        'phone' => $patient['phone'] ?? null,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'status' => 'Waiting'
+                    ];
+                }
+
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'nurse aid', 'Pulled patient to triage', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'patient_queue',
+                        'entity_id' => (string)$queueId,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'nurse_aid',
+                        'source' => 'nurse_aid/pull_registered_patient',
+                        'metadata' => [
+                            'patient_id' => $patientId,
+                            'created_queue' => $created
+                        ]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+
+                Realtime::emit('reception.nurse_pull', [
+                    'queue_id' => $queueId,
+                    'patient_id' => $patientId,
+                    'patient_name' => $queueRow['full_name'],
+                    'status' => $queueRow['status'] ?? 'Waiting'
+                ]);
+                Realtime::emit('reception.admit', [
+                    'queue_id' => $queueId,
+                    'patient_id' => $patientId,
+                    'source' => 'nurse_aid_search'
+                ]);
+
+                echo json_encode([
+                    "message" => $created
+                        ? "Patient moved to triage queue. Reception notified."
+                        : "Patient already in triage queue. Reception notified.",
+                    "queue" => $queueRow
+                ]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to route patient to triage: " . $e->getMessage()]);
+            }
         }
         break;
 

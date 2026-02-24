@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // FILE: backend/routes/nurse.php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
@@ -26,7 +26,7 @@ switch ($action) {
 
     // 1. DASHBOARD STATS (Matches triage widget)
     case 'stats':
-        $stmt = $db->query("SELECT COUNT(*) as count FROM patient_queue WHERE status IN ('Waiting','waiting','Urgent Care','urgent care','Admission Pending','admission pending')");
+        $stmt = $db->query("SELECT COUNT(*) as count FROM patient_queue WHERE LOWER(status) IN ('waiting','urgent care','admission pending')");
         $pending = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 
         $stmt = $db->query("SELECT COUNT(*) as occupied FROM beds WHERE status = 'Occupied'");
@@ -54,7 +54,7 @@ switch ($action) {
 
             $escRows = $db->query("SELECT status, COUNT(*) as count FROM nurse_escalations GROUP BY status")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-            $urgentCount = (int)$db->query("SELECT COUNT(*) FROM patient_queue WHERE status IN ('Urgent Care','urgent care','Admission Pending','admission pending')")->fetchColumn();
+            $urgentCount = (int)$db->query("SELECT COUNT(*) FROM patient_queue WHERE LOWER(status) IN ('urgent care','admission pending')")->fetchColumn();
 
             echo json_encode([
                 "triage_by_day" => $triageRows,
@@ -194,13 +194,36 @@ switch ($action) {
     case 'urgent_patients':
         if ($method === 'GET') {
             try {
-                $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
+                $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status,
+                                 v.temperature as last_temp, v.pulse as last_pulse, v.bp as last_bp, v.spo2 as last_spo2, v.created_at as last_vitals_at
                           FROM patient_queue q
                           JOIN patients p ON q.patient_id = p.id
-                          WHERE q.status IN ('Urgent Care', 'urgent care')
+                          LEFT JOIN (
+                              SELECT pv1.patient_id, pv1.temperature, pv1.pulse, pv1.bp, pv1.spo2, pv1.created_at
+                              FROM patient_vitals pv1
+                              INNER JOIN (
+                                  SELECT patient_id, MAX(id) as latest_id
+                                  FROM patient_vitals
+                                  GROUP BY patient_id
+                              ) lv ON lv.latest_id = pv1.id
+                          ) v ON v.patient_id = p.id
+                          WHERE LOWER(q.status) = 'urgent care'
                           ORDER BY q.created_at DESC";
                 $stmt = $db->query($query);
-                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($rows as &$row) {
+                    $row = array_merge($row, VitalRisk::classify($row['last_temp'] ?? null, $row['last_pulse'] ?? null, $row['last_bp'] ?? null, $row['last_spo2'] ?? null));
+                }
+                unset($row);
+                usort($rows, function($a, $b) {
+                    $aPriority = (int)($a['risk_priority'] ?? 0);
+                    $bPriority = (int)($b['risk_priority'] ?? 0);
+                    if ($aPriority !== $bPriority) return $bPriority <=> $aPriority;
+                    $aTime = isset($a['created_at']) ? strtotime((string)$a['created_at']) : 0;
+                    $bTime = isset($b['created_at']) ? strtotime((string)$b['created_at']) : 0;
+                    return $bTime <=> $aTime;
+                });
+                echo json_encode($rows);
             } catch (Exception $e) {
                 http_response_code(500);
                 echo json_encode(["message" => "Urgent list error: " . $e->getMessage()]);
@@ -211,13 +234,36 @@ switch ($action) {
     case 'urgent_care_list':
         if ($method === 'GET') {
             try {
-                $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status
+                $query = "SELECT q.id as queue_id, p.id as patient_id, p.full_name, p.national_id, p.dob, p.gender, q.created_at, q.status,
+                                 v.temperature as last_temp, v.pulse as last_pulse, v.bp as last_bp, v.spo2 as last_spo2, v.created_at as last_vitals_at
                           FROM patient_queue q
                           JOIN patients p ON q.patient_id = p.id
-                          WHERE q.status IN ('Urgent Care', 'urgent care')
+                          LEFT JOIN (
+                              SELECT pv1.patient_id, pv1.temperature, pv1.pulse, pv1.bp, pv1.spo2, pv1.created_at
+                              FROM patient_vitals pv1
+                              INNER JOIN (
+                                  SELECT patient_id, MAX(id) as latest_id
+                                  FROM patient_vitals
+                                  GROUP BY patient_id
+                              ) lv ON lv.latest_id = pv1.id
+                          ) v ON v.patient_id = p.id
+                          WHERE LOWER(q.status) = 'urgent care'
                           ORDER BY q.created_at DESC";
                 $stmt = $db->query($query);
-                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($rows as &$row) {
+                    $row = array_merge($row, VitalRisk::classify($row['last_temp'] ?? null, $row['last_pulse'] ?? null, $row['last_bp'] ?? null, $row['last_spo2'] ?? null));
+                }
+                unset($row);
+                usort($rows, function($a, $b) {
+                    $aPriority = (int)($a['risk_priority'] ?? 0);
+                    $bPriority = (int)($b['risk_priority'] ?? 0);
+                    if ($aPriority !== $bPriority) return $bPriority <=> $aPriority;
+                    $aTime = isset($a['created_at']) ? strtotime((string)$a['created_at']) : 0;
+                    $bTime = isset($b['created_at']) ? strtotime((string)$b['created_at']) : 0;
+                    return $bTime <=> $aTime;
+                });
+                echo json_encode($rows);
             } catch (Exception $e) {
                 http_response_code(500);
                 echo json_encode(["message" => "Urgent care list error: " . $e->getMessage()]);
@@ -237,13 +283,36 @@ switch ($action) {
                                  p.gender,
                                  q.created_at,
                                  q.status,
+                                 v.temperature as last_temp, v.pulse as last_pulse, v.bp as last_bp, v.spo2 as last_spo2, v.created_at as last_vitals_at,
                                  (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = p.id AND pr.status IN ('Pending','External')) as pending_prescriptions
                           FROM patient_queue q
                           JOIN patients p ON q.patient_id = p.id
+                          LEFT JOIN (
+                              SELECT pv1.patient_id, pv1.temperature, pv1.pulse, pv1.bp, pv1.spo2, pv1.created_at
+                              FROM patient_vitals pv1
+                              INNER JOIN (
+                                  SELECT patient_id, MAX(id) as latest_id
+                                  FROM patient_vitals
+                                  GROUP BY patient_id
+                              ) lv ON lv.latest_id = pv1.id
+                          ) v ON v.patient_id = p.id
                           WHERE LOWER(q.status) IN ('admission pending','waiting pharmacy','ready for admission')
                           ORDER BY q.created_at DESC";
                 $stmt = $db->query($query);
-                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($rows as &$row) {
+                    $row = array_merge($row, VitalRisk::classify($row['last_temp'] ?? null, $row['last_pulse'] ?? null, $row['last_bp'] ?? null, $row['last_spo2'] ?? null));
+                }
+                unset($row);
+                usort($rows, function($a, $b) {
+                    $aPriority = (int)($a['risk_priority'] ?? 0);
+                    $bPriority = (int)($b['risk_priority'] ?? 0);
+                    if ($aPriority !== $bPriority) return $bPriority <=> $aPriority;
+                    $aTime = isset($a['created_at']) ? strtotime((string)$a['created_at']) : 0;
+                    $bTime = isset($b['created_at']) ? strtotime((string)$b['created_at']) : 0;
+                    return $bTime <=> $aTime;
+                });
+                echo json_encode($rows);
             } catch (Exception $e) {
                 http_response_code(500);
                 echo json_encode(["message" => "Admission waiting list error: " . $e->getMessage()]);
@@ -427,7 +496,7 @@ switch ($action) {
             $status = RequestValidator::enum($data->status ?? 'open', ['open', 'in_progress', 'done', 'cancelled'], 'status');
             $dueAt = RequestValidator::optionalString($data, 'due_at', 40);
             if (!empty($data->patient_id)) {
-                $check = $db->prepare("SELECT 1 FROM patient_queue WHERE patient_id = ? AND status IN ('Urgent Care','urgent care') LIMIT 1");
+                $check = $db->prepare("SELECT 1 FROM patient_queue WHERE patient_id = ? AND LOWER(status) = 'urgent care' LIMIT 1");
                 $check->execute([$patientId]);
                 if (!$check->fetchColumn()) {
                     http_response_code(400);
@@ -460,7 +529,7 @@ switch ($action) {
                                    OR EXISTS (
                                        SELECT 1 FROM patient_queue q
                                        WHERE q.patient_id = t.patient_id
-                                         AND q.status IN ('Urgent Care','urgent care')
+                                         AND LOWER(q.status) = 'urgent care'
                                    )
                                 ORDER BY t.created_at DESC
                                 LIMIT 100");
@@ -553,23 +622,80 @@ switch ($action) {
     // 12. PATIENT TIMELINE
     case 'timeline':
         if ($method === 'GET') {
-            $pid = $_GET['patient_id'] ?? 0;
-            if (!$pid) {
-                http_response_code(400);
-                echo json_encode(["message" => "Patient ID required"]);
-                exit;
+            try {
+                $pid = (int)($_GET['patient_id'] ?? 0);
+                if ($pid <= 0) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "Patient ID required"]);
+                    exit;
+                }
+
+                $safeQuery = function(string $sql, array $params = []) use ($db) {
+                    try {
+                        $stmt = $db->prepare($sql);
+                        $stmt->execute($params);
+                        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                    } catch (Throwable $e) {
+                        return [];
+                    }
+                };
+
+                $vitals = $safeQuery(
+                    "SELECT created_at, CONCAT('Vitals: BP ', bp, ', T ', temperature, ' C') as note
+                     FROM patient_vitals
+                     WHERE patient_id = ?
+                     ORDER BY created_at DESC
+                     LIMIT 30",
+                    [$pid]
+                );
+                $visits = $safeQuery(
+                    "SELECT created_at, CONCAT('Visit status: ', status) as note
+                     FROM patient_queue
+                     WHERE patient_id = ?
+                     ORDER BY created_at DESC
+                     LIMIT 30",
+                    [$pid]
+                );
+                $meds = $safeQuery(
+                    "SELECT pr.created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note
+                     FROM prescriptions pr
+                     LEFT JOIN medicines m ON pr.medicine_id = m.id
+                     WHERE pr.patient_id = ?
+                     ORDER BY pr.created_at DESC
+                     LIMIT 30",
+                    [$pid]
+                );
+                if (empty($meds)) {
+                    $meds = $safeQuery(
+                        "SELECT pr.created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note
+                         FROM prescriptions pr
+                         LEFT JOIN medicines m ON pr.medicine_id = m.id
+                         INNER JOIN visits v ON pr.visit_id = v.id
+                         WHERE v.patient_id = ?
+                         ORDER BY pr.created_at DESC
+                         LIMIT 30",
+                        [$pid]
+                    );
+                }
+                $docs = $safeQuery(
+                    "SELECT created_at, CONCAT('Document: ', report_name) as note
+                     FROM medical_reports
+                     WHERE patient_id = ?
+                     ORDER BY created_at DESC
+                     LIMIT 30",
+                    [$pid]
+                );
+
+                $timeline = array_merge($vitals, $visits, $meds, $docs);
+                usort($timeline, function($a, $b) {
+                    return strtotime($b['created_at']) <=> strtotime($a['created_at']);
+                });
+
+                echo json_encode(array_slice($timeline, 0, 50));
+            } catch (Throwable $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to load timeline"]);
             }
-            $vitals = $db->query("SELECT created_at, CONCAT('Vitals: BP ', bp, ', T ', temperature, '°C') as note FROM patient_vitals WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-            $visits = $db->query("SELECT created_at, CONCAT('Visit status: ', status) as note FROM patient_queue WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-            $meds = $db->query("SELECT created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note FROM prescriptions pr LEFT JOIN medicines m ON pr.medicine_id = m.id WHERE pr.patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-            $docs = $db->query("SELECT created_at, CONCAT('Document: ', report_name) as note FROM medical_reports WHERE patient_id = $pid ORDER BY created_at DESC LIMIT 30")->fetchAll(PDO::FETCH_ASSOC);
-
-            $timeline = array_merge($vitals ?: [], $visits ?: [], $meds ?: [], $docs ?: []);
-            usort($timeline, function($a, $b) {
-                return strtotime($b['created_at']) <=> strtotime($a['created_at']);
-            });
-
-            echo json_encode(array_slice($timeline, 0, 50));
         }
         break;
 

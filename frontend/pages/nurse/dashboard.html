@@ -41,6 +41,44 @@
         .form-control:valid { border-color: #10b981; }
 
         .stat-widget { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; }
+        .nurse-search-wrap { position: relative; }
+        .nurse-search-results {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px -14px rgba(15, 23, 42, 0.6);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1050;
+        }
+        .nurse-search-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+        }
+        .nurse-search-item:last-child { border-bottom: 0; }
+        .nurse-search-item:hover { background: #f8fafc; }
+        .nurse-risk-red > td { background: #fee2e2 !important; }
+        .nurse-risk-orange > td { background: #ffedd5 !important; }
+        .nurse-risk-yellow > td { background: #fef9c3 !important; }
+        .nurse-alert-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ef4444;
+            margin-right: 6px;
+            animation: nursePulseCritical 1s infinite;
+            vertical-align: middle;
+        }
+        @keyframes nursePulseCritical {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.25; transform: scale(1.45); }
+        }
 
         /* Modern Ward Monitor */
         .ward-toolbar { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 14px 16px; box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.35); }
@@ -126,7 +164,10 @@
                 <div class="row g-2 align-items-center">
                     <div class="col-md-8">
                         <label for="nursePatientSearch" class="form-label small fw-bold mb-1">Search Patient</label>
-                        <input id="nursePatientSearch" type="text" class="form-control" placeholder="Search by patient name, ID, status, reason..." oninput="applyNursePatientSearch()">
+                        <div class="nurse-search-wrap">
+                            <input id="nursePatientSearch" type="text" class="form-control" placeholder="Search registered patients by name or ID..." oninput="applyNursePatientSearch()">
+                            <div id="nurseSearchResults" class="nurse-search-results d-none"></div>
+                        </div>
                     </div>
                     <div class="col-md-4 text-md-end">
                         <button class="btn btn-outline-dark btn-sm mt-4 mt-md-0" onclick="clearNursePatientSearch()"><i class="bi bi-x-circle me-1"></i> Clear</button>
@@ -492,6 +533,9 @@
     let activeBedId = null;
     const bedAdmitModal = new bootstrap.Modal(document.getElementById('bedAdmitModal'));
     let historySnapshot = null;
+    let nurseRegisteredPatients = [];
+    let nurseSearchDebounce = null;
+    let nursePatientsCacheFetchedAt = 0;
 
     function filterNurseTable(tbodyId, query) {
         const tbody = document.getElementById(tbodyId);
@@ -513,6 +557,7 @@
         const input = document.getElementById('nursePatientSearch');
         const query = input ? input.value : '';
         ['historyTableBody', 'urgentCareTable', 'admissionTable', 'tasksTable', 'escalationsTable', 'dischargeTable'].forEach(id => filterNurseTable(id, query));
+        scheduleNurseRegisteredPatientSearch(query);
     }
 
     function clearNursePatientSearch() {
@@ -520,6 +565,126 @@
         if (!input) return;
         input.value = '';
         applyNursePatientSearch();
+        hideNurseSearchResults();
+    }
+
+    function nurseRiskRowClass(level) {
+        const key = String(level || '').toLowerCase();
+        if (key === 'red') return 'nurse-risk-red';
+        if (key === 'orange') return 'nurse-risk-orange';
+        if (key === 'yellow') return 'nurse-risk-yellow';
+        return '';
+    }
+
+    function sortNurseRowsByRisk(rows) {
+        const list = Array.isArray(rows) ? [...rows] : [];
+        list.sort((a, b) => {
+            const aRisk = classifyVitalsRisk(a || {}).rank || 0;
+            const bRisk = classifyVitalsRisk(b || {}).rank || 0;
+            if (aRisk !== bRisk) return bRisk - aRisk;
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTime - aTime;
+        });
+        return list;
+    }
+
+    function normalizeNurseSearch(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function hideNurseSearchResults() {
+        const box = document.getElementById('nurseSearchResults');
+        if (!box) return;
+        box.classList.add('d-none');
+        box.innerHTML = '';
+    }
+
+    function openPatientFromNurseSearch(patient) {
+        if (!patient || !patient.id) return;
+
+        const timelineSelect = document.getElementById('timelinePatient');
+        if (timelineSelect) {
+            const pid = String(patient.id);
+            const hasOption = Array.from(timelineSelect.options).some(opt => opt.value === pid);
+            if (!hasOption) {
+                const opt = document.createElement('option');
+                opt.value = pid;
+                opt.textContent = `${patient.full_name} (${patient.national_id || 'N/A'})`;
+                timelineSelect.appendChild(opt);
+            }
+            timelineSelect.value = pid;
+        }
+
+        const timelineNav = Array.from(document.querySelectorAll('.sidebar .nav-link'))
+            .find((link) => {
+                const handler = link.getAttribute('onclick') || '';
+                return handler.includes("switchTab('timeline'");
+            });
+        if (timelineNav) {
+            switchTab('timeline', timelineNav);
+        } else {
+            loadTimeline();
+        }
+
+        hideNurseSearchResults();
+    }
+
+    function openPatientFromNurseSearchById(patientId) {
+        const match = nurseRegisteredPatients.find((p) => String(p.id) === String(patientId));
+        if (!match) return;
+        openPatientFromNurseSearch(match);
+    }
+
+    function renderNurseRegisteredPatientResults(query) {
+        const box = document.getElementById('nurseSearchResults');
+        if (!box) return;
+
+        const q = normalizeNurseSearch(query);
+        if (q.length < 2) {
+            hideNurseSearchResults();
+            return;
+        }
+
+        const matches = nurseRegisteredPatients.filter((p) => {
+            const name = normalizeNurseSearch(p.full_name);
+            const idText = normalizeNurseSearch(p.national_id);
+            return name.includes(q) || idText.includes(q);
+        }).slice(0, 12);
+
+        if (!matches.length) {
+            box.innerHTML = '<div class="nurse-search-item text-muted small">No registered patient found.</div>';
+            box.classList.remove('d-none');
+            return;
+        }
+
+        box.innerHTML = matches.map((p) => `
+            <div class="nurse-search-item" onclick="openPatientFromNurseSearchById(${Number(p.id)})">
+                <div class="fw-semibold">${p.full_name || 'Unknown'}</div>
+                <div class="small text-muted">${p.national_id || 'No National ID'}</div>
+            </div>
+        `).join('');
+        box.classList.remove('d-none');
+    }
+
+    async function refreshNurseRegisteredPatients(force = false) {
+        const now = Date.now();
+        const cacheFresh = nurseRegisteredPatients.length > 0 && (now - nursePatientsCacheFetchedAt) < 30000;
+        if (!force && cacheFresh) return;
+
+        const rows = await Api.get('/nurse/patients');
+        if (Array.isArray(rows)) {
+            nurseRegisteredPatients = rows;
+            nursePatientsCacheFetchedAt = Date.now();
+        }
+    }
+
+    function scheduleNurseRegisteredPatientSearch(query) {
+        clearTimeout(nurseSearchDebounce);
+        nurseSearchDebounce = setTimeout(async () => {
+            await refreshNurseRegisteredPatients(false);
+            renderNurseRegisteredPatientResults(query);
+        }, 180);
     }
 
     function switchTab(id, el) {
@@ -708,7 +873,7 @@
                         <td>${r.pulse ?? '-'}</td>
                         <td>${r.bp ?? '-'}</td>
                         <td>${r.spo2 ?? '-'}</td>
-                        <td>${renderVitalsRiskBadge(r)}</td>
+                        <td>${renderVitalsRiskBadge(r)}${renderVitalsRiskTriggers(r, { className: 'small text-muted mt-1', prefix: 'Trigger' })}</td>
                     </tr>`;
             });
         } else {
@@ -815,6 +980,8 @@
     async function loadPatientOptions() {
         const patients = await Api.get('/nurse/patients');
         if (patients) {
+            nurseRegisteredPatients = patients;
+            nursePatientsCacheFetchedAt = Date.now();
             renderPatientOptions(document.getElementById('timelinePatient'), patients, '-- Select Patient --');
             renderPatientOptions(document.getElementById('escPatient'), patients, '-- Select Patient --');
         }
@@ -888,13 +1055,23 @@
         if (!tbody) return;
         tbody.innerHTML = '';
         if (rows && rows.length) {
-            rows.forEach(r => {
+            const sortedRows = sortNurseRowsByRisk(rows);
+            sortedRows.forEach(r => {
                 const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                const risk = classifyVitalsRisk(r || {});
+                const riskBadge = renderVitalsRiskBadge(r);
+                const riskTriggers = renderVitalsRiskTriggers(r, { className: 'small text-muted mt-1', prefix: 'Trigger' });
+                const rowClass = nurseRiskRowClass(risk.level);
+                const criticalMarker = risk.level === 'red' ? '<span class="nurse-alert-dot"></span>' : '';
                 tbody.innerHTML += `
-                    <tr>
-                        <td>${r.full_name}</td>
+                    <tr class="${rowClass}">
+                        <td>${criticalMarker}${r.full_name}</td>
                         <td>${r.national_id || 'N/A'}</td>
-                        <td><span class="badge bg-danger-subtle text-danger">${r.status || 'Urgent Care'}</span></td>
+                        <td>
+                            <div><span class="badge bg-danger-subtle text-danger">${r.status || 'Urgent Care'}</span></div>
+                            <div class="mt-1">${riskBadge}</div>
+                            ${riskTriggers}
+                        </td>
                         <td>${timeStr}</td>
                     </tr>`;
             });
@@ -910,11 +1087,17 @@
         if (!tbody) return;
         tbody.innerHTML = '';
         if (rows && rows.length) {
-            rows.forEach(r => {
+            const sortedRows = sortNurseRowsByRisk(rows);
+            sortedRows.forEach(r => {
                 const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
                 const count = Number(r.pending_prescriptions || 0);
                 const statusText = String(r.status || 'Admission Pending');
                 const statusLower = statusText.toLowerCase();
+                const risk = classifyVitalsRisk(r || {});
+                const riskBadge = renderVitalsRiskBadge(r);
+                const riskTriggers = renderVitalsRiskTriggers(r, { className: 'small text-muted mt-1', prefix: 'Trigger' });
+                const rowClass = nurseRiskRowClass(risk.level);
+                const criticalMarker = risk.level === 'red' ? '<span class="nurse-alert-dot"></span>' : '';
                 const statusBadge = statusLower.includes('waiting pharmacy')
                     ? '<span class="badge bg-info-subtle text-info">Waiting Pharmacy</span>'
                     : statusLower.includes('ready for admission')
@@ -924,10 +1107,14 @@
                     ? `<button class="btn btn-outline-primary btn-sm" onclick="requestPharmacyMeds(${r.patient_id}, ${r.queue_id})">Request Pharmacy</button>`
                     : `<span class="text-muted small">No prescriptions</span>`;
                 tbody.innerHTML += `
-                    <tr>
-                        <td>${r.full_name}</td>
+                    <tr class="${rowClass}">
+                        <td>${criticalMarker}${r.full_name}</td>
                         <td>${r.national_id || 'N/A'}</td>
-                        <td>${statusBadge}</td>
+                        <td>
+                            <div>${statusBadge}</div>
+                            <div class="mt-1">${riskBadge}</div>
+                            ${riskTriggers}
+                        </td>
                         <td><span class="badge bg-light text-dark border">${count}</span></td>
                         <td>${timeStr}</td>
                         <td class="text-end">${action}</td>
@@ -1107,6 +1294,11 @@
         if(user) document.getElementById('navUserName').innerText = user.full_name;
         loadPatientOptions();
         showNurseLoginBanner();
+        document.addEventListener('click', (e) => {
+            const wrap = document.querySelector('.nurse-search-wrap');
+            if (!wrap) return;
+            if (!wrap.contains(e.target)) hideNurseSearchResults();
+        });
     });
 </script>
 </body>

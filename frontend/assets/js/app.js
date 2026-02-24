@@ -69,39 +69,167 @@ function parseBpValue(bp) {
     return { sys: Number(m[1]), dia: Number(m[2]) };
 }
 
+const VITAL_SEVERITY_META = {
+    green: { rank: 0, label: "Normal", hex: "#22c55e", action: "Routine monitoring" },
+    yellow: { rank: 1, label: "Mild Concern", hex: "#facc15", action: "Monitor closely" },
+    orange: { rank: 2, label: "High Risk", hex: "#f97316", action: "Urgent review required" },
+    red: { rank: 3, label: "Critical", hex: "#ef4444", action: "Immediate Doctor Review" }
+};
+
+function getSeverityMeta(level, labelOverride = null) {
+    const key = String(level || "").trim().toLowerCase();
+    const base = VITAL_SEVERITY_META[key] || VITAL_SEVERITY_META.green;
+    return {
+        ...base,
+        level: key || "green",
+        label: labelOverride || base.label
+    };
+}
+
+function asBadgeStyle(hex) {
+    const color = hex || "#22c55e";
+    const bgMap = {
+        "#22c55e": "#dcfce7",
+        "#facc15": "#fef9c3",
+        "#f97316": "#ffedd5",
+        "#ef4444": "#fee2e2"
+    };
+    const background = bgMap[color.toLowerCase()] || "#f8fafc";
+    return `background:${background};color:${color};border:1px solid ${color};`;
+}
+
+function escapeRiskHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+    }[ch]));
+}
+
+function levelKeywords(level) {
+    const key = String(level || "").toLowerCase();
+    if (key === "red") return /(critical|crisis|severe|hypotension)/i;
+    if (key === "orange") return /(high|stage 2|severe)/i;
+    if (key === "yellow") return /(mild|stage 1|elevated)/i;
+    return /(normal)/i;
+}
+
+function getRiskTriggersFromReasons(level, reasons) {
+    const list = Array.isArray(reasons) ? reasons.filter(Boolean).map((item) => String(item)) : [];
+    const nonNormal = list.filter((item) => !/normal/i.test(item));
+    const key = String(level || "").toLowerCase();
+
+    if (key === "green") {
+        if (!list.length) return [];
+        return ["All measured vitals within normal range"];
+    }
+
+    const pool = nonNormal.length ? nonNormal : list;
+    if (!pool.length) return [];
+
+    const matcher = levelKeywords(key);
+    const narrowed = pool.filter((item) => matcher.test(item));
+    return narrowed.length ? narrowed : pool;
+}
+
 function classifyVitalsRisk(v) {
+    const source = v || {};
+    if (source && typeof source.risk_level === "string") {
+        const meta = getSeverityMeta(source.risk_level, source.risk_label || null);
+        const sourceReasons = Array.isArray(source.risk_reasons) ? source.risk_reasons : [];
+        const sourceTriggers = Array.isArray(source.risk_triggers)
+            ? source.risk_triggers.filter(Boolean).map((item) => String(item))
+            : getRiskTriggersFromReasons(meta.level, sourceReasons);
+        return {
+            level: meta.level,
+            label: meta.label,
+            rank: Number.isFinite(Number(source.risk_priority)) ? Number(source.risk_priority) : meta.rank,
+            hex: source.risk_hex || meta.hex,
+            action: source.risk_action || meta.action,
+            reasons: sourceReasons,
+            triggers: sourceTriggers,
+            badgeStyle: asBadgeStyle(source.risk_hex || meta.hex)
+        };
+    }
+
     const temp = Number(v.temperature);
     const pulse = Number(v.pulse);
     const spo2 = Number(v.spo2);
     const bp = parseBpValue(v.bp);
-    const red = [];
-    const orange = [];
+    const reasons = [];
+    const levels = [];
 
     if (Number.isFinite(temp)) {
-        if (temp < 35 || temp >= 39.5) red.push("temperature");
-        else if ((temp >= 35 && temp < 36) || (temp > 37.5 && temp < 39.5)) orange.push("temperature");
-    }
-    if (Number.isFinite(pulse)) {
-        if (pulse < 40 || pulse > 130) red.push("pulse");
-        else if ((pulse >= 40 && pulse < 50) || (pulse > 100 && pulse <= 130)) orange.push("pulse");
-    }
-    if (bp) {
-        if (bp.sys < 90 || bp.sys > 180 || bp.dia < 60 || bp.dia > 120) red.push("bp");
-        else if ((bp.sys >= 90 && bp.sys < 100) || (bp.sys > 140 && bp.sys <= 180) || (bp.dia >= 60 && bp.dia < 65) || (bp.dia > 90 && bp.dia <= 120)) orange.push("bp");
-    }
-    if (Number.isFinite(spo2)) {
-        if (spo2 < 90) red.push("spo2");
-        else if (spo2 >= 90 && spo2 <= 94) orange.push("spo2");
+        if (temp >= 39.5) { levels.push("red"); reasons.push("Critical fever (>= 39.5 deg C)"); }
+        else if (temp >= 38.5 && temp <= 39.4) { levels.push("orange"); reasons.push("High fever (38.5-39.4 deg C)"); }
+        else if (temp >= 37.5 && temp <= 38.4) { levels.push("yellow"); reasons.push("Mild fever (37.5-38.4 deg C)"); }
+        else if (temp < 35) { levels.push("red"); reasons.push("Severe hypothermia (< 35.0 deg C)"); }
+        else if (temp >= 35 && temp <= 36.0) { levels.push("yellow"); reasons.push("Mild hypothermia (35.0-36.0 deg C)"); }
+        else levels.push("green");
     }
 
-    if (red.length) return { level: "red", label: "Urgent Care", badge: "bg-danger-subtle text-danger border border-danger" };
-    if (orange.length) return { level: "orange", label: "In Between", badge: "bg-warning-subtle text-warning border border-warning" };
-    return { level: "green", label: "Normal", badge: "bg-success-subtle text-success border border-success" };
+    if (Number.isFinite(pulse)) {
+        if (pulse > 130) { levels.push("red"); reasons.push("Critical tachycardia (> 130 bpm)"); }
+        else if (pulse >= 121 && pulse <= 130) { levels.push("orange"); reasons.push("High tachycardia (121-130 bpm)"); }
+        else if (pulse >= 101 && pulse <= 120) { levels.push("yellow"); reasons.push("Mild tachycardia (101-120 bpm)"); }
+        else if (pulse < 50) { levels.push("red"); reasons.push("Critical bradycardia (< 50 bpm)"); }
+        else if (pulse >= 50 && pulse <= 59) { levels.push("yellow"); reasons.push("Mild bradycardia (50-59 bpm)"); }
+        else levels.push("green");
+    }
+
+    if (bp) {
+        if (bp.sys >= 180 || bp.dia >= 120) { levels.push("red"); reasons.push("Hypertensive crisis"); }
+        else if (bp.sys < 90 || bp.dia < 60) { levels.push("red"); reasons.push("Hypotension"); }
+        else if ((bp.sys >= 140 && bp.sys <= 179) || (bp.dia >= 90 && bp.dia <= 119)) { levels.push("orange"); reasons.push("Hypertension stage 2"); }
+        else if ((bp.sys >= 130 && bp.sys <= 139) || (bp.dia >= 80 && bp.dia <= 89)) { levels.push("yellow"); reasons.push("Hypertension stage 1"); }
+        else if ((bp.sys >= 120 && bp.sys <= 129) && bp.dia < 80) { levels.push("yellow"); reasons.push("Elevated blood pressure"); }
+        else levels.push("green");
+    }
+
+    if (Number.isFinite(spo2)) {
+        if (spo2 < 85) { levels.push("red"); reasons.push("Critical hypoxia (SpO2 < 85%)"); }
+        else if (spo2 >= 85 && spo2 <= 89) { levels.push("orange"); reasons.push("Severe hypoxia (SpO2 85-89%)"); }
+        else if (spo2 >= 90 && spo2 <= 94) { levels.push("yellow"); reasons.push("Mild hypoxia (SpO2 90-94%)"); }
+        else levels.push("green");
+    }
+
+    let level = "green";
+    if (levels.includes("red")) level = "red";
+    else if (levels.includes("orange")) level = "orange";
+    else if (levels.includes("yellow")) level = "yellow";
+
+    const meta = getSeverityMeta(level);
+    const triggers = getRiskTriggersFromReasons(level, reasons);
+    return {
+        level,
+        label: meta.label,
+        rank: meta.rank,
+        hex: meta.hex,
+        action: meta.action,
+        reasons,
+        triggers,
+        badgeStyle: asBadgeStyle(meta.hex)
+    };
 }
 
 function renderVitalsRiskBadge(v) {
     const r = classifyVitalsRisk(v || {});
-    return `<span class="badge ${r.badge}">${r.label}</span>`;
+    const criticalIcon = r.level === "red" ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>' : "";
+    const triggerText = (Array.isArray(r.triggers) && r.triggers.length) ? ` | Triggered by: ${r.triggers.join("; ")}` : "";
+    const title = escapeRiskHtml(`${r.action}${triggerText}`);
+    return `<span class="badge" style="${r.badgeStyle}" title="${title}">${criticalIcon}${r.label}</span>`;
+}
+
+function renderVitalsRiskTriggers(v, options = {}) {
+    const risk = classifyVitalsRisk(v || {});
+    const triggers = Array.isArray(risk.triggers) ? risk.triggers : [];
+    if (!triggers.length) return "";
+    const className = options.className || "small text-muted mt-1";
+    const prefix = options.prefix || "Triggered by";
+    const text = triggers.join("; ");
+    return `<div class="${escapeRiskHtml(className)}" title="${escapeRiskHtml(text)}">${escapeRiskHtml(prefix)}: ${escapeRiskHtml(text)}</div>`;
 }
 
 // Global notification modal (replaces browser alerts)
@@ -395,8 +523,26 @@ function setupRealtime() {
             retryMs = 1000;
         });
 
-        socket.addEventListener("message", () => {
+        socket.addEventListener("message", (evt) => {
+            let detail = { event: "refresh", payload: {} };
+            try {
+                const parsed = JSON.parse(evt?.data || "{}");
+                if (parsed && typeof parsed === "object") {
+                    detail = {
+                        event: parsed.event || "refresh",
+                        payload: parsed.payload || {}
+                    };
+                }
+            } catch (e) {
+                // ignore malformed socket payloads
+            }
+
             triggerAutoRefresh();
+            try {
+                window.dispatchEvent(new CustomEvent("hms:realtime", { detail }));
+            } catch (e) {
+                // ignore event dispatch failures
+            }
         });
 
         socket.addEventListener("close", () => {
