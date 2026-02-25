@@ -315,7 +315,7 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light text-muted"><tr><th class="ps-4">Time</th><th>Patient</th><th>Doctor</th><th>Status</th></tr></thead>
+                            <thead class="bg-light text-muted"><tr><th class="ps-4">Time</th><th>Patient</th><th>Status</th></tr></thead>
                             <tbody id="flowTable"></tbody>
                         </table>
                     </div>
@@ -610,35 +610,6 @@
             </div>
         </section>
 
-        <div class="modal fade" id="admitModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content border-0 shadow">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title fw-bold">Patient Admission</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-4">
-                            <label class="small text-muted">Patient Name</label>
-                            <h4 id="modalPatientName" class="fw-bold text-dark mb-0">--</h4>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Assign to Doctor</label>
-                            <select id="admitDoctor" class="form-select"></select>
-                        </div>
-                        <div class="alert alert-danger d-flex align-items-center">
-                            <input class="form-check-input me-3" type="checkbox" id="admitCritical" style="width: 20px; height: 20px;">
-                            <div>
-                                <label class="form-check-label fw-bold" for="admitCritical">CRITICAL CONDITION</label>
-                                <div class="small">Bypasses Nurse Station. Sends directly to Doctor.</div>
-                            </div>
-                        </div>
-                        <button class="btn btn-success w-100 py-3 fw-bold mt-3" onclick="confirmAdmission()">CONFIRM ADMISSION</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="modal fade" id="historyModal" tabindex="-1">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content border-0 shadow">
@@ -733,8 +704,6 @@
 <script src="../../assets/js/app.js"></script>
 <script>
     protectPage(['receptionist', 'admin']);
-    let currentPatientId = null;
-    const modalInstance = new bootstrap.Modal(document.getElementById('admitModal'));
     const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
     let historySnapshot = null;
     let cachedPatients = [];
@@ -748,9 +717,39 @@
         loadQueueList();
         loadSummary();
         loadHandover();
+        window.addEventListener('hms:realtime', handleReceptionRealtime);
         const sd = document.getElementById('summaryDate');
         if (sd) sd.value = new Date().toISOString().slice(0, 10);
     });
+
+    function handleReceptionRealtime(evt) {
+        const detail = evt && evt.detail ? evt.detail : {};
+        const eventName = String(detail.event || '');
+        const payload = detail.payload || {};
+        if (eventName === 'reception.nurse_pull') {
+            const patientName = payload.patient_name || (payload.patient_id ? `Patient #${payload.patient_id}` : 'a patient');
+            if (typeof showBanner === 'function') {
+                showBanner(`Nurse Aid started vitals for ${patientName}.`, { type: 'info', timeoutMs: 10000 });
+            }
+            loadQueueList();
+            loadDashboardStats();
+        }
+        if (eventName === 'nurse.start_triage') {
+            const queueId = payload.queue_id ? ` #${payload.queue_id}` : '';
+            if (typeof showBanner === 'function') {
+                showBanner(`Nurse Aid started triage for queue${queueId}.`, { type: 'info', timeoutMs: 9000 });
+            }
+            loadQueueList();
+            loadDashboardStats();
+        }
+        if (eventName === 'reception.nurse_pull_blocked') {
+            const patientName = payload.patient_name || (payload.patient_id ? `Patient #${payload.patient_id}` : 'a patient');
+            const status = payload.status || 'active';
+            if (typeof showBanner === 'function') {
+                showBanner(`Nurse Aid requested triage for ${patientName}, but patient is currently ${status}.`, { type: 'warning', timeoutMs: 10000 });
+            }
+        }
+    }
 
     // --- NAVIGATION & UI ---
     function showSection(id){
@@ -820,9 +819,9 @@
                     item.innerHTML = `<div><strong>${p.full_name}</strong><br><small class="text-muted">${p.national_id}</small></div>`;
 
                     if(p.is_active > 0) {
-                        item.innerHTML += `<span class="badge bg-success">Admitted</span>`;
+                        item.innerHTML += `<span class="badge bg-success">In Queue</span>`;
                     } else {
-                        item.onclick = () => { box.classList.add('d-none'); openAdmitModal(p); };
+                        item.innerHTML += `<span class="badge bg-secondary">No Active Queue</span>`;
                     }
                     box.appendChild(item);
                 });
@@ -840,8 +839,8 @@
         populatePatientSelects();
         cachedPatients.forEach(p => {
             const historyBtn = `<button class="btn btn-sm btn-outline-secondary" onclick='openHistory(${JSON.stringify(p)})'><i class="bi bi-clock-history me-1"></i>History</button>`;
-            let actionBtn = `<div class="d-flex gap-2">${historyBtn}<button class="btn btn-sm btn-outline-primary" onclick='openAdmitModal(${JSON.stringify(p)})'>Admit <i class="bi bi-arrow-right"></i></button></div>`;
-            if(p.is_active > 0) actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> Active Queue</span></div>`;
+            let actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-secondary py-2 px-3"><i class="bi bi-clock-history me-1"></i> No Active Queue</span></div>`;
+            if(p.is_active > 0) actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> In Queue</span></div>`;
 
             tbody.innerHTML += `<tr>
                 <td class="ps-4 fw-medium">${p.full_name}</td>
@@ -850,12 +849,6 @@
                 <td>${actionBtn}</td>
             </tr>`;
         });
-    }
-
-    function openAdmitModal(p) {
-        currentPatientId = p.id;
-        document.getElementById('modalPatientName').innerText = p.full_name;
-        modalInstance.show();
     }
 
     async function openHistory(p) {
@@ -1163,20 +1156,6 @@
         }
     }
 
-    async function confirmAdmission() {
-        const data = {
-            patient_id: currentPatientId,
-            doctor: document.getElementById('admitDoctor').value,
-            is_critical: document.getElementById('admitCritical').checked
-        };
-        const res = await Api.post('/reception/admit', data);
-        if(res) {
-            modalInstance.hide();
-            loadDashboardStats();
-            showSection('dashboard');
-        }
-    }
-
     async function registerPatient() {
         const idVal = document.getElementById('regId').value;
         const phoneVal = document.getElementById('regPhone').value;
@@ -1209,10 +1188,12 @@
 
         const res = await Api.post('/reception/register', data);
         if(res) {
-            notify("Registration successful!");
+            notify("Registration successful. Patient added to Nurse Aid triage queue.");
             document.getElementById('registrationForm').reset();
             loadDirectory();
-            showSection('directory');
+            loadQueueList();
+            loadDashboardStats();
+            showSection('queue');
         }
     }
 
@@ -1227,7 +1208,6 @@
                 tbody.innerHTML += `<tr>
                     <td class="ps-4 text-muted small">${new Date(row.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
                     <td class="fw-bold">${row.full_name}</td>
-                    <td>${row.doctor_assigned || '-'}</td>
                     <td><span class="badge bg-primary">${row.status}</span></td>
                 </tr>`;
             });
@@ -1305,12 +1285,7 @@
 
     async function loadDoctors() {
         const users = await Api.get('/users');
-        const select = document.getElementById('admitDoctor');
-        select.innerHTML = '<option value="">Any Available</option>';
         cachedDoctors = (users || []).filter(u => u.role === 'doctor');
-        cachedDoctors.forEach(d => {
-            select.innerHTML += `<option value="${d.full_name}">${d.full_name}</option>`;
-        });
         populateDoctorSelects();
     }
 

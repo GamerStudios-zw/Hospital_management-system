@@ -51,6 +51,7 @@ switch ($action) {
         $stmt = $db->query("SELECT COUNT(*) as count
                             FROM patient_queue q
                             WHERE q.status IN ('Waiting','waiting','Urgent Care','urgent care')
+                              AND LOWER(COALESCE(q.queue_origin, '')) = 'nurse_aid_search'
                               AND NOT EXISTS (
                                   SELECT 1 FROM appointments a
                                   WHERE a.patient_id = q.patient_id
@@ -99,6 +100,7 @@ switch ($action) {
                           ) lv ON lv.latest_id = pv1.id
                       ) v ON v.patient_id = p.id
                       WHERE q.status IN ('Waiting', 'waiting', 'Urgent Care', 'urgent care', 'In Triage', 'in triage')
+                        AND LOWER(COALESCE(q.queue_origin, '')) = 'nurse_aid_search'
                         AND NOT EXISTS (
                             SELECT 1 FROM appointments a
                             WHERE a.patient_id = q.patient_id
@@ -457,7 +459,7 @@ switch ($action) {
                     exit;
                 }
 
-                $triageStmt = $db->prepare("SELECT id as queue_id, status, created_at
+                $triageStmt = $db->prepare("SELECT id as queue_id, status, created_at, queue_origin
                                             FROM patient_queue
                                             WHERE patient_id = ?
                                               AND status IN ('Waiting','waiting','Urgent Care','urgent care','In Triage','in triage')
@@ -467,8 +469,15 @@ switch ($action) {
                 $existingTriage = $triageStmt->fetch(PDO::FETCH_ASSOC);
 
                 $created = false;
+                $exposedInNurseAidQueue = false;
                 if ($existingTriage) {
                     $queueId = (int)$existingTriage['queue_id'];
+                    $origin = strtolower(trim((string)($existingTriage['queue_origin'] ?? '')));
+                    if ($origin !== 'nurse_aid_search') {
+                        $markOrigin = $db->prepare("UPDATE patient_queue SET queue_origin = 'nurse_aid_search' WHERE id = ?");
+                        $markOrigin->execute([$queueId]);
+                        $exposedInNurseAidQueue = true;
+                    }
                 } else {
                     $activeStmt = $db->prepare("SELECT id as queue_id, status, created_at
                                                 FROM patient_queue
@@ -492,7 +501,7 @@ switch ($action) {
                         exit;
                     }
 
-                    $insertStmt = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, 'Waiting')");
+                    $insertStmt = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status, queue_origin) VALUES (?, ?, 'Waiting', 'nurse_aid_search')");
                     $insertStmt->execute([$patientId, null]);
                     $queueId = (int)$db->lastInsertId();
                     $created = true;
@@ -549,7 +558,7 @@ switch ($action) {
                 ]);
 
                 echo json_encode([
-                    "message" => $created
+                    "message" => ($created || $exposedInNurseAidQueue)
                         ? "Patient moved to triage queue. Reception notified."
                         : "Patient already in triage queue. Reception notified.",
                     "queue" => $queueRow
