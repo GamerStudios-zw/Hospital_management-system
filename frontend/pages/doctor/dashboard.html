@@ -193,7 +193,7 @@
         }
     </style>
 </head>
-<body class="hms-module module-doctor">
+<body class="hms-module module-doctor admin-theme">
 
 <div class="container-fluid p-0">
     <div class="row g-0">
@@ -635,10 +635,26 @@
         });
     }
 
+    function filterListRows(listId, query) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+        const q = String(query || '').trim().toLowerCase();
+        const rows = Array.from(list.querySelectorAll('li'));
+        rows.forEach((row) => {
+            const text = (row.textContent || '').toLowerCase();
+            if (!q) {
+                row.style.display = '';
+                return;
+            }
+            row.style.display = text.includes(q) ? '' : 'none';
+        });
+    }
+
     function applyDoctorPatientSearch() {
         const input = document.getElementById('doctorPatientSearch');
         const query = input ? input.value : '';
-        ['queueTableBody', 'appointmentTable', 'directoryTableBody', 'tasksTable', 'escalationsTable', 'dischargeTable'].forEach(id => filterTbodyRows(id, query));
+        ['queueTableBody', 'appointmentTable', 'directoryTableBody', 'tasksTable', 'escalationsTable', 'dischargeTable', 'handoverTable', 'rosterTableBody'].forEach(id => filterTbodyRows(id, query));
+        filterListRows('timelineList', query);
     }
 
     function clearDoctorPatientSearch() {
@@ -730,14 +746,15 @@
                 const statusClass = statusKey === 'checked_in' ? 'bg-success'
                     : statusKey === 'cancelled' ? 'bg-danger'
                     : statusKey === 'completed' ? 'bg-secondary'
-                    : 'bg-primary';
-                const unassigned = Number(a.is_unassigned || 0) === 1;
-                let actionHtml = '-';
-                if (statusKey === 'scheduled' || statusKey === 'confirmed' || statusKey === 'pending') {
-                    const label = unassigned ? 'Claim & Start' : 'Start Consult';
-                    actionHtml = `<button class="btn btn-sm btn-primary" onclick="updateAppointmentStatus(${a.id}, 'checked_in')">${label}</button>`;
-                } else if (statusKey === 'checked_in') {
-                    actionHtml = `<button class="btn btn-sm btn-success" onclick="openClinicalNotes(${a.id})">Mark Completed</button>`;
+                    : statusKey === 'confirmed' ? 'bg-primary-subtle text-primary'
+                    : 'bg-warning-subtle text-warning';
+                let actionHtml = '<span class="badge bg-warning-subtle text-warning border">Awaiting Reception Check-in</span>';
+                if (statusKey === 'checked_in') {
+                    actionHtml = `<button class="btn btn-sm btn-success" onclick="openClinicalNotes(${a.id})">Start / Complete Consult</button>`;
+                } else if (statusKey === 'completed') {
+                    actionHtml = '<span class="text-muted small">Completed</span>';
+                } else if (statusKey === 'cancelled') {
+                    actionHtml = '<span class="text-muted small">Cancelled</span>';
                 }
                 tbody.innerHTML += `
                     <tr>
@@ -779,18 +796,26 @@
             status: 'completed',
             notes
         });
-        if (res) {
+        if (res && !res.error) {
             clinicalModal.hide();
             loadAppointments();
+        } else if (res && res.message) {
+            notify(res.message, 'warning');
         }
     }
 
     async function updateAppointmentStatus(appointmentId, status) {
+        if (String(status || '').toLowerCase() !== 'completed') {
+            notify('Only Reception can mark patient arrival. Doctor can only complete checked-in appointments.', 'warning');
+            return;
+        }
         const label = status.replace('_', ' ');
         if (!confirm(`Set status to "${label}"?`)) return;
         const res = await Api.post('/doctor/appointment_update', { appointment_id: appointmentId, status });
-        if (res) {
+        if (res && !res.error) {
             loadAppointments();
+        } else if (res && res.message) {
+            notify(res.message, 'warning');
         }
     }
 
@@ -805,7 +830,7 @@
                 const vitalsRisk = p.bp ? renderVitalsRiskBadge(p) : '';
                 const vitalsTriggers = p.bp ? renderVitalsRiskTriggers(p, { className: 'small text-muted mt-1', prefix: 'Trigger' }) : '';
                 const vitals = p.bp
-                    ? `<div><span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}°C | P: ${p.pulse ?? '-'} | SpO2: ${p.spo2 ?? '-'}</span> ${vitalsRisk}</div>${vitalsTriggers}`
+                    ? `<div><span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}ï¿½C | P: ${p.pulse ?? '-'} | SpO2: ${p.spo2 ?? '-'}</span> ${vitalsRisk}</div>${vitalsTriggers}`
                     : '<span class="badge bg-light text-muted border">Vitals Pending</span>';
                 const vitalsWithNotes = p.nurse_notes ? `${vitals}<span class="badge bg-info-subtle text-info border ms-2">Nurse notes available</span>` : vitals;
                 const rowClass = doctorQueueRowClass(risk.level);
@@ -892,6 +917,7 @@
         } else {
             list.innerHTML = '<li class="list-group-item text-muted">No timeline entries.</li>';
         }
+        applyDoctorPatientSearch();
     }
 
     async function loadTasks() {
@@ -1037,6 +1063,7 @@
         } else {
             tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No handovers yet.</td></tr>';
         }
+        applyDoctorPatientSearch();
     }
 
     async function createHandover() {
@@ -1083,6 +1110,7 @@
         } else {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No upcoming shifts found.</td></tr>';
         }
+        applyDoctorPatientSearch();
     }
 
     async function startConsult(p) {
@@ -1101,7 +1129,7 @@
         const riskAction = p.bp ? `<div class="small fw-semibold mt-1">${classifyVitalsRisk(p).action}</div>` : '';
         const riskTriggers = p.bp ? renderVitalsRiskTriggers(p, { className: 'small text-muted mt-1', prefix: 'Trigger' }) : '';
         document.getElementById('modalVitalsDisplay').innerHTML = p.bp
-            ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}°C</div><div class="vitals-badge">Pulse: ${p.pulse ?? '-'}</div><div class="vitals-badge">SpO2: ${p.spo2 ?? '-'}</div><div>${riskBadge}${riskAction}${riskTriggers}</div>${nurseNotesHtml}`
+            ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}ï¿½C</div><div class="vitals-badge">Pulse: ${p.pulse ?? '-'}</div><div class="vitals-badge">SpO2: ${p.spo2 ?? '-'}</div><div>${riskBadge}${riskAction}${riskTriggers}</div>${nurseNotesHtml}`
             : `Vitals not captured.${nurseNotesHtml}`;
         await loadMedicines();
         consultModal.show();

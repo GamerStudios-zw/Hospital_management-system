@@ -1,208 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Login | Hospital Management System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../../assets/css/fonts.css" rel="stylesheet">
-    <link href="../../assets/css/theme.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="../../assets/css/sports-academy-theme.css" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #294a70;
-            --secondary-color: #0f233a;
-            --accent-color: #e44a3c;
-            --text-color: #212529;
-            --light-bg: #f8f9fa;
-        }
-
-        body {
-            font-family: var(--app-font);
-            color: var(--text-color);
-            background-color: #f0f2f5;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Header (Matches Index) */
-        .header {
-            background: #294a70;
-            padding: 12px 0;
-            z-index: 997;
-            box-shadow: 0px 2px 20px rgba(1, 41, 112, 0.1);
-            width: 100%;
-            border-bottom: 3px solid #e44a3c;
-        }
-
-        .logo {
-            color: white;
-            font-weight: 700;
-            font-size: 24px;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo i { font-size: 28px; }
-
-        .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            font-weight: 500;
-            transition: 0.3s;
-        }
-        .nav-link:hover { color: white; text-decoration: underline; }
-
-        /* Login Section */
-        .login-wrapper {
-            flex: 1;
-            display: flex;
+        .icon-brand {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 40px 20px;
-            background: url('../../assets/img/hero-bg.jpg') center/cover;
-            position: relative;
-        }
-
-        .login-wrapper::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(41, 74, 112, 0.6); /* Primary color overlay */
-            z-index: 1;
-        }
-
-        .login-card {
-            background: white;
-            width: 100%;
-            max-width: 400px;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-            position: relative;
-            z-index: 2;
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .login-header h3 {
-            color: var(--primary-color);
+            color: #173d8c;
+            font-size: 1.3rem;
             font-weight: 700;
-            font-size: 24px;
         }
-
-        .login-header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .form-control {
-            padding: 12px;
-            border-radius: 4px;
-            border: 1px solid #ced4da;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(41, 74, 112, 0.25);
-        }
-
-        .btn-login {
-            width: 100%;
-            background: var(--primary-color);
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 4px;
-            font-weight: 600;
-            transition: 0.3s;
-            margin-top: 10px;
-        }
-
-        .btn-login:hover {
-            background: var(--secondary-color);
-            transform: translateY(-2px);
-        }
-
-        .btn-login:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .footer-text {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 13px;
-            color: #6c757d;
-        }
-
-        /* Alert Box */
         #alertBox {
             display: none;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            font-size: 0.92rem;
         }
-        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-
+        .alert-error {
+            display: block;
+            background: rgba(215, 38, 56, 0.14);
+            border-color: rgba(215, 38, 56, 0.35);
+            color: #ffd9de;
+        }
+        .alert-success {
+            display: block;
+            background: rgba(42, 157, 99, 0.16);
+            border-color: rgba(42, 157, 99, 0.36);
+            color: #d9ffea;
+        }
+        .btn-login[disabled] {
+            opacity: 0.75;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
-<body>
-<div class="login-wrapper">
-        <div class="login-card">
-            <div class="login-header">
-                <h3>Staff Portal</h3>
-                <p>Secure access for authorized personnel</p>
-            </div>
+<body class="admin-theme" data-page="login" data-login-scope="staff">
+    <div class="page-shell d-flex align-items-center" style="min-height: 100vh;">
+        <div class="orb orb-one"></div>
+        <div class="orb orb-two"></div>
 
-            <div id="alertBox"></div>
+        <div class="container py-5">
+            <div class="row justify-content-center">
+                <div class="col-xl-5 col-lg-6">
+                    <div class="form-card p-4 p-lg-5">
+                        <a href="../../index.html" class="nav-link-lite d-inline-flex align-items-center gap-2 mb-4">
+                            <i class="bi bi-arrow-left"></i> Back to HMS home
+                        </a>
 
-            <form id="loginForm">
-                <div class="mb-3">
-                    <label class="form-label fw-bold small">Username / Email</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
-                        <input type="text" id="email" class="form-control" placeholder="Enter ID" required>
+                        <div class="brand-stack mb-4">
+                            <span class="brand-mark icon-brand"><i class="bi bi-hospital"></i></span>
+                            <div class="brand-copy">
+                                <strong>HMS Staff Portal</strong>
+                                <span>Secure login for authorized hospital personnel</span>
+                            </div>
+                        </div>
+
+                        <span class="eyebrow"><i class="bi bi-shield-lock"></i> Authenticated access</span>
+                        <h1 class="section-heading mt-3 mb-2">Sign in to continue.</h1>
+                        <p class="muted-copy">Doctors, nurses, reception staff, pharmacists, IT support, and administrators are routed to their dashboard after login.</p>
+
+                        <form id="loginForm" class="mt-4">
+                            <div class="mb-3">
+                                <label class="form-label">Username or Email</label>
+                                <input id="email" type="text" class="form-control soft-input" placeholder="Enter your username or email" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Password</label>
+                                <input id="password" type="password" class="form-control soft-input" placeholder="Enter password" required>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mb-4 mt-3 small">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="remember">
+                                    <label class="form-check-label muted-copy" for="remember">Remember me</label>
+                                </div>
+                                <span class="muted-copy">Restricted access</span>
+                            </div>
+
+                            <button type="submit" id="loginBtn" class="btn-primary-soft btn-login w-100 border-0">
+                                <i class="bi bi-box-arrow-in-right"></i> Sign In
+                            </button>
+
+                            <div id="alertBox"></div>
+                        </form>
                     </div>
                 </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold small">Password</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
-                        <input type="password" id="password" class="form-control" placeholder="••••••••" required>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-4 small">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="remember">
-                        <label class="form-check-label text-muted" for="remember">Remember me</label>
-                    </div>
-                    <a href="#" class="text-decoration-none" style="color: var(--primary-color);">Forgot password?</a>
-                </div>
-
-                <button type="submit" id="loginBtn" class="btn-login">
-                    Sign In <i class="bi bi-box-arrow-in-right ms-2"></i>
-                </button>
-            </form>
-
-            <div class="footer-text">
-                &copy; 2026 Hospital Management System<br>
-                Restricted Access. Monitor Logic Active.
             </div>
         </div>
     </div>
@@ -210,25 +104,49 @@
     <script src="../../assets/js/app.js"></script>
 
     <script>
-        // AUTOMATIC URL DETECTION
         const BASE_URL = window.location.origin + "/Hospital_Management_System/backend/index.php";
         const API_URL = `${BASE_URL}/auth/login`;
 
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        function setAlert(type, message) {
+            const alertBox = document.getElementById("alertBox");
+            alertBox.className = type;
+            alertBox.textContent = message;
+            alertBox.style.display = "block";
+        }
+
+        function setButtonLoading(isLoading) {
+            const loginBtn = document.getElementById("loginBtn");
+            loginBtn.disabled = isLoading;
+            loginBtn.innerHTML = isLoading
+                ? 'Authenticating <span class="spinner-border spinner-border-sm ms-2"></span>'
+                : '<i class="bi bi-box-arrow-in-right"></i> Sign In';
+        }
+
+        function showLogoutReason() {
+            const reason = sessionStorage.getItem("hms_logout_reason");
+            if (!reason) return;
+            sessionStorage.removeItem("hms_logout_reason");
+            if (reason === "session_expired") {
+                setAlert("alert-error", "Session timed out. Please sign in again.");
+                return;
+            }
+            if (reason === "invalid_session") {
+                setAlert("alert-error", "Your session data was invalid. Please sign in again.");
+            }
+        }
+
+        showLogoutReason();
+
+        document.getElementById("loginForm").addEventListener("submit", async function (e) {
             e.preventDefault();
 
-            // 1. UI Elements
-            const emailInput = document.getElementById('email');
-            const passwordInput = document.getElementById('password');
-            const loginBtn = document.getElementById('loginBtn');
-            const alertBox = document.getElementById('alertBox');
+            const emailInput = document.getElementById("email");
+            const passwordInput = document.getElementById("password");
+            const alertBox = document.getElementById("alertBox");
 
-            // 2. Reset UI
-            alertBox.style.display = 'none';
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = 'Authenticating <span class="spinner-border spinner-border-sm ms-2"></span>';
+            alertBox.style.display = "none";
+            setButtonLoading(true);
 
-            // 3. Prepare Data
             const loginData = {
                 username: emailInput.value.trim(),
                 password: passwordInput.value
@@ -236,8 +154,8 @@
 
             try {
                 const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(loginData)
                 });
 
@@ -246,72 +164,75 @@
                 try {
                     result = JSON.parse(rawText);
                 } catch (err) {
-                    throw new Error("Server Error: " + rawText.substring(0, 50) + "...");
+                    throw new Error("Server Error: " + rawText.substring(0, 60) + "...");
                 }
 
-                if (response.ok) {
-                    // --- SUCCESS ---
-                    alertBox.className = 'alert-success';
-                    alertBox.innerText = "Login Successful! Redirecting...";
-                    alertBox.style.display = 'block';
-
-                    const userPayload = result?.user || result?.data?.user || null;
-                    const tokenPayload = result?.token || result?.data?.token || null;
-                    if (!userPayload || !tokenPayload) {
-                        throw new Error("Invalid login response from server.");
-                    }
-
-                    const rawRole = userPayload.role || userPayload.user_role || "";
-                    const normalizedRole = typeof normalizeRole === "function"
-                        ? normalizeRole(rawRole)
-                        : String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
-                    if (!normalizedRole) {
-                        throw new Error("Login succeeded but this account has no role assigned.");
-                    }
-
-                    userPayload.role = normalizedRole;
-                    localStorage.setItem("hms_token", tokenPayload);
-                    localStorage.setItem("hms_user", JSON.stringify(userPayload));
-                    localStorage.setItem("hms_role", normalizedRole);
-
-                    // Redirect based on Role (Wait 1s for better UX)
-                    setTimeout(() => {
-                        switch(normalizedRole) {
-                            case 'admin':        window.location.href = "../admin/dashboard.html"; break;
-                            case 'doctor':       window.location.href = "../doctor/dashboard.html"; break;
-                            case 'nurse':        window.location.href = "../nurse/dashboard.html"; break;
-                            case 'nurse_aid':    window.location.href = "../nurse_aid/dashboard.html"; break;
-                            case 'receptionist': window.location.href = "../reception/dashboard.html"; break;
-                            case 'pharmacist':   window.location.href = "../pharmacy/dashboard.html"; break;
-                            case 'senior_pharmacist': window.location.href = "../pharmacy/dashboard.html"; break;
-                            case 'it_support':   window.location.href = "../it/itdashboard.html"; break;
-                            default:
-                                if (typeof showNotification === "function") {
-                                    showNotification("Unknown Role: " + rawRole);
-                                } else {
-                                    notify("Unknown Role: " + rawRole);
-                                }
-                                break;
-                        }
-                    }, 1000);
-
-                } else {
-                    // --- FAILURE ---
+                if (!response.ok) {
                     throw new Error(result.message || "Invalid credentials");
                 }
 
+                const userPayload = result?.user || result?.data?.user || null;
+                const tokenPayload = result?.token || result?.data?.token || null;
+                if (!userPayload || !tokenPayload) {
+                    throw new Error("Invalid login response from server.");
+                }
+
+                const rawRole = userPayload.role || userPayload.user_role || "";
+                const normalizedRole = typeof normalizeRole === "function"
+                    ? normalizeRole(rawRole)
+                    : String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
+
+                if (!normalizedRole) {
+                    throw new Error("Login succeeded but this account has no role assigned.");
+                }
+
+                userPayload.role = normalizedRole;
+                localStorage.setItem("hms_token", tokenPayload);
+                localStorage.setItem("hms_user", JSON.stringify(userPayload));
+                localStorage.setItem("hms_role", normalizedRole);
+
+                setAlert("alert-success", "Login successful. Redirecting...");
+
+                setTimeout(() => {
+                    switch (normalizedRole) {
+                        case "admin":
+                            window.location.href = "../admin/dashboard.html";
+                            break;
+                        case "doctor":
+                            window.location.href = "../doctor/dashboard.html";
+                            break;
+                        case "nurse":
+                            window.location.href = "../nurse/dashboard.html";
+                            break;
+                        case "nurse_aid":
+                            window.location.href = "../nurse_aid/dashboard.html";
+                            break;
+                        case "receptionist":
+                            window.location.href = "../reception/dashboard.html";
+                            break;
+                        case "pharmacist":
+                        case "senior_pharmacist":
+                            window.location.href = "../pharmacy/dashboard.html";
+                            break;
+                        case "it_support":
+                            window.location.href = "../it/itdashboard.html";
+                            break;
+                        default:
+                            if (typeof showNotification === "function") {
+                                showNotification("Unknown Role: " + rawRole);
+                            } else {
+                                notify("Unknown Role: " + rawRole);
+                            }
+                            setButtonLoading(false);
+                            break;
+                    }
+                }, 900);
             } catch (error) {
                 console.error("Login Error:", error);
-                alertBox.className = 'alert-error';
-                alertBox.innerText = error.message;
-                alertBox.style.display = 'block';
-
-                // Reset Button
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = 'Sign In <i class="bi bi-box-arrow-in-right ms-2"></i>';
+                setAlert("alert-error", error.message);
+                setButtonLoading(false);
             }
         });
     </script>
-
 </body>
 </html>

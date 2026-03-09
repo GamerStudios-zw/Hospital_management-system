@@ -12,6 +12,8 @@ $db = $database->getConnection();
 
 DbSchema::ensureNurseModules($db);
 DbSchema::ensurePharmacyModules($db);
+DbSchema::ensureClinicalOperationsModules($db);
+DbSchema::ensureBedManagement($db);
 
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -21,6 +23,15 @@ header('Content-Type: application/json');
 
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['nurse', 'admin'], $user);
+$allowedWardNames = ['General Ward', 'ICU', 'Martenity', 'Recovering Ward'];
+$wardPrefixByName = [
+    'General Ward' => 'G',
+    'ICU' => 'I',
+    'Martenity' => 'M',
+    'Recovering Ward' => 'R'
+];
+$allowedBedStatuses = ['Available', 'Occupied', 'Cleaning', 'Maintenance', 'Reserved'];
+$allowedWardStatuses = ['Open', 'High Load', 'Isolation', 'Closed', 'Maintenance'];
 
 switch ($action) {
 
@@ -98,6 +109,211 @@ switch ($action) {
                   LEFT JOIN patients p ON b.current_patient_id = p.id
                   ORDER BY b.ward_name, b.bed_number";
         echo json_encode($db->query($query)->fetchAll(PDO::FETCH_ASSOC));
+        break;
+
+    case 'bed_create':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $wardName = RequestValidator::enum($data->ward_name ?? '', $allowedWardNames, 'ward_name');
+            $bedInput = RequestValidator::requireString($data, 'bed_number', 1, 30);
+            $status = RequestValidator::enum($data->status ?? 'Available', $allowedBedStatuses, 'status');
+            $wardStatus = RequestValidator::enum($data->ward_status ?? 'Open', $allowedWardStatuses, 'ward_status');
+            $wardPrefix = $wardPrefixByName[$wardName] ?? strtoupper(substr($wardName, 0, 1));
+
+            if (!preg_match('/^([A-Za-z]+)-(\d{1,2})$/', $bedInput, $bedMatch)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Bed number must follow {$wardPrefix}-01 to {$wardPrefix}-15."]);
+                exit;
+            }
+            $inputPrefix = strtoupper($bedMatch[1]);
+            $sequence = (int)$bedMatch[2];
+            if ($inputPrefix !== strtoupper($wardPrefix)) {
+                http_response_code(400);
+                echo json_encode(["message" => "For {$wardName}, bed number must start with {$wardPrefix}-."]);
+                exit;
+            }
+            if ($sequence < 1 || $sequence > 15) {
+                http_response_code(400);
+                echo json_encode(["message" => "For {$wardName}, bed number must be from {$wardPrefix}-01 to {$wardPrefix}-15."]);
+                exit;
+            }
+            $bedNumber = sprintf('%s-%02d', $wardPrefix, $sequence);
+
+            if ($status === 'Occupied') {
+                http_response_code(400);
+                echo json_encode(["message" => "New bed cannot start as Occupied."]);
+                exit;
+            }
+
+            $exists = $db->prepare("SELECT id FROM beds WHERE LOWER(TRIM(ward_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(bed_number)) = LOWER(TRIM(?)) LIMIT 1");
+            $exists->execute([$wardName, $bedNumber]);
+            if ($exists->fetchColumn()) {
+                http_response_code(409);
+                echo json_encode(["message" => "A bed with this ward and bed number already exists."]);
+                exit;
+            }
+
+            $wardCountStmt = $db->prepare("SELECT COUNT(*) FROM beds WHERE LOWER(TRIM(ward_name)) = LOWER(TRIM(?))");
+            $wardCountStmt->execute([$wardName]);
+            $wardBedCount = (int)$wardCountStmt->fetchColumn();
+            if ($wardBedCount >= 15) {
+                http_response_code(400);
+                echo json_encode(["message" => "Ward bed limit reached. Each ward can have at most 15 beds."]);
+                exit;
+            }
+
+            $stmt = $db->prepare("INSERT INTO beds (ward_name, bed_number, status, ward_status, current_patient_id) VALUES (?, ?, ?, ?, NULL)");
+            $stmt->execute([$wardName, $bedNumber, $status, $wardStatus]);
+            $bedId = (int)$db->lastInsertId();
+
+            try {
+                ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Added bed', 'Success', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'bed',
+                    'entity_id' => (string)$bedId,
+                    'actor_id' => isset($user->id) ? (string)$user->id : null,
+                    'actor_role' => $user->role ?? 'nurse',
+                    'source' => 'nurse/bed_create',
+                    'metadata' => ['ward_name' => $wardName, 'bed_number' => $bedNumber]
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
+
+            Realtime::emit('nurse.bed_create', ['bed_id' => $bedId]);
+            echo json_encode(["message" => "Bed added successfully.", "bed_id" => $bedId]);
+        }
+        break;
+
+    case 'bed_delete':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $bedId = RequestValidator::requireInt($data, 'bed_id', 1);
+
+            $check = $db->prepare("SELECT ward_name, bed_number, status, current_patient_id FROM beds WHERE id = ? LIMIT 1");
+            $check->execute([$bedId]);
+            $bed = $check->fetch(PDO::FETCH_ASSOC);
+            if (!$bed) {
+                http_response_code(404);
+                echo json_encode(["message" => "Bed not found."]);
+                exit;
+            }
+
+            if (($bed['status'] ?? '') === 'Occupied' || !empty($bed['current_patient_id'])) {
+                http_response_code(400);
+                echo json_encode(["message" => "Cannot remove an occupied bed."]);
+                exit;
+            }
+
+            $db->prepare("DELETE FROM beds WHERE id = ?")->execute([$bedId]);
+
+            try {
+                ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Removed bed', 'Success', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'bed',
+                    'entity_id' => (string)$bedId,
+                    'actor_id' => isset($user->id) ? (string)$user->id : null,
+                    'actor_role' => $user->role ?? 'nurse',
+                    'source' => 'nurse/bed_delete',
+                    'metadata' => ['ward_name' => $bed['ward_name'] ?? null, 'bed_number' => $bed['bed_number'] ?? null]
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
+
+            Realtime::emit('nurse.bed_delete', ['bed_id' => $bedId]);
+            echo json_encode(["message" => "Bed removed successfully."]);
+        }
+        break;
+
+    case 'bed_status_update':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $bedId = RequestValidator::requireInt($data, 'bed_id', 1);
+            $status = RequestValidator::enum($data->status ?? '', $allowedBedStatuses, 'status');
+
+            $check = $db->prepare("SELECT current_patient_id, status FROM beds WHERE id = ? LIMIT 1");
+            $check->execute([$bedId]);
+            $bed = $check->fetch(PDO::FETCH_ASSOC);
+            if (!$bed) {
+                http_response_code(404);
+                echo json_encode(["message" => "Bed not found."]);
+                exit;
+            }
+
+            if ($status === 'Occupied' && empty($bed['current_patient_id'])) {
+                http_response_code(400);
+                echo json_encode(["message" => "Use Admit action to set a bed to Occupied."]);
+                exit;
+            }
+
+            if (($bed['status'] ?? '') === 'Occupied' && $status !== 'Occupied') {
+                http_response_code(400);
+                echo json_encode(["message" => "Use discharge workflow for occupied beds."]);
+                exit;
+            }
+
+            if ($status === 'Occupied') {
+                $stmt = $db->prepare("UPDATE beds SET status = ? WHERE id = ?");
+                $stmt->execute([$status, $bedId]);
+            } else {
+                $stmt = $db->prepare("UPDATE beds SET status = ?, current_patient_id = NULL WHERE id = ?");
+                $stmt->execute([$status, $bedId]);
+            }
+
+            try {
+                ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Updated bed status', 'Success', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'bed',
+                    'entity_id' => (string)$bedId,
+                    'actor_id' => isset($user->id) ? (string)$user->id : null,
+                    'actor_role' => $user->role ?? 'nurse',
+                    'source' => 'nurse/bed_status_update',
+                    'metadata' => ['status' => $status]
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
+
+            Realtime::emit('nurse.bed_status', ['bed_id' => $bedId, 'status' => $status]);
+            echo json_encode(["message" => "Bed status updated."]);
+        }
+        break;
+
+    case 'ward_status_update':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $wardName = RequestValidator::requireString($data, 'ward_name', 2, 100);
+            $wardStatus = RequestValidator::enum($data->ward_status ?? '', $allowedWardStatuses, 'ward_status');
+
+            $check = $db->prepare("SELECT COUNT(*) FROM beds WHERE ward_name = ?");
+            $check->execute([$wardName]);
+            if ((int)$check->fetchColumn() === 0) {
+                http_response_code(404);
+                echo json_encode(["message" => "Ward not found."]);
+                exit;
+            }
+
+            $stmt = $db->prepare("UPDATE beds SET ward_status = ? WHERE ward_name = ?");
+            $stmt->execute([$wardStatus, $wardName]);
+
+            try {
+                ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Updated ward status', 'Success', null, [
+                    'event_type' => 'audit',
+                    'entity_type' => 'ward',
+                    'entity_id' => (string)$wardName,
+                    'actor_id' => isset($user->id) ? (string)$user->id : null,
+                    'actor_role' => $user->role ?? 'nurse',
+                    'source' => 'nurse/ward_status_update',
+                    'metadata' => ['ward_status' => $wardStatus]
+                ]);
+            } catch (Exception $e) {
+                // ignore logging errors
+            }
+
+            Realtime::emit('nurse.ward_status', ['ward_name' => $wardName, 'ward_status' => $wardStatus]);
+            echo json_encode(["message" => "Ward status updated."]);
+        }
         break;
 
     case 'discharge':

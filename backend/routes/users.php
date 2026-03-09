@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../utils/ActivityLogger.php';
 require_once __DIR__ . '/../utils/DbSchema.php';
+require_once __DIR__ . '/../utils/UsernameStrategy.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $database = new Database();
@@ -102,27 +103,27 @@ switch ($method) {
         }
 
         // --- C. CREATE USER (Original Logic) ---
-        if (!isset($data->full_name) || !isset($data->email) || !isset($data->password) || !isset($data->role)) {
+        if (!isset($data->full_name) || !isset($data->password) || !isset($data->role)) {
             http_response_code(400);
             echo json_encode(["message" => "Incomplete data"]);
             exit();
         }
 
-        // Build username in format: firstname@hospitallocation
-        $fullName = trim((string)$data->full_name);
-        $firstName = strtolower(preg_replace('/[^a-z]/i', '', strtok($fullName, ' ')));
-        if ($firstName === '') $firstName = 'staff';
-        $location = 'hospital';
-        try {
-            $settings = $db->query("SELECT hospital_name FROM system_settings WHERE id = 1 LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-            if ($settings && !empty($settings['hospital_name'])) {
-                $locToken = strtolower(preg_replace('/[^a-z]/i', '', strtok($settings['hospital_name'], ' ')));
-                if ($locToken !== '') $location = $locToken;
-            }
-        } catch (Exception $e) {
-            // fallback to default location
+        // Build account identity in format: firstname@hospitalname and firstname@hospitalname.gov
+        $data->username = UsernameStrategy::buildFromFullName($db, $data->full_name ?? '');
+        $data->email = UsernameStrategy::buildEmailFromFullName($db, $data->full_name ?? '', 'gov');
+
+        $check = $db->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+        $check->execute([$data->username, $data->email]);
+        if ($check->rowCount() > 0) {
+            http_response_code(409);
+            echo json_encode([
+                "message" => "Generated username/email already exists.",
+                "username" => $data->username,
+                "email" => $data->email
+            ]);
+            exit();
         }
-        $data->username = $firstName . '@' . $location;
 
         $hash = password_hash($data->password, PASSWORD_BCRYPT);
         $sql = "INSERT INTO users (full_name, username, email, password_hash, role, gender) VALUES (?, ?, ?, ?, ?, ?)";

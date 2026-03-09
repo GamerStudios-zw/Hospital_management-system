@@ -184,6 +184,29 @@
     .modal-footer {
         border-top: 1px solid #e4edf7 !important;
     }
+    .register-card {
+        max-height: calc(100vh - 190px);
+        display: flex;
+        flex-direction: column;
+    }
+    .register-form-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 6px;
+        scrollbar-gutter: stable;
+    }
+    .register-form-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+    .register-form-scroll::-webkit-scrollbar-thumb {
+        background: #bfdbfe;
+        border-radius: 999px;
+    }
+    .register-form-scroll::-webkit-scrollbar-track {
+        background: #eff6ff;
+        border-radius: 999px;
+    }
 
     @media print {
         body.printing .sidebar,
@@ -208,6 +231,7 @@
         .sidebar.open { left: 0; }
         .mobile-topbar { display: flex; }
         .reception-main { padding: 16px; }
+        .register-card { max-height: calc(100vh - 130px); }
         .top-search { max-width: 100%; }
         .modal-dialog { max-width: 95%; margin: 1rem auto; }
         .section .d-flex.justify-content-between.align-items-center.mb-4 {
@@ -219,7 +243,7 @@
     }
 </style>
 </head>
-<body class="hms-module module-reception">
+<body class="hms-module module-reception admin-theme">
 
 <div class="container-fluid">
 <div class="row">
@@ -231,10 +255,6 @@
             <li><a class="nav-link" onclick="showSection('directory')"><i class="bi bi-people me-2"></i> Patient Directory</a></li>
             <li><a class="nav-link" onclick="showSection('register')"><i class="bi bi-person-plus me-2"></i> Register New</a></li>
             <li><a class="nav-link" onclick="showSection('appointments')"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
-            <li><a class="nav-link" onclick="showSection('queue')"><i class="bi bi-list-check me-2"></i> Queue Manager</a></li>
-            <li><a class="nav-link" onclick="showSection('referrals')"><i class="bi bi-box-arrow-up-right me-2"></i> Referrals</a></li>
-            <li><a class="nav-link" onclick="showSection('documents')"><i class="bi bi-file-earmark-arrow-up me-2"></i> Documents</a></li>
-            <li><a class="nav-link" onclick="showSection('consent')"><i class="bi bi-shield-check me-2"></i> Consent Forms</a></li>
             <li><a class="nav-link" onclick="showSection('summary')"><i class="bi bi-clipboard-data me-2"></i> Daily Summary</a></li>
             <li><a class="nav-link" onclick="showSection('handover')"><i class="bi bi-arrow-left-right me-2"></i> Shift Handover</a></li>
             <li><a class="nav-link" onclick="showSection('shifts')"><i class="bi bi-calendar-event me-2"></i> My Shifts</a></li>
@@ -343,39 +363,145 @@
         <section id="register" class="section">
             <div class="row justify-content-center">
                 <div class="col-md-10">
-                    <div class="card border-0 shadow-sm p-4">
+                    <div class="card border-0 shadow-sm p-4 register-card">
                         <h4 class="mb-4 fw-bold">Register New Patient</h4>
-                        <form id="registrationForm" onsubmit="event.preventDefault(); registerPatient();">
+                        <form id="registrationForm" class="register-form-scroll" onsubmit="event.preventDefault(); registerPatient();">
                             <div class="row g-3">
-                                <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" placeholder="Al Ali" required></div>
-                                <div class="col-md-3"><label class="form-label small fw-bold">ID (xx-xxxxxx-x-xx)</label><input id="regId" class="form-control" placeholder="00-000000-A-00" required></div>
-                                <div class="col-md-3"><label class="form-label small fw-bold">Date of Birth</label><input id="regDob" type="date" class="form-control" required></div>
+                                <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" placeholder="Al Ali" minlength="3" maxlength="150" required></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Patient Number (System Generated)</label><input id="regPatientNumber" class="form-control" placeholder="Auto-generated on save" readonly></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">National ID</label><input id="regId" class="form-control" placeholder="00-000000-A-00" pattern="\\d{2}-\\d{6,8}-[A-Za-z]-\\d{2}" maxlength="16" required></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Date of Birth</label><input id="regDob" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" maxlength="10" required></div>
 
-                                <div class="col-md-3"><label class="form-label small fw-bold">Gender</label><select id="regGender" class="form-select"><option>Male</option><option>Female</option></select></div>
-                                <div class="col-md-3"><label class="form-label small fw-bold">Phone (+263...)</label><input id="regPhone" class="form-control" placeholder="+263700000000" required></div>
-                                <div class="col-md-6"><label class="form-label small fw-bold">Address</label><input id="regAddress" class="form-control" required></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Gender</label><select id="regGender" class="form-select"><option value="male">Male</option><option value="female">Female</option></select></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Phone (+263...)</label><input id="regPhone" class="form-control" placeholder="+263700000000" pattern="\\+263\\d{9}" maxlength="13" required></div>
+                                <div class="col-md-6"><label class="form-label small fw-bold">Address</label><input id="regAddress" class="form-control" minlength="3" maxlength="255" required></div>
 
                                 <div class="col-12 mt-3">
                                     <div class="p-3 rounded border bg-light">
+                                        <h6 class="fw-bold text-primary mb-2">Medical Aid Coverage</h6>
                                         <div class="form-check form-switch mb-2">
-                                            <input class="form-check-input" type="checkbox" id="hasAidToggle" onchange="toggleAid(this)">
-                                            <label class="form-check-label fw-bold" for="hasAidToggle">Medical Aid Coverage</label>
+                                            <input class="form-check-input" type="checkbox" id="hasAidToggle" checked disabled onchange="toggleAid(this)">
+                                            <label class="form-check-label fw-bold" for="hasAidToggle">Medical Aid Coverage (Required)</label>
                                         </div>
-                                        <div id="aidFields" class="row g-3 d-none">
-                                            <div class="col-md-6"><input id="aidProvider" class="form-control" placeholder="Provider Name (e.g. PSMAS)"></div>
-                                            <div class="col-md-6"><input id="aidNumber" class="form-control" placeholder="Member Number"></div>
+                                        <div id="aidFields" class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold">Medical Aid Provider</label>
+                                                <select id="aidProvider" class="form-select">
+                                                    <option value="">Select provider</option>
+                                                    <option value="Cimas Health Group">Cimas Health Group</option>
+                                                    <option value="CellMed Health Fund">CellMed Health Fund</option>
+                                                    <option value="BonVie Medical Aid Society">BonVie Medical Aid Society</option>
+                                                    <option value="MASCA (Medical Aid Society of Central Africa)">MASCA (Medical Aid Society of Central Africa)</option>
+                                                    <option value="Alliance Health (Multimed, Northern Alliance)">Alliance Health (Multimed, Northern Alliance)</option>
+                                                    <option value="Corporate 24">Corporate 24</option>
+                                                    <option value="Maisha Health Fund">Maisha Health Fund</option>
+                                                    <option value="Salutem International Medical Fund">Salutem International Medical Fund</option>
+                                                    <option value="Ultra Med Health Care">Ultra Med Health Care</option>
+                                                    <option value="SaveLife Medical Aid Fund">SaveLife Medical Aid Fund</option>
+                                                    <option value="For All Medical Aid Society (FA-MAS)">For All Medical Aid Society (FA-MAS)</option>
+                                                    <option value="Budget Health">Budget Health</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6"><label class="form-label small fw-bold">Member Name</label><input id="aidMemberName" class="form-control" maxlength="150" readonly></div>
+                                            <div class="col-md-4"><label class="form-label small fw-bold">Member Number</label><input id="aidNumber" class="form-control" placeholder="Member Number" maxlength="60"></div>
+                                            <div class="col-md-4"><label class="form-label small fw-bold">Suffix</label><input id="aidSuffix" class="form-control" maxlength="30"></div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold">Plan / Cover Type</label>
+                                                <select id="aidPlan" class="form-select">
+                                                    <option value="">Select cover type</option>
+                                                    <option value="Basic / Essential Medical Aid Cover">Basic / Essential Medical Aid Cover</option>
+                                                    <option value="Standard Medical Aid Cover">Standard Medical Aid Cover</option>
+                                                    <option value="Premium / Comprehensive Medical Aid Cover">Premium / Comprehensive Medical Aid Cover</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-12"><label class="form-label small fw-bold">Date Joined</label><input id="aidDateJoined" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" maxlength="10"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="p-3 rounded border bg-light">
+                                        <h6 class="fw-bold text-primary mb-2">Identity / Student / Staff Card</h6>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="hasIdentityToggle" checked disabled>
+                                            <label class="form-check-label fw-bold" for="hasIdentityToggle">Identity / Student / Staff Card</label>
+                                        </div>
+                                        <div id="identityFields" class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold">Registration Type</label>
+                                                <select id="registrationType" class="form-select" onchange="syncRegistrationTypeRules()">
+                                                    <option value="">Select type</option>
+                                                    <option value="Student">Student</option>
+                                                    <option value="Staff">Staff</option>
+                                                </select>
+                                                <input id="identityType" type="hidden" value="">
+                                            </div>
+                                            <div id="identityCaptureHint" class="col-12 small text-muted">Select registration type to capture identity details.</div>
+                                            <div id="identityCaptureFields" class="col-12 row g-3 d-none">
+                                                <div class="col-md-8"><label class="form-label small fw-bold">Issuer / Institution</label><input id="identityIssuer" class="form-control" value="Bindura University of Science Education" placeholder="Bindura University of Science Education" maxlength="150"></div>
+                                                <div class="col-md-4"><label id="identityCardNumberLabel" class="form-label small fw-bold">Card Number</label><input id="identityCardNumber" class="form-control" placeholder="B227140A" maxlength="80" oninput="syncStudentNumberFromCard()"></div>
+                                                <div id="identityEcNumberGroup" class="col-md-4"><label id="identityEcNumberLabel" class="form-label small fw-bold">Recognition Number</label><input id="identityEcNumber" class="form-control" placeholder="Required based on ID Type" maxlength="30" pattern="[A-Za-z0-9/\\-]{3,30}"></div>
+                                                <div id="identityFacultyGroup" class="col-md-4">
+                                                    <label class="form-label small fw-bold">Faculty</label>
+                                                    <select id="identityFaculty" class="form-select">
+                                                        <option value="">Select faculty</option>
+                                                        <option value="Faculty of Science Education">Faculty of Science Education</option>
+                                                        <option value="Faculty of Science and Engineering">Faculty of Science and Engineering</option>
+                                                        <option value="Faculty of Agriculture and Environmental Sciences">Faculty of Agriculture and Environmental Sciences</option>
+                                                        <option value="Faculty of Commerce">Faculty of Commerce</option>
+                                                        <option value="Faculty of Social Sciences and Humanities">Faculty of Social Sciences and Humanities</option>
+                                                    </select>
+                                                </div>
+                                                <div id="identityDepartmentGroup" class="col-md-4 d-none">
+                                                    <label class="form-label small fw-bold">Department</label>
+                                                    <input id="identityDepartment" class="form-control" placeholder="e.g., Accounts Department" maxlength="120">
+                                                </div>
+                                                <div id="identityProgrammeGroup" class="col-md-4">
+                                                    <label class="form-label small fw-bold">Programme</label>
+                                                    <input id="identityProgramme" class="form-control" list="identityProgrammeList" placeholder="Select faculty first" maxlength="120">
+                                                    <datalist id="identityProgrammeList"></datalist>
+                                                </div>
+                                                <div id="identityLevelGroup" class="col-md-3">
+                                                    <label class="form-label small fw-bold">Level</label>
+                                                    <select id="identityLevel" class="form-select">
+                                                        <option value="">Select level</option>
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                        <option value="3">3</option>
+                                                        <option value="4">4</option>
+                                                        <option value="5">5</option>
+                                                        <option value="6">6</option>
+                                                        <option value="7">7</option>
+                                                    </select>
+                                                </div>
+                                                <div id="identitySemesterGroup" class="col-md-3">
+                                                    <label class="form-label small fw-bold">Semester</label>
+                                                    <select id="identitySemester" class="form-select">
+                                                        <option value="">Select semester</option>
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small fw-bold">Status</label>
+                                                    <select id="identityStatus" class="form-select" disabled>
+                                                        <option value="">Select registration type first</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3"><label class="form-label small fw-bold">Expiry Date</label><input id="identityExpiryDate" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" maxlength="10"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <hr class="my-4">
                                 <h6 class="fw-bold text-primary">Emergency / Next of Kin</h6>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Full Name</label><input id="kinName" class="form-control" placeholder="Al Ali" required></div>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Relationship</label><input id="kinRelation" class="form-control" required></div>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Phone</label><input id="kinPhone" class="form-control" placeholder="+263..." required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Full Name</label><input id="kinName" class="form-control" placeholder="Al Ali" minlength="3" maxlength="150" required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Relationship</label><input id="kinRelation" class="form-control" minlength="2" maxlength="80" required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Phone</label><input id="kinPhone" class="form-control" placeholder="+263..." pattern="\\+263\\d{9}" maxlength="13" required></div>
 
                                 <hr class="my-4">
-                                <div class="col-md-12"><label class="form-label small fw-bold text-danger">Allergies & Medical Notes</label><textarea id="regAllergies" class="form-control" rows="2" placeholder="List allergies or type 'None'" required></textarea></div>
+                                <div class="col-md-12"><label class="form-label small fw-bold text-danger">Allergies & Medical Notes</label><textarea id="regAllergies" class="form-control" rows="2" placeholder="List allergies or type 'None'" maxlength="1000" required></textarea></div>
 
                                 <div class="col-12 mt-4 text-end">
                                     <button type="button" class="btn btn-light me-2" onclick="showSection('dashboard')">Cancel</button>
@@ -406,11 +532,11 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">Date & Time</label>
-                        <input type="datetime-local" id="apptDate" class="form-control">
+                        <input type="datetime-local" id="apptDate" class="form-control" required>
                     </div>
                     <div class="col-md-8">
                         <label class="form-label small fw-bold">Reason</label>
-                        <input type="text" id="apptReason" class="form-control" placeholder="Consultation / Follow-up">
+                        <input type="text" id="apptReason" class="form-control" placeholder="Consultation / Follow-up" maxlength="1000">
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
                         <button class="btn btn-primary w-100" onclick="createAppointment()">Create</button>
@@ -431,97 +557,6 @@
                         </thead>
                         <tbody id="appointmentsTable"></tbody>
                     </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="queue" class="section">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold">Queue Manager</h4>
-                <button class="btn btn-outline-dark btn-sm" onclick="loadQueueList()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
-            </div>
-            <div class="card border-0 shadow-sm">
-                <div class="table-responsive p-3">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Patient</th>
-                                <th>Doctor</th>
-                                <th>Status</th>
-                                <th>Time</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="queueTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="referrals" class="section">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold">Referrals</h4>
-                <button class="btn btn-outline-dark btn-sm" onclick="loadDirectory()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh Patients</button>
-            </div>
-            <div class="card border-0 shadow-sm p-4">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold">Patient</label>
-                        <select id="refPatient" class="form-select"></select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold">Referral Title</label>
-                        <input type="text" id="refTitle" class="form-control" placeholder="Referral to Specialist">
-                    </div>
-                    <div class="col-12 text-end">
-                        <button class="btn btn-primary" onclick="createReferral()">Log Referral</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="documents" class="section">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold">Documents</h4>
-            </div>
-            <div class="card border-0 shadow-sm p-4">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label small fw-bold">Patient</label>
-                        <select id="docPatient" class="form-select"></select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label small fw-bold">Document Name</label>
-                        <input type="text" id="docName" class="form-control" placeholder="National ID / Insurance">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label small fw-bold">File</label>
-                        <input type="file" id="docFile" class="form-control">
-                    </div>
-                    <div class="col-12 text-end">
-                        <button class="btn btn-primary" onclick="uploadDocument()">Upload</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="consent" class="section">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold">Consent Forms</h4>
-            </div>
-            <div class="card border-0 shadow-sm p-4">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold">Patient</label>
-                        <select id="consentPatient" class="form-select"></select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold">Consent Title</label>
-                        <input type="text" id="consentTitle" class="form-control" placeholder="General Consent">
-                    </div>
-                    <div class="col-12 text-end">
-                        <button class="btn btn-primary" onclick="createConsent()">Save Consent</button>
-                    </div>
                 </div>
             </div>
         </section>
@@ -566,7 +601,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">Notes</label>
-                        <input type="text" id="handoverNotes" class="form-control" placeholder="Pending issues, cash, files...">
+                        <input type="text" id="handoverNotes" class="form-control" placeholder="Pending issues, cash, files..." maxlength="2000">
                     </div>
                     <div class="col-12 text-end">
                         <button class="btn btn-primary" onclick="createHandover()">Save Handover</button>
@@ -708,18 +743,93 @@
     let historySnapshot = null;
     let cachedPatients = [];
     let cachedDoctors = [];
+    const DEFAULT_IDENTITY_ISSUER = 'Bindura University of Science Education';
+    const ALLOWED_MEDICAL_AID_PROVIDERS = [
+        'Cimas Health Group',
+        'CellMed Health Fund',
+        'BonVie Medical Aid Society',
+        'MASCA (Medical Aid Society of Central Africa)',
+        'Alliance Health (Multimed, Northern Alliance)',
+        'Corporate 24',
+        'Maisha Health Fund',
+        'Salutem International Medical Fund',
+        'Ultra Med Health Care',
+        'SaveLife Medical Aid Fund',
+        'For All Medical Aid Society (FA-MAS)',
+        'Budget Health'
+    ];
+    const ALLOWED_MEDICAL_AID_PLANS = [
+        'Basic / Essential Medical Aid Cover',
+        'Standard Medical Aid Cover',
+        'Premium / Comprehensive Medical Aid Cover'
+    ];
+    const UNIVERSITY_FACULTIES = [
+        'Faculty of Science Education',
+        'Faculty of Science and Engineering',
+        'Faculty of Agriculture and Environmental Sciences',
+        'Faculty of Commerce',
+        'Faculty of Social Sciences and Humanities'
+    ];
+    const FACULTY_PROGRAMMES = {
+        'Faculty of Science Education': [
+            'BSc Education (Biology)',
+            'BSc Education (Chemistry)',
+            'BSc Education (Mathematics)',
+            'BSc Education (Physics)',
+            'Diploma in Science Education'
+        ],
+        'Faculty of Science and Engineering': [
+            'BSc Computer Science',
+            'BSc Information Systems',
+            'BSc Software Engineering',
+            'BSc Physics',
+            'BSc Chemistry',
+            'BSc Mathematics',
+            'BSc Statistics'
+        ],
+        'Faculty of Agriculture and Environmental Sciences': [
+            'BSc Agriculture',
+            'BSc Crop Science',
+            'BSc Animal Science',
+            'BSc Agricultural Economics',
+            'BSc Environmental Science',
+            'BSc Forestry and Wildlife Management'
+        ],
+        'Faculty of Commerce': [
+            'Bachelor of Accounting',
+            'Bachelor of Business Management',
+            'Bachelor of Marketing',
+            'Bachelor of Economics',
+            'Bachelor of Human Resources Management',
+            'Bachelor of Finance and Banking'
+        ],
+        'Faculty of Social Sciences and Humanities': [
+            'Bachelor of Psychology',
+            'Bachelor of Sociology',
+            'Bachelor of Development Studies',
+            'Bachelor of Peace and Governance',
+            'Bachelor of Languages and Communication',
+            'Bachelor of History and Heritage Studies'
+        ]
+    };
 
     document.addEventListener("DOMContentLoaded", () => {
         loadDashboardStats();
         loadDoctors();
         loadDirectory();
         loadAppointments();
-        loadQueueList();
         loadSummary();
         loadHandover();
         window.addEventListener('hms:realtime', handleReceptionRealtime);
         const sd = document.getElementById('summaryDate');
         if (sd) sd.value = new Date().toISOString().slice(0, 10);
+        enforceMedicalAidAlwaysOn();
+        enforceIdentityAlwaysOn();
+        enforceIdentityIssuerDefault();
+        syncAidMemberNameFromFullName();
+        document.getElementById('regName')?.addEventListener('input', syncAidMemberNameFromFullName);
+        document.getElementById('identityFaculty')?.addEventListener('change', refreshProgrammeOptionsForFaculty);
+        ['regDob', 'aidDateJoined', 'identityExpiryDate'].forEach(bindBritishDateInputMask);
     });
 
     function handleReceptionRealtime(evt) {
@@ -731,7 +841,6 @@
             if (typeof showBanner === 'function') {
                 showBanner(`Nurse Aid started vitals for ${patientName}.`, { type: 'info', timeoutMs: 10000 });
             }
-            loadQueueList();
             loadDashboardStats();
         }
         if (eventName === 'nurse.start_triage') {
@@ -739,7 +848,6 @@
             if (typeof showBanner === 'function') {
                 showBanner(`Nurse Aid started triage for queue${queueId}.`, { type: 'info', timeoutMs: 9000 });
             }
-            loadQueueList();
             loadDashboardStats();
         }
         if (eventName === 'reception.nurse_pull_blocked') {
@@ -765,10 +873,6 @@
         if(id === 'directory') loadDirectory();
         if(id === 'dashboard') loadDashboardStats();
         if(id === 'appointments') loadAppointments();
-        if(id === 'queue') loadQueueList();
-        if(id === 'referrals') populatePatientSelects();
-        if(id === 'documents') populatePatientSelects();
-        if(id === 'consent') populatePatientSelects();
         if(id === 'summary') loadSummary();
         if(id === 'handover') loadHandover();
         if(id === 'shifts') loadMyShifts();
@@ -790,16 +894,330 @@
         }
     }
 
+    function clearSectionFields(sectionId) {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        section.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type === 'checkbox' || field.type === 'radio') {
+                field.checked = false;
+                return;
+            }
+            if (field.tagName === 'SELECT') {
+                field.selectedIndex = 0;
+            } else {
+                field.value = '';
+            }
+        });
+    }
+
     function toggleAid(el) {
-        document.getElementById('aidFields').classList.toggle('d-none', !el.checked);
-        document.getElementById('aidProvider').required = el.checked;
-        document.getElementById('aidNumber').required = el.checked;
+        enforceMedicalAidAlwaysOn();
+    }
+
+    function enforceMedicalAidAlwaysOn() {
+        const toggle = document.getElementById('hasAidToggle');
+        const aidFields = document.getElementById('aidFields');
+        if (toggle) {
+            toggle.checked = true;
+            toggle.disabled = true;
+        }
+        if (aidFields) {
+            aidFields.classList.remove('d-none');
+        }
+        document.getElementById('aidProvider').required = true;
+        document.getElementById('aidPlan').required = true;
+        document.getElementById('aidMemberName').required = true;
+        document.getElementById('aidNumber').required = true;
+    }
+
+    function syncAidMemberNameFromFullName() {
+        const fullName = (document.getElementById('regName')?.value || '').trim();
+        const memberName = document.getElementById('aidMemberName');
+        if (!memberName) return;
+        memberName.value = fullName;
+    }
+
+    function enforceIdentityIssuerDefault() {
+        const issuer = document.getElementById('identityIssuer');
+        if (!issuer) return;
+        const value = (issuer.value || '').trim();
+        if (!value) issuer.value = DEFAULT_IDENTITY_ISSUER;
+    }
+
+    function refreshProgrammeOptionsForFaculty() {
+        const faculty = (document.getElementById('identityFaculty')?.value || '').trim();
+        const programmeInput = document.getElementById('identityProgramme');
+        const programmeList = document.getElementById('identityProgrammeList');
+        if (!programmeInput || !programmeList) return;
+
+        const programmes = FACULTY_PROGRAMMES[faculty] || [];
+        programmeList.innerHTML = programmes.map((p) => `<option value="${p}"></option>`).join('');
+        if (programmes.length === 0) {
+            programmeInput.value = '';
+            programmeInput.placeholder = faculty ? 'No programmes configured for selected faculty' : 'Select faculty first';
+            return;
+        }
+        if (programmeInput.value && !programmes.includes(programmeInput.value)) {
+            programmeInput.value = '';
+        }
+        programmeInput.placeholder = 'Search and select programme';
+    }
+
+    function enforceIdentityAlwaysOn() {
+        const toggle = document.getElementById('hasIdentityToggle');
+        const identityFields = document.getElementById('identityFields');
+        if (toggle) {
+            toggle.checked = true;
+            toggle.disabled = true;
+        }
+        if (identityFields) {
+            identityFields.classList.remove('d-none');
+        }
+        document.getElementById('registrationType').required = true;
+        document.getElementById('identityIssuer').required = true;
+        document.getElementById('identityCardNumber').required = true;
+        syncRegistrationTypeRules();
+    }
+
+    function toggleIdentity() {
+        enforceIdentityAlwaysOn();
+    }
+
+    function syncRegistrationTypeRules() {
+        const registrationTypeVal = (document.getElementById('registrationType')?.value || '').trim();
+        const identityTypeField = document.getElementById('identityType');
+        if (!identityTypeField) return;
+        if (registrationTypeVal === 'Student') {
+            identityTypeField.value = 'Student ID';
+        } else if (registrationTypeVal === 'Staff') {
+            identityTypeField.value = 'Staff ID';
+        } else {
+            identityTypeField.value = '';
+        }
+        syncIdentityTypeRules();
+        syncStudentNumberFromCard();
+        enforceIdentityIssuerDefault();
+    }
+
+    function syncStudentNumberFromCard() {
+        const identityTypeVal = (document.getElementById('identityType')?.value || '').trim();
+        const cardField = document.getElementById('identityCardNumber');
+        const ecField = document.getElementById('identityEcNumber');
+        if (!cardField || !ecField) return;
+        if (identityTypeVal === 'Student ID' || identityTypeVal === 'Staff ID') {
+            ecField.value = (cardField.value || '').trim();
+        }
+    }
+
+    function syncIdentityTypeRules() {
+        const identityTypeVal = (document.getElementById('identityType')?.value || '').trim();
+        const captureFields = document.getElementById('identityCaptureFields');
+        const captureHint = document.getElementById('identityCaptureHint');
+        const issuerField = document.getElementById('identityIssuer');
+        const ecField = document.getElementById('identityEcNumber');
+        const ecLabel = document.getElementById('identityEcNumberLabel');
+        const ecGroup = document.getElementById('identityEcNumberGroup');
+        const cardField = document.getElementById('identityCardNumber');
+        const cardLabel = document.getElementById('identityCardNumberLabel');
+        const facultyGroup = document.getElementById('identityFacultyGroup');
+        const departmentGroup = document.getElementById('identityDepartmentGroup');
+        const facultyField = document.getElementById('identityFaculty');
+        const departmentField = document.getElementById('identityDepartment');
+        const statusField = document.getElementById('identityStatus');
+        const programmeGroup = document.getElementById('identityProgrammeGroup');
+        const levelGroup = document.getElementById('identityLevelGroup');
+        const semesterGroup = document.getElementById('identitySemesterGroup');
+        const programmeField = document.getElementById('identityProgramme');
+        const levelField = document.getElementById('identityLevel');
+        const semesterField = document.getElementById('identitySemester');
+        const expiryField = document.getElementById('identityExpiryDate');
+        if (!issuerField || !ecField || !ecLabel || !facultyField || !departmentField || !statusField || !cardField || !cardLabel || !ecGroup || !expiryField || !captureFields || !captureHint || !facultyGroup || !departmentGroup) return;
+        const ecWasAutoMapped = ecField.disabled;
+
+        const setStatusOptions = (options, placeholder, required) => {
+            const currentValue = (statusField.value || '').trim();
+            const optionMarkup = options.map(option => `<option value="${option}">${option}</option>`).join('');
+            statusField.innerHTML = `<option value="">${placeholder}</option>${optionMarkup}`;
+            statusField.required = required;
+            statusField.disabled = !required;
+            if (options.includes(currentValue)) {
+                statusField.value = currentValue;
+            } else {
+                statusField.value = '';
+            }
+        };
+        const setIdentityFieldsInteractive = (enabled) => {
+            [issuerField, cardField, ecField, facultyField, departmentField, programmeField, levelField, semesterField, statusField, expiryField].forEach((field) => {
+                field.disabled = !enabled;
+            });
+        };
+
+        const showStudentAcademicFields = (show) => {
+            if (programmeGroup) programmeGroup.classList.toggle('d-none', !show);
+            if (levelGroup) levelGroup.classList.toggle('d-none', !show);
+            if (semesterGroup) semesterGroup.classList.toggle('d-none', !show);
+            if (!show) {
+                if (programmeField) programmeField.value = '';
+                if (levelField) levelField.value = '';
+                if (semesterField) semesterField.value = '';
+            }
+        };
+
+        if (identityTypeVal === 'Student ID') {
+            captureHint.classList.add('d-none');
+            captureFields.classList.remove('d-none');
+            setIdentityFieldsInteractive(true);
+            enforceIdentityIssuerDefault();
+            cardLabel.textContent = 'Student Number / Card Number';
+            cardField.placeholder = 'e.g., B227140A';
+            cardField.maxLength = 80;
+            cardField.removeAttribute('pattern');
+            cardField.removeAttribute('inputmode');
+            ecLabel.textContent = 'Student Number';
+            ecField.placeholder = 'Auto-filled from Card Number';
+            ecField.required = false;
+            ecField.readOnly = true;
+            ecField.disabled = true;
+            ecGroup.classList.add('d-none');
+            facultyGroup.classList.remove('d-none');
+            departmentGroup.classList.add('d-none');
+            facultyField.required = true;
+            departmentField.required = false;
+            departmentField.value = '';
+            refreshProgrammeOptionsForFaculty();
+            setStatusOptions(['Block Release', 'Conventional'], 'Select student status', true);
+            showStudentAcademicFields(true);
+            return;
+        }
+        if (identityTypeVal === 'Staff ID') {
+            captureHint.classList.add('d-none');
+            captureFields.classList.remove('d-none');
+            setIdentityFieldsInteractive(true);
+            enforceIdentityIssuerDefault();
+            cardLabel.textContent = 'EC Number / Card Number';
+            cardField.placeholder = 'e.g., 1234';
+            cardField.maxLength = 4;
+            cardField.setAttribute('pattern', '\\d{4}');
+            cardField.setAttribute('inputmode', 'numeric');
+            ecLabel.textContent = 'EC Number';
+            ecField.placeholder = 'Auto-filled from Card Number';
+            ecField.disabled = true;
+            ecField.readOnly = true;
+            ecField.required = false;
+            ecGroup.classList.add('d-none');
+            facultyGroup.classList.add('d-none');
+            departmentGroup.classList.remove('d-none');
+            facultyField.required = false;
+            facultyField.value = '';
+            departmentField.required = true;
+            programmeField.value = '';
+            const programmeList = document.getElementById('identityProgrammeList');
+            if (programmeList) programmeList.innerHTML = '';
+            programmeField.placeholder = 'Select faculty first';
+            setStatusOptions(['Fulltime', 'Parttime'], 'Select staff status', true);
+            showStudentAcademicFields(false);
+            return;
+        }
+
+        captureFields.classList.add('d-none');
+        captureHint.classList.remove('d-none');
+        setIdentityFieldsInteractive(false);
+        cardLabel.textContent = 'Card Number';
+        cardField.placeholder = 'B227140A';
+        cardField.maxLength = 80;
+        cardField.removeAttribute('pattern');
+        cardField.removeAttribute('inputmode');
+        ecLabel.textContent = 'Recognition Number';
+        ecField.placeholder = 'Select registration type first';
+        ecField.disabled = true;
+        ecField.readOnly = false;
+        ecField.required = false;
+        if (ecWasAutoMapped) ecField.value = '';
+        ecGroup.classList.remove('d-none');
+        facultyGroup.classList.remove('d-none');
+        departmentGroup.classList.add('d-none');
+        facultyField.required = false;
+        departmentField.required = false;
+        facultyField.value = '';
+        departmentField.value = '';
+        programmeField.value = '';
+        const programmeList = document.getElementById('identityProgrammeList');
+        if (programmeList) programmeList.innerHTML = '';
+        programmeField.placeholder = 'Select faculty first';
+        setStatusOptions([], 'Select registration type first', false);
+        showStudentAcademicFields(true);
     }
 
     // --- VALIDATION HELPERS ---
-    const validateZimID = (id) => /^\d{2}-\d{6,7}-[A-Z]-\d{2}$/.test(id);
+    const validateZimID = (id) => /^\d{2}-\d{6,8}-[A-Za-z]-\d{2}$/.test(id);
     const validatePhone = (phone) => /^\+263\d{9}$/.test(phone);
     const validateFullName = (name) => /^[A-Za-z]+(?:\s+[A-Za-z]+)+$/.test((name || '').trim());
+    const validateEcNumber = (ec) => /^[A-Za-z0-9\/\-]{3,30}$/.test((ec || '').trim());
+    const validateStaffEcNumber = (ec) => /^\d{4}$/.test((ec || '').trim());
+    const validateCardNumber = (value) => /^[A-Za-z0-9\/\-]{2,80}$/.test((value || '').trim());
+    const validateTextLen = (value, min, max) => {
+        const len = (value || '').trim().length;
+        return len >= min && len <= max;
+    };
+    const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test((value || '').trim());
+    const formatBritishDateInput = (value) => {
+        const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+        if (!digits) return '';
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+        return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    };
+    const parseBritishDateToISO = (value) => {
+        const raw = (value || '').trim();
+        if (!raw) return null;
+        const normalized = /^\d{8}$/.test(raw) ? formatBritishDateInput(raw) : raw;
+        const match = normalized.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (!match) return null;
+        const day = Number(match[1]);
+        const month = Number(match[2]);
+        const year = Number(match[3]);
+        const dt = new Date(year, month - 1, day);
+        if (
+            Number.isNaN(dt.getTime()) ||
+            dt.getFullYear() !== year ||
+            dt.getMonth() !== month - 1 ||
+            dt.getDate() !== day
+        ) {
+            return null;
+        }
+        return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    };
+    const bindBritishDateInputMask = (inputId) => {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const applyMask = () => {
+            input.value = formatBritishDateInput(input.value);
+            input.classList.remove('is-invalid');
+        };
+        input.addEventListener('input', applyMask);
+        input.addEventListener('blur', () => {
+            const raw = (input.value || '').trim();
+            if (!raw) {
+                input.classList.remove('is-invalid');
+                return;
+            }
+            if (!parseBritishDateToISO(raw)) {
+                input.classList.add('is-invalid');
+                return;
+            }
+            input.value = formatBritishDateInput(raw);
+            input.classList.remove('is-invalid');
+        });
+    };
+    const normalizeStatusKey = (status) => String(status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    const isReceptionAppointmentLocked = (status) => {
+        const key = normalizeStatusKey(status);
+        return ['confirmed', 'checked_in', 'with_doctor', 'completed', 'cancelled'].includes(key);
+    };
+    const isReceptionQueueLocked = (status) => {
+        const key = normalizeStatusKey(status);
+        return ['with_doctor', 'completed', 'cancelled', 'discharged'].includes(key);
+    };
 
     // --- SEARCH LOGIC ---
     let debounce;
@@ -984,18 +1402,20 @@
             data.forEach(a => {
                 const date = a.scheduled_at ? new Date(a.scheduled_at).toLocaleString() : '-';
                 const status = a.status || 'scheduled';
+                const locked = isReceptionAppointmentLocked(status);
+                const actionHtml = locked
+                    ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary">Locked</span>'
+                    : `<div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success" onclick="updateAppointment(${a.id}, 'confirmed')">Confirm</button>
+                            <button class="btn btn-outline-primary" onclick="checkinAppointment(${a.id}, ${a.patient_id}, ${a.doctor_id ? a.doctor_id : 'null'})">Check-in</button>
+                            <button class="btn btn-outline-danger" onclick="updateAppointment(${a.id}, 'cancelled')">Cancel</button>
+                        </div>`;
                 tbody.innerHTML += `<tr>
                     <td>${date}</td>
                     <td>${a.patient_name || '-'}</td>
                     <td>${a.doctor_name || '-'}</td>
                     <td><span class="badge bg-info-subtle text-info">${status}</span></td>
-                    <td class="text-end">
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-success" onclick="updateAppointment(${a.id}, 'confirmed')">Confirm</button>
-                            <button class="btn btn-outline-primary" onclick="checkinAppointment(${a.id}, ${a.patient_id}, '${a.doctor_name || ''}')">Check-in</button>
-                            <button class="btn btn-outline-danger" onclick="updateAppointment(${a.id}, 'cancelled')">Cancel</button>
-                        </div>
-                    </td>
+                    <td class="text-end">${actionHtml}</td>
                 </tr>`;
             });
         } else if (data) {
@@ -1009,10 +1429,18 @@
 
     async function createAppointment() {
         const patientId = document.getElementById('apptPatient').value;
-        const doctorId = document.getElementById('apptDoctor').value || null;
+        const doctorIdRaw = document.getElementById('apptDoctor').value;
+        const doctorId = doctorIdRaw ? Number(doctorIdRaw) : null;
         const scheduledAt = document.getElementById('apptDate').value;
-        const reason = document.getElementById('apptReason').value;
+        const reason = document.getElementById('apptReason').value.trim();
         if (!patientId || !scheduledAt) return notify("Select patient and date/time.");
+        if (!Number.isInteger(Number(patientId)) || Number(patientId) <= 0) return notify("Selected patient is invalid.");
+        if (doctorIdRaw && (!Number.isInteger(doctorId) || doctorId <= 0)) return notify("Selected doctor is invalid.");
+        const scheduledDate = new Date(scheduledAt);
+        if (Number.isNaN(scheduledDate.getTime())) return notify("Appointment date/time is invalid.");
+        if (scheduledDate < new Date()) return notify("Appointment date/time cannot be in the past.");
+        if (reason && reason.length < 3) return notify("Reason must be at least 3 characters when provided.");
+        if (reason.length > 1000) return notify("Reason is too long.");
         const data = { patient_id: patientId, doctor_id: doctorId, scheduled_at: scheduledAt, reason };
         if (await Api.post('/reception/create_appointment', data)) {
             notify("Appointment created.");
@@ -1021,17 +1449,25 @@
     }
 
     async function updateAppointment(id, status) {
+        if (!Number.isInteger(Number(id)) || Number(id) <= 0) return notify("Appointment ID is invalid.");
+        if (!['confirmed', 'cancelled', 'scheduled', 'checked_in', 'completed'].includes(String(status || '').trim())) {
+            return notify("Appointment status is invalid.");
+        }
         if (await Api.post('/reception/appointment_update', { appointment_id: id, status })) {
             loadAppointments();
         }
     }
 
-    async function checkinAppointment(id, patientId, doctorName) {
-        const res = await Api.post('/reception/checkin', { appointment_id: id, queue_patient_id: patientId, doctor_assigned: doctorName || null });
+    async function checkinAppointment(id, patientId, doctorId) {
+        if (!Number.isInteger(Number(id)) || Number(id) <= 0) return notify("Appointment ID is invalid.");
+        if (!Number.isInteger(Number(patientId)) || Number(patientId) <= 0) return notify("Patient ID is invalid.");
+        if (doctorId !== null && doctorId !== undefined && (!Number.isInteger(Number(doctorId)) || Number(doctorId) <= 0)) {
+            return notify("Doctor assignment is invalid.");
+        }
+        const res = await Api.post('/reception/checkin', { appointment_id: id, queue_patient_id: patientId, doctor_assigned: doctorId || null });
         if (res) {
             notify("Checked in and added to queue.");
             loadAppointments();
-            loadQueueList();
         }
     }
 
@@ -1042,19 +1478,21 @@
         tbody.innerHTML = '';
         if (data && data.length) {
             data.forEach(q => {
+                const locked = isReceptionQueueLocked(q.status);
+                const actionHtml = locked
+                    ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary">Locked</span>'
+                    : `<div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="queueAction(${q.queue_id}, 'move_top')">Move Top</button>
+                            <button class="btn btn-outline-info" onclick="queueAction(${q.queue_id}, 'reassign')">Reassign</button>
+                            <button class="btn btn-outline-danger" onclick="queueAction(${q.queue_id}, 'cancel')">Cancel</button>
+                            <button class="btn btn-outline-dark" onclick="queueAction(${q.queue_id}, 'no_show')">No-show</button>
+                        </div>`;
                 tbody.innerHTML += `<tr>
                     <td>${q.full_name}</td>
                     <td>${q.doctor_assigned || '-'}</td>
                     <td><span class="badge bg-warning-subtle text-warning">${q.status}</span></td>
                     <td>${q.created_at ? new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                    <td class="text-end">
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-secondary" onclick="queueAction(${q.queue_id}, 'move_top')">Move Top</button>
-                            <button class="btn btn-outline-info" onclick="queueAction(${q.queue_id}, 'reassign')">Reassign</button>
-                            <button class="btn btn-outline-danger" onclick="queueAction(${q.queue_id}, 'cancel')">Cancel</button>
-                            <button class="btn btn-outline-dark" onclick="queueAction(${q.queue_id}, 'no_show')">No-show</button>
-                        </div>
-                    </td>
+                    <td class="text-end">${actionHtml}</td>
                 </tr>`;
             });
         } else if (data) {
@@ -1108,6 +1546,14 @@
 
     async function loadSummary() {
         const date = document.getElementById('summaryDate')?.value || '';
+        if (date && !isIsoDate(date)) {
+            notify("Summary date is invalid.");
+            return;
+        }
+        if (date && date > new Date().toISOString().slice(0, 10)) {
+            notify("Summary date cannot be in the future.");
+            return;
+        }
         const params = date ? `?date=${date}` : '';
         const data = await Api.get('/reception/summary' + params);
         if (!data) {
@@ -1123,12 +1569,19 @@
 
     async function createHandover() {
         const user = JSON.parse(localStorage.getItem("hms_user") || '{}');
-        const notes = document.getElementById('handoverNotes').value;
+        const notes = document.getElementById('handoverNotes').value.trim();
         if (!notes) return notify("Enter handover notes.");
+        if (notes.length < 3 || notes.length > 2000) return notify("Handover notes must be 3-2000 characters.");
+        const shiftStart = document.getElementById('handoverStart').value;
+        const shiftEnd = document.getElementById('handoverEnd').value;
+        if (!user.id) return notify("Invalid user session. Please log in again.");
+        if (shiftStart && Number.isNaN(new Date(shiftStart).getTime())) return notify("Shift Start is invalid.");
+        if (shiftEnd && Number.isNaN(new Date(shiftEnd).getTime())) return notify("Shift End is invalid.");
+        if (shiftStart && shiftEnd && new Date(shiftEnd) < new Date(shiftStart)) return notify("Shift End cannot be before Shift Start.");
         const data = {
             user_id: user.id,
-            shift_start: document.getElementById('handoverStart').value,
-            shift_end: document.getElementById('handoverEnd').value,
+            shift_start: shiftStart,
+            shift_end: shiftEnd,
             notes
         };
         const res = await Api.post('/reception/handover_create', data);
@@ -1157,43 +1610,172 @@
     }
 
     async function registerPatient() {
-        const idVal = document.getElementById('regId').value;
-        const phoneVal = document.getElementById('regPhone').value;
-        const dobVal = new Date(document.getElementById('regDob').value);
-        const hasAid = document.getElementById('hasAidToggle').checked;
-        const nameVal = document.getElementById('regName').value;
-        const kinNameVal = document.getElementById('kinName').value;
+        const form = document.getElementById('registrationForm');
+        if (form && !form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        const patientNumberVal = document.getElementById('regPatientNumber').value.trim();
+        const idVal = document.getElementById('regId').value.trim();
+        const phoneVal = document.getElementById('regPhone').value.trim();
+        const dobInput = document.getElementById('regDob').value.trim();
+        const dobIso = parseBritishDateToISO(dobInput);
+        const dobVal = dobIso ? new Date(`${dobIso}T00:00:00`) : null;
+        const hasAid = true;
+        const hasIdentity = true;
+        const nameVal = document.getElementById('regName').value.trim();
+        const kinNameVal = document.getElementById('kinName').value.trim();
+        const aidProviderVal = document.getElementById('aidProvider').value.trim();
+        const aidMemberNumberVal = document.getElementById('aidNumber').value.trim();
+        const registrationTypeVal = document.getElementById('registrationType').value.trim();
+        const identityTypeVal = registrationTypeVal === 'Student' ? 'Student ID' : registrationTypeVal === 'Staff' ? 'Staff ID' : '';
+        const identityIssuerVal = document.getElementById('identityIssuer').value.trim();
+        const identityCardNumberVal = document.getElementById('identityCardNumber').value.trim();
+        const identityEcNumberRawVal = document.getElementById('identityEcNumber').value.trim();
+        const identityEcNumberVal = (identityTypeVal === 'Student ID' || identityTypeVal === 'Staff ID') ? identityCardNumberVal : identityEcNumberRawVal;
+        const identityFacultyVal = document.getElementById('identityFaculty').value.trim();
+        const identityDepartmentVal = document.getElementById('identityDepartment').value.trim();
+        const identityProgrammeVal = document.getElementById('identityProgramme').value.trim();
+        const identityLevelVal = document.getElementById('identityLevel').value.trim();
+        const identitySemesterVal = document.getElementById('identitySemester').value.trim();
+        const identityStatusVal = document.getElementById('identityStatus').value.trim();
+        const addressVal = document.getElementById('regAddress').value.trim();
+        const kinRelationVal = document.getElementById('kinRelation').value.trim();
+        const kinPhoneVal = document.getElementById('kinPhone').value.trim();
+        const allergiesVal = document.getElementById('regAllergies').value.trim();
+        const aidDateJoinedInput = document.getElementById('aidDateJoined').value.trim();
+        const aidDateJoinedIso = aidDateJoinedInput ? parseBritishDateToISO(aidDateJoinedInput) : '';
+        const identityExpiryInput = document.getElementById('identityExpiryDate').value.trim();
+        const identityExpiryIso = identityExpiryInput ? parseBritishDateToISO(identityExpiryInput) : '';
+        const aidMemberNameVal = nameVal;
+        const aidSuffixVal = document.getElementById('aidSuffix').value.trim();
+        const aidPlanVal = document.getElementById('aidPlan').value.trim();
+        document.getElementById('aidMemberName').value = aidMemberNameVal;
 
         if(!validateFullName(nameVal)) return notify("Full Name must include first and surname (e.g., Al Ali).");
+        if(!validateTextLen(nameVal, 3, 150)) return notify("Full Name length is invalid.");
         if(!validateFullName(kinNameVal)) return notify("Kin Full Name must include first and surname (e.g., Al Ali).");
-        if(!validateZimID(idVal)) return notify("ID must be in format: 00-000000-X-00");
+        if(!validateTextLen(kinNameVal, 3, 150)) return notify("Kin Full Name length is invalid.");
+        if(!validateZimID(idVal)) return notify("National ID must be in format: 00-000000-X-00 to 00-00000000-X-00 (middle digits: 6 to 8).");
         if(!validatePhone(phoneVal)) return notify("Phone must be: +263xxxxxxxxx");
+        if(!validateTextLen(addressVal, 3, 255)) return notify("Address is required.");
+        if(!validateTextLen(kinRelationVal, 2, 80)) return notify("Kin Relationship is required.");
+        if(!validatePhone(kinPhoneVal)) return notify("Kin Phone must be: +263xxxxxxxxx");
+        if(!validateTextLen(allergiesVal, 1, 1000)) return notify("Allergies & Medical Notes is required.");
+        if(!dobInput || !dobIso || !dobVal || Number.isNaN(dobVal.getTime())) return notify("Date of Birth is required in format: dd/mm/yyyy.");
         if(dobVal > new Date()) return notify("Date of Birth cannot be in the future");
+        if(hasAid && !aidProviderVal) return notify("Medical Aid Provider is required when Medical Aid Coverage is enabled.");
+        if(hasAid && !ALLOWED_MEDICAL_AID_PROVIDERS.includes(aidProviderVal)) return notify("Select a valid Medical Aid Provider.");
+        if(hasAid && !aidMemberNumberVal) return notify("Member Number is required when Medical Aid Coverage is enabled.");
+        if(hasAid && !aidPlanVal) return notify("Plan / Cover Type is required when Medical Aid Coverage is enabled.");
+        if(hasAid && !ALLOWED_MEDICAL_AID_PLANS.includes(aidPlanVal)) return notify("Select a valid Plan / Cover Type.");
+        if(hasAid && !validateTextLen(aidProviderVal, 2, 120)) return notify("Medical Aid Provider length is invalid.");
+        if(hasAid && !validateTextLen(aidMemberNumberVal, 2, 60)) return notify("Member Number length is invalid.");
+        if(hasAid && !validateTextLen(aidMemberNameVal, 3, 150)) return notify("Member Name is required and must match Full Name.");
+        if(hasAid && aidSuffixVal && !validateTextLen(aidSuffixVal, 1, 30)) return notify("Suffix length is invalid.");
+        if(hasAid && aidPlanVal && !validateTextLen(aidPlanVal, 2, 120)) return notify("Plan / Cover Type length is invalid.");
+        if(hasAid && aidDateJoinedInput && !aidDateJoinedIso) return notify("Date Joined must be in format: dd/mm/yyyy.");
+        if(hasIdentity && !registrationTypeVal) return notify("Registration Type is required when Identity / Student / Staff Card is enabled.");
+        if(hasIdentity && !['Student', 'Staff'].includes(registrationTypeVal)) return notify("Registration Type must be Student or Staff.");
+        if(hasIdentity && !identityTypeVal) return notify("Derived ID Type is invalid. Re-select Registration Type.");
+        if(hasIdentity && !validateTextLen(identityIssuerVal, 2, 150)) return notify("Issuer / Institution is required when Identity / Student / Staff Card is enabled.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !validateCardNumber(identityCardNumberVal)) return notify("Student Number / Card Number format is invalid.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateStaffEcNumber(identityCardNumberVal)) return notify("EC Number must be exactly 4 digits.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !identityFacultyVal) return notify("Faculty is required for Student ID.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !UNIVERSITY_FACULTIES.includes(identityFacultyVal)) return notify("Select a valid Faculty.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateTextLen(identityDepartmentVal, 2, 120)) return notify("Department is required for Staff ID.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && identityProgrammeVal) {
+            const facultyProgrammes = FACULTY_PROGRAMMES[identityFacultyVal] || [];
+            if (facultyProgrammes.length && !facultyProgrammes.includes(identityProgrammeVal)) {
+                return notify("Select a valid Programme for the selected Faculty.");
+            }
+        }
+        if(hasIdentity && identityTypeVal === 'Student ID' && !validateEcNumber(identityEcNumberVal)) return notify("Student Number format is invalid.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateStaffEcNumber(identityEcNumberVal)) return notify("EC Number must be exactly 4 digits.");
+        if(hasIdentity && identityProgrammeVal && !validateTextLen(identityProgrammeVal, 2, 120)) return notify("Programme length is invalid.");
+        if(hasIdentity && identityLevelVal && !['1', '2', '3', '4', '5', '6', '7'].includes(identityLevelVal)) return notify("Select a valid Level (1 to 7).");
+        if(hasIdentity && identitySemesterVal && !['1', '2'].includes(identitySemesterVal)) return notify("Select a valid Semester (1 or 2).");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !['Block Release', 'Conventional'].includes(identityStatusVal)) {
+            return notify("Student status must be Block Release or Conventional.");
+        }
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !['Fulltime', 'Parttime'].includes(identityStatusVal)) {
+            return notify("Staff status must be Fulltime or Parttime.");
+        }
+        if(hasIdentity && identityExpiryInput && !identityExpiryIso) return notify("Expiry Date must be in format: dd/mm/yyyy.");
 
-        const data = {
+        const patientPayload = {
             full_name: nameVal,
+            patient_number: patientNumberVal,
             national_id: idVal,
-            dob: document.getElementById('regDob').value,
+            dob: dobIso,
             gender: document.getElementById('regGender').value,
             phone: phoneVal,
-            address: document.getElementById('regAddress').value,
+            address: addressVal,
+            next_of_kin_name: kinNameVal,
+            next_of_kin_relationship: kinRelationVal,
+            next_of_kin_phone: kinPhoneVal,
+            allergies_notes: allergiesVal
+        };
+
+        const medicalAidPayload = hasAid ? {
+            provider: aidProviderVal,
+            member_name: aidMemberNameVal,
+            member_number: aidMemberNumberVal,
+            suffix: aidSuffixVal,
+            plan: aidPlanVal,
+            date_joined: aidDateJoinedIso,
+            national_id_optional: idVal
+        } : null;
+
+        const identityDocPayload = hasIdentity ? {
+            id_type: identityTypeVal,
+            issuer: identityIssuerVal,
+            card_number: identityCardNumberVal,
+            ec_number: identityEcNumberVal,
+            faculty: identityTypeVal === 'Student ID' ? identityFacultyVal : '',
+            department: identityTypeVal === 'Staff ID' ? identityDepartmentVal : '',
+            programme: identityProgrammeVal,
+            level: identityLevelVal,
+            semester: identitySemesterVal,
+            status: identityStatusVal,
+            expiry_date: identityExpiryIso
+        } : null;
+
+        // Keep existing flat fields for current API while extending payload with nested objects.
+        const data = {
+            full_name: patientPayload.full_name,
+            national_id: patientPayload.national_id,
+            dob: patientPayload.dob,
+            gender: patientPayload.gender,
+            phone: patientPayload.phone,
+            address: patientPayload.address,
             has_medical_aid: hasAid ? 1 : 0,
-            medical_aid_provider: hasAid ? document.getElementById('aidProvider').value : '',
-            medical_aid_number: hasAid ? document.getElementById('aidNumber').value : '',
-            kin_name: kinNameVal,
-            kin_relation: document.getElementById('kinRelation').value,
-            kin_phone: document.getElementById('kinPhone').value,
-            allergies: document.getElementById('regAllergies').value
+            medical_aid_provider: hasAid ? medicalAidPayload.provider : '',
+            medical_aid_number: hasAid ? medicalAidPayload.member_number : '',
+            medical_aid_member_name: hasAid ? medicalAidPayload.member_name : '',
+            medical_aid_suffix: hasAid ? medicalAidPayload.suffix : '',
+            medical_aid_plan: hasAid ? medicalAidPayload.plan : '',
+            medical_aid_date_joined: hasAid ? medicalAidPayload.date_joined : '',
+            kin_name: patientPayload.next_of_kin_name,
+            kin_relation: patientPayload.next_of_kin_relationship,
+            kin_phone: patientPayload.next_of_kin_phone,
+            allergies: patientPayload.allergies_notes,
+            patient: patientPayload,
+            medical_aid: medicalAidPayload,
+            identity_doc: identityDocPayload
         };
 
         const res = await Api.post('/reception/register', data);
         if(res) {
             notify("Registration successful. Patient added to Nurse Aid triage queue.");
             document.getElementById('registrationForm').reset();
+            enforceMedicalAidAlwaysOn();
+            enforceIdentityAlwaysOn();
+            enforceIdentityIssuerDefault();
+            syncAidMemberNameFromFullName();
             loadDirectory();
-            loadQueueList();
             loadDashboardStats();
-            showSection('queue');
+            showSection('directory');
         }
     }
 
@@ -1291,7 +1873,7 @@
 
     function populatePatientSelects() {
         const patientOptions = cachedPatients.map(p => `<option value="${p.id}">${p.full_name} (${p.national_id || 'N/A'})</option>`).join('');
-        const ids = ['apptPatient', 'refPatient', 'docPatient', 'consentPatient'];
+        const ids = ['apptPatient'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '<option value="">Select patient...</option>' + patientOptions;

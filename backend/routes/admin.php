@@ -6,6 +6,7 @@ require_once __DIR__ . '/../middleware/RoleMiddleware.php';
 require_once __DIR__ . '/../utils/ActivityLogger.php';
 require_once __DIR__ . '/../utils/DbSchema.php';
 require_once __DIR__ . '/../utils/Realtime.php';
+require_once __DIR__ . '/../utils/UsernameStrategy.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -289,9 +290,12 @@ if ($resource === 'admin') {
             if ($method === 'POST') {
                 $data = RequestValidator::json();
 
-                if (empty($data->full_name) || empty($data->email) || empty($data->username) || empty($data->role) || empty($data->password)) {
+                $fullName = trim((string)($data->full_name ?? ''));
+                $password = (string)($data->password ?? '');
+
+                if ($fullName === '' || empty($data->role) || $password === '') {
                     http_response_code(400);
-                    echo json_encode(["message" => "All fields are required."]);
+                    echo json_encode(["message" => "full_name, role, and password are required."]);
                     exit;
                 }
                 $role = strtolower(trim((string)$data->role));
@@ -303,30 +307,39 @@ if ($resource === 'admin') {
                 }
 
                 try {
+                    $generatedUsername = UsernameStrategy::buildFromFullName($db, $fullName);
+                    $generatedEmail = UsernameStrategy::buildEmailFromFullName($db, $fullName, 'gov');
+
                     $check = $db->prepare("SELECT id FROM users WHERE username = ?");
-                    $check->execute([$data->username]);
+                    $check->execute([$generatedUsername]);
                     if($check->rowCount() > 0) {
                         http_response_code(409); // Conflict
-                        echo json_encode(["message" => "Username already exists."]);
+                        echo json_encode([
+                            "message" => "Generated username already exists.",
+                            "username" => $generatedUsername
+                        ]);
                         exit;
                     }
 
                     $check = $db->prepare("SELECT id FROM users WHERE email = ?");
-                    $check->execute([$data->email]);
+                    $check->execute([$generatedEmail]);
                     if($check->rowCount() > 0) {
                         http_response_code(409);
-                        echo json_encode(["message" => "Email already exists."]);
+                        echo json_encode([
+                            "message" => "Generated email already exists.",
+                            "email" => $generatedEmail
+                        ]);
                         exit;
                     }
 
-                    $hash = password_hash($data->password, PASSWORD_BCRYPT);
+                    $hash = password_hash($password, PASSWORD_BCRYPT);
                     $sql = "INSERT INTO users (full_name, email, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, 1)";
                     $stmt = $db->prepare($sql);
 
-                    if($stmt->execute([$data->full_name, $data->email, $data->username, $hash, $role])) {
+                    if($stmt->execute([$fullName, $generatedEmail, $generatedUsername, $hash, $role])) {
                         $newId = $db->lastInsertId();
                         // Log the action
-                        ActivityLogger::log($db, $user->full_name ?? 'Admin', "Created user: " . $data->username, 'Success', null, [
+                        ActivityLogger::log($db, $user->full_name ?? 'Admin', "Created user: " . $generatedUsername, 'Success', null, [
                             'event_type' => 'audit',
                             'entity_type' => 'user',
                             'entity_id' => $newId ? (string)$newId : null,
@@ -334,15 +347,19 @@ if ($resource === 'admin') {
                             'actor_role' => $user->role ?? 'admin',
                             'source' => 'admin/add_user',
                             'new_values' => [
-                                'username' => $data->username,
-                                'full_name' => $data->full_name,
+                                'username' => $generatedUsername,
+                                'full_name' => $fullName,
                                 'role' => $role,
-                                'email' => $data->email
+                                'email' => $generatedEmail
                             ],
                             'safe_fields' => ['username', 'full_name', 'role', 'email']
                         ]);
                         Realtime::emit('admin.add_user', ['user_id' => $newId]);
-                        echo json_encode(["message" => "User created successfully"]);
+                        echo json_encode([
+                            "message" => "User created successfully",
+                            "username" => $generatedUsername,
+                            "email" => $generatedEmail
+                        ]);
                     }
                 } catch (Exception $e) {
                     http_response_code(500);

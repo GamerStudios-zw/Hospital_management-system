@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HMS Changelog Addendum - 2026-02-23</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #111827; line-height: 1.45; }
+h1 { margin: 0 0 6px 0; font-size: 24px; }
+.meta { color: #4b5563; margin-bottom: 16px; }
+h2 { margin-top: 22px; font-size: 18px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+h3 { margin-top: 16px; font-size: 16px; }
+ul { margin: 6px 0 12px 20px; }
+code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 4px; }
+</style>
+</head>
+<body>
+<h1>Hospital Management System - Changelog Addendum</h1>
+<div class="meta">Date: 2026-02-23 | Scope: Improvement items 1-5</div>
+
+<h2>Summary</h2>
+<p>This addendum records hardening and consistency updates completed on February 23, 2026 for Doctor, Nurse, Pharmacy, Reception, and IT dashboards.</p>
+
+<h2>Implemented Improvements</h2>
+
+<h3>1) Nurse timeline SQL injection hardening</h3>
+<ul>
+<li>File: <code>backend/routes/nurse.php</code></li>
+<li>Endpoint: <code>GET /nurse/timeline</code></li>
+<li>Removed direct SQL interpolation of <code>patient_id</code>.</li>
+<li>Replaced with prepared statements for all timeline queries.</li>
+<li>Added safe-query fallback behavior and guarded error handling.</li>
+</ul>
+
+<h3>2) IT dashboard duplicate bootstrapping cleanup</h3>
+<ul>
+<li>File: <code>frontend/pages/it/itdashboard.html</code></li>
+<li>Removed duplicate <code>app.js</code> include.</li>
+<li>Removed duplicate <code>protectPage(['it_support', 'admin'])</code> call.</li>
+</ul>
+
+<h3>3) Cross-module status normalization</h3>
+<ul>
+<li>Files:
+<code>backend/routes/doctor.php</code>,
+<code>backend/routes/nurse.php</code>,
+<code>backend/routes/pharmacy.php</code>,
+<code>backend/routes/reception.php</code></li>
+<li>Updated mixed-case status checks to consistent <code>LOWER(status)</code> comparisons.</li>
+<li>Normalized pending/dispensed/waiting/urgent filters used by dashboard metrics and lists.</li>
+</ul>
+
+<h3>4) Appointment ownership rules (Doctor + Reception flow)</h3>
+<ul>
+<li>File: <code>backend/routes/doctor.php</code></li>
+<li>Added scoped listing support in <code>GET /doctor/appointments</code> via <code>scope=mine_or_unassigned</code>.</li>
+<li><code>POST /doctor/appointment_update</code> now allows claim-and-update for unassigned appointments and returns <code>403</code> for non-claimable appointments.</li>
+<li>Added <code>is_unassigned</code> to appointment list payload.</li>
+</ul>
+
+<h3>5) Doctor sidebar tab handler modernization</h3>
+<ul>
+<li>File: <code>frontend/pages/doctor/dashboard.html</code></li>
+<li>Replaced inline <code>onclick="switchTab(...)"</code> tab links with <code>data-tab</code> links.</li>
+<li>Added event listener binding (<code>bindDoctorNavTabs</code>) for tab navigation.</li>
+<li>Kept hash-based deep-link behavior.</li>
+</ul>
+
+<h2>Additional Frontend Wiring</h2>
+<ul>
+<li>Doctor appointments now load via <code>/doctor/appointments?scope=mine_or_unassigned</code>.</li>
+<li>Unassigned appointment action text now shows <code>Claim &amp; Start</code>.</li>
+</ul>
+
+<h2>Validation Performed</h2>
+<ul>
+<li><code>php -l backend/routes/nurse.php</code> - no syntax errors.</li>
+<li><code>php -l backend/routes/doctor.php</code> - no syntax errors.</li>
+<li><code>php -l backend/routes/pharmacy.php</code> - no syntax errors.</li>
+<li><code>php -l backend/routes/reception.php</code> - no syntax errors.</li>
+<li>Verified IT page has one <code>app.js</code> include and one <code>protectPage(...)</code> call.</li>
+<li>Verified Doctor page no longer uses inline sidebar tab onclick handlers.</li>
+</ul>
+
+<h2>Changed Files</h2>
+<ul>
+<li><code>backend/routes/doctor.php</code></li>
+<li><code>backend/routes/nurse.php</code></li>
+<li><code>backend/routes/pharmacy.php</code></li>
+<li><code>backend/routes/reception.php</code></li>
+<li><code>frontend/pages/doctor/dashboard.html</code></li>
+<li><code>frontend/pages/it/itdashboard.html</code></li>
+</ul>
+</body>
+</html>
+

@@ -1,5 +1,10 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap");
+@import url("./sports-academy-theme.css");
+
 /* HMS unified theme based on index.html */
 :root {
+    --app-font: "Space Grotesk", "Inter", "Poppins", "Roboto", sans-serif;
+    --app-font-heading: "Sora", "Space Grotesk", "Inter", sans-serif;
     --primary-color: #294a70;
     --secondary-color: #0f233a;
     --accent-color: #e44a3c;
@@ -345,4 +350,162 @@ h2, h3, h4, h5 {
     --module-sidebar-end: #0f172a;
     --module-sidebar-text: #c9d8e8;
     --module-sidebar-title: #e0f2fe;
+}
+
+/* Sports academy template rollout (global) */
+body {
+    font-family: var(--app-font);
+}
+
+h1, h2, h3, h4, h5, h6,
+.section-heading,
+.panel-title,
+.metric-label,
+.sidebar .brand,
+.brand-title {
+    font-family: var(--app-font-heading);
+}
+
+body.index-page.admin-theme {
+    background:
+        radial-gradient(circle at top left, rgba(127, 174, 255, 0.18), transparent 22%),
+        radial-gradient(circle at top right, rgba(214, 40, 40, 0.08), transparent 26%),
+        linear-gradient(180deg, #f9fbff 0%, #eef5ff 55%, #ffffff 100%);
+}
+
+body.index-page.admin-theme .header {
+    background: linear-gradient(180deg, rgba(16, 48, 112, 0.96), rgba(31, 80, 167, 0.94)) !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.18);
+    border-top: 0 !important;
+}
+
+body.index-page.admin-theme .branding {
+    background: transparent !important;
+}
+
+body.index-page.admin-theme .hero {
+    background:
+        linear-gradient(120deg, rgba(9, 23, 82, 0.86), rgba(23, 61, 140, 0.72)),
+        url("../img/hero-bg.jpg") center/cover;
+}
+
+body.index-page.admin-theme .navmenu a:hover,
+body.index-page.admin-theme .navmenu .active {
+    color: #f0c808;
+}
+
+body.index-page.admin-theme .cta-btn {
+    background: #f0c808;
+    border-radius: 999px;
+    color: #173d8c !important;
+    font-weight: 700;
+}
+
+body.index-page.admin-theme .cta-btn:hover {
+    background: #ffdd56;
+    color: #102a69 !important;
+}
+
+body.index-page.admin-theme .service-item,
+body.index-page.admin-theme .departments .tab-content .tab-pane {
+    border-radius: 16px;
+    border: 1px solid rgba(33, 79, 167, 0.1);
+    box-shadow: 0 12px 30px -22px rgba(15, 23, 42, 0.35);
+}
+
+body.hms-module.admin-theme {
+    --module-bg: #eef4ff;
+    --module-surface: #ffffff;
+    --module-border: rgba(33, 79, 167, 0.14);
+    --module-text: #18304f;
+    --module-muted: #5d7394;
+    --module-shadow: 0 16px 40px -24px rgba(18, 42, 93, 0.35);
+    color: var(--module-text);
+    background:
+        radial-gradient(circle at top left, rgba(123, 194, 255, 0.18), transparent 20%),
+        radial-gradient(circle at top right, rgba(21, 148, 92, 0.1), transparent 22%),
+        radial-gradient(circle at 85% 22%, rgba(214, 40, 40, 0.08), transparent 18%),
+        linear-gradient(180deg, #f9fbff 0%, #eef5ff 52%, #ffffff 100%);
+}
+
+body.hms-module.admin-theme .sidebar {
+    background: linear-gradient(180deg, #103070 0%, #2451b1 52%, #102a69 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+body.hms-module.admin-theme .sidebar .nav-link {
+    color: #dce8ff !important;
+}
+
+body.hms-module.admin-theme .sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.14) !important;
+    color: #ffffff !important;
+}
+
+body.hms-module.admin-theme .sidebar .nav-link.active {
+    background: linear-gradient(135deg, #1f4ea8, #2f6cdf) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 22px -16px rgba(31, 78, 168, 0.95) !important;
+}
+
+body.hms-module.admin-theme .sidebar h4,
+body.hms-module.admin-theme .sidebar .brand,
+body.hms-module.admin-theme .brand-title {
+    color: #eef5ff !important;
+}
+
+body.hms-module.admin-theme .mobile-topbar,
+body.hms-module.admin-theme .ward-toolbar {
+    background: linear-gradient(180deg, #ffffff, #f8fbff);
+    border-color: rgba(33, 79, 167, 0.16);
+}
+
+body.hms-module.admin-theme .card,
+body.hms-module.admin-theme .stat-card,
+body.hms-module.admin-theme .metric-tile,
+body.hms-module.admin-theme .chart-card,
+body.hms-module.admin-theme .soft-panel,
+body.hms-module.admin-theme .stat-widget,
+body.hms-module.admin-theme .ward-card,
+body.hms-module.admin-theme .inventory-metrics {
+    border-radius: 18px !important;
+    border: 1px solid rgba(33, 79, 167, 0.12) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%) !important;
+    box-shadow: 0 16px 40px -24px rgba(18, 42, 93, 0.35) !important;
+}
+
+body.hms-module.admin-theme .table thead th {
+    background: rgba(20, 42, 92, 0.05) !important;
+    border-bottom: 1px solid rgba(20, 42, 92, 0.12);
+    color: #1f3763;
+}
+
+body.hms-module.admin-theme .btn-primary,
+body.hms-module.admin-theme .btn-info {
+    background: linear-gradient(135deg, #2357b8, #2f6cdf) !important;
+    border-color: transparent !important;
+}
+
+body.hms-module.admin-theme .btn-primary:hover,
+body.hms-module.admin-theme .btn-info:hover {
+    background: linear-gradient(135deg, #173d8c, #2357b8) !important;
+}
+
+body.hms-module.admin-theme .form-control,
+body.hms-module.admin-theme .form-select {
+    border-color: rgba(20, 42, 92, 0.16);
+    background: #ffffff;
+}
+
+body.hms-module.admin-theme .form-control:focus,
+body.hms-module.admin-theme .form-select:focus {
+    border-color: rgba(33, 79, 167, 0.55);
+    box-shadow: 0 0 0 0.2rem rgba(33, 79, 167, 0.14);
+}
+
+body.hms-module.admin-theme .main-content,
+body.hms-module.admin-theme main,
+body.hms-module.admin-theme .pharmacy-main,
+body.hms-module.admin-theme .reception-main {
+    background: transparent !important;
 }

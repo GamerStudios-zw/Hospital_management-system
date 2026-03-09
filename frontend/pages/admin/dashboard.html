@@ -50,7 +50,7 @@
         }
     </style>
 </head>
-<body class="hms-module module-admin">
+<body class="hms-module module-admin admin-theme">
 <div class="container-fluid">
     <div class="row">
         <nav class="col-md-2 sidebar px-3">
@@ -421,11 +421,13 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Email</label>
-                        <input type="email" id="addEmail" class="form-control" placeholder="name@hospital.com" required>
+                        <input type="email" id="addEmail" class="form-control" required readonly aria-describedby="addEmailHelp">
+                        <div id="addEmailHelp" class="form-text">Auto format: firstname@hospital.gov (example: tadiwasiyapiya@karanda.gov).</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Username</label>
-                        <input type="text" id="addUsername" class="form-control" required>
+                        <input type="text" id="addUsername" class="form-control" required readonly aria-describedby="addUsernameHelp">
+                        <div id="addUsernameHelp" class="form-text">Auto format: firstname@hospital (example: clara@karanda).</div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -468,6 +470,7 @@
     let logSeverityChart = null;
     let logSourceChart = null;
     let logDayChart = null;
+    let accountHospitalToken = 'hospital';
 
     document.addEventListener("DOMContentLoaded", () => {
         protectPage('admin');
@@ -476,6 +479,7 @@
         loadStaffPerformance();
         loadMonitorData();
         setupLogout();
+        bindAccountUsernameHelpers();
         activateInitialAdminSection();
     });
 
@@ -540,6 +544,59 @@
         if (!m) return null;
         d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
         return Number.isNaN(d.getTime()) ? null : d.getTime();
+    }
+
+    function normalizeUsernameToken(value) {
+        const raw = String(value || '').toLowerCase();
+        const normalized = typeof raw.normalize === 'function' ? raw.normalize('NFD') : raw;
+        return normalized
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
+    function deriveHospitalToken(hospitalName) {
+        const firstPart = String(hospitalName || '').trim().split(/\s+/)[0] || '';
+        return normalizeUsernameToken(firstPart) || 'hospital';
+    }
+
+    function buildUsernameFromFullName(fullName, fallbackToken = 'staff') {
+        const firstPart = String(fullName || '').trim().split(/\s+/)[0] || '';
+        const personToken = normalizeUsernameToken(firstPart) || fallbackToken;
+        if (!personToken) return '';
+        return `${personToken}@${accountHospitalToken}`;
+    }
+
+    function buildEmailFromFullName(fullName, fallbackToken = 'staff') {
+        const firstPart = String(fullName || '').trim().split(/\s+/)[0] || '';
+        const personToken = normalizeUsernameToken(firstPart) || fallbackToken;
+        if (!personToken) return '';
+        return `${personToken}@${accountHospitalToken}.gov`;
+    }
+
+    function syncUsernameField() {
+        const fullNameInput = document.getElementById('addFullName');
+        const emailInput = document.getElementById('addEmail');
+        const usernameInput = document.getElementById('addUsername');
+        if (!usernameInput) return;
+
+        usernameInput.placeholder = `e.g., clara@${accountHospitalToken}`;
+        usernameInput.value = buildUsernameFromFullName(fullNameInput?.value || '', '');
+        if (emailInput) {
+            emailInput.placeholder = `e.g., tadiwasiyapiya@${accountHospitalToken}.gov`;
+            emailInput.value = buildEmailFromFullName(fullNameInput?.value || '', '');
+        }
+    }
+
+    function bindAccountUsernameHelpers() {
+        const fullNameInput = document.getElementById('addFullName');
+        const addUserModal = document.getElementById('addUserModal');
+        if (fullNameInput) {
+            fullNameInput.addEventListener('input', syncUsernameField);
+        }
+        if (addUserModal) {
+            addUserModal.addEventListener('show.bs.modal', syncUsernameField);
+        }
+        syncUsernameField();
     }
 
     async function loadUsers() {
@@ -617,10 +674,16 @@
     }
 
     async function submitNewUser() {
+        const fullNameValue = document.getElementById('addFullName').value;
+        const generatedUsername = buildUsernameFromFullName(fullNameValue);
+        const generatedEmail = buildEmailFromFullName(fullNameValue);
+        document.getElementById('addUsername').value = generatedUsername;
+        document.getElementById('addEmail').value = generatedEmail;
+
         const data = {
-            full_name: document.getElementById('addFullName').value,
-            email: document.getElementById('addEmail').value,
-            username: document.getElementById('addUsername').value,
+            full_name: fullNameValue,
+            email: generatedEmail,
+            username: generatedUsername,
             password: document.getElementById('addPassword').value,
             role: document.getElementById('addRole').value
         };
@@ -628,8 +691,9 @@
         if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)+$/.test(nameVal)) {
             return notify("Full Name must include first and surname (e.g., Al Ali).");
         }
-        if (await Api.post('/admin/add_user', data)) {
-            notify("Account Created!");
+        const result = await Api.post('/admin/add_user', data);
+        if (result) {
+            notify(`Account Created! Username: ${result.username || generatedUsername} | Email: ${result.email || generatedEmail}`);
             bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
             loadUsers();
         }
@@ -653,6 +717,11 @@
 
     async function loadAdminStats() {
         const settings = await Api.get('/settings/load');
+        if (settings?.hospital_name) {
+            accountHospitalToken = deriveHospitalToken(settings.hospital_name);
+        }
+        syncUsernameField();
+
         const statusEl = document.getElementById('systemStatus');
         if (settings && statusEl) {
             const maintenance = Number(settings.maintenance_mode) === 1;

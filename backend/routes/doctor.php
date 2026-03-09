@@ -314,37 +314,61 @@ switch ($action) {
             $data = RequestValidator::json();
             if (!isset($data->appointment_id) || !isset($data->status)) {
                 http_response_code(400);
-                echo json_encode(["message" => "Appointment ID and status required"]);
+                echo json_encode(["error" => true, "message" => "Appointment ID and status required"]);
+                exit;
+            }
+            $targetStatus = strtolower(trim((string)$data->status));
+            if ($targetStatus !== 'completed') {
+                http_response_code(403);
+                echo json_encode(["error" => true, "message" => "Doctor can only complete appointments after Reception check-in."]);
+                exit;
+            }
+
+            $appt = $db->prepare("SELECT id, doctor_id, status FROM appointments WHERE id = ? LIMIT 1");
+            $appt->execute([$data->appointment_id]);
+            $row = $appt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                http_response_code(404);
+                echo json_encode(["error" => true, "message" => "Appointment not found."]);
+                exit;
+            }
+
+            $assignedDoctorId = isset($row['doctor_id']) ? (int)$row['doctor_id'] : null;
+            if (!is_null($assignedDoctorId) && $assignedDoctorId !== (int)$user->id) {
+                http_response_code(403);
+                echo json_encode(["error" => true, "message" => "Appointment is not assigned to you."]);
+                exit;
+            }
+
+            $currentStatus = strtolower(trim((string)($row['status'] ?? '')));
+            if ($currentStatus !== 'checked_in') {
+                http_response_code(409);
+                echo json_encode(["error" => true, "message" => "Appointment not ready. Reception must mark patient as arrived (checked_in)."]);
                 exit;
             }
 
             $stmt = $db->prepare("UPDATE appointments
-                                  SET status = ?, notes = COALESCE(?, notes), doctor_id = COALESCE(doctor_id, ?)
-                                  WHERE id = ? AND (doctor_id = ? OR doctor_id IS NULL)");
-            if ($stmt->execute([$data->status, $data->notes ?? null, $user->id, $data->appointment_id, $user->id])) {
-                if ($stmt->rowCount() === 0) {
-                    http_response_code(403);
-                    echo json_encode(["message" => "Appointment is not assigned to you."]);
-                    exit;
-                }
+                                  SET status = 'completed', notes = COALESCE(?, notes), doctor_id = COALESCE(doctor_id, ?)
+                                  WHERE id = ?");
+            if ($stmt->execute([$data->notes ?? null, $user->id, $data->appointment_id])) {
                 try {
-                    ActivityLogger::log($db, $user->full_name ?? 'doctor', 'Updated appointment status', 'Success', null, [
+                    ActivityLogger::log($db, $user->full_name ?? 'doctor', 'Completed appointment after reception check-in', 'Success', null, [
                         'event_type' => 'audit',
                         'entity_type' => 'appointments',
                         'entity_id' => (string)$data->appointment_id,
                         'actor_id' => isset($user->id) ? (string)$user->id : null,
                         'actor_role' => $user->role ?? 'doctor',
                         'source' => 'doctor/appointment_update',
-                        'metadata' => ['status' => $data->status]
+                        'metadata' => ['status' => 'completed', 'pre_status' => $currentStatus]
                     ]);
                 } catch (Exception $e) {
                     // ignore logging errors
                 }
                 Realtime::emit('doctor.appointment_update', ['appointment_id' => $data->appointment_id]);
-                echo json_encode(["message" => "Appointment updated"]);
+                echo json_encode(["error" => false, "message" => "Appointment completed"]);
             } else {
                 http_response_code(500);
-                echo json_encode(["message" => "Failed to update appointment"]);
+                echo json_encode(["error" => true, "message" => "Failed to update appointment"]);
             }
         }
         break;

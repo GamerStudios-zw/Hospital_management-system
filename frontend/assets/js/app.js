@@ -5,11 +5,57 @@ const CONFIG = {
     WS_URL: `ws://${window.location.hostname}:8090`
 };
 
+const LOGIN_PAGE_PATH = "/Hospital_Management_System/frontend/pages/auth/login.html";
+const TOKEN_EXPIRY_GRACE_MS = 5000;
+const SESSION_WATCHDOG_INTERVAL_MS = 15000;
+let __isLoggingOut = false;
+let __sessionWatchdogTimer = null;
+
+function decodeJwtPayload(token) {
+    if (!token || typeof token !== "string" || typeof atob !== "function") return null;
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+
+    try {
+        const raw = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = raw + "=".repeat((4 - (raw.length % 4)) % 4);
+        const decoded = atob(padded);
+        try {
+            const escaped = Array.from(decoded, (ch) => `%${ch.charCodeAt(0).toString(16).padStart(2, "0")}`).join("");
+            return JSON.parse(decodeURIComponent(escaped));
+        } catch (unicodeErr) {
+            return JSON.parse(decoded);
+        }
+    } catch (e) {
+        return null;
+    }
+}
+
+function getTokenExpiryMs(token = localStorage.getItem("hms_token")) {
+    const payload = decodeJwtPayload(token);
+    const exp = Number(payload?.exp);
+    if (!Number.isFinite(exp) || exp <= 0) return null;
+    return exp * 1000;
+}
+
+function isTokenExpired(token = localStorage.getItem("hms_token")) {
+    if (!token) return true;
+    const expiryMs = getTokenExpiryMs(token);
+    if (!Number.isFinite(expiryMs)) return true;
+    return (Date.now() + TOKEN_EXPIRY_GRACE_MS) >= expiryMs;
+}
+
+function redirectToLogin() {
+    if (window.location.pathname.endsWith("/frontend/pages/auth/login.html")) return;
+    window.location.href = LOGIN_PAGE_PATH;
+}
+
 const Api = {
     getToken: () => localStorage.getItem("hms_token"),
 
     async request(endpoint, method = "GET", body = null) {
         const tokenAtRequest = Api.getToken();
+        const isLogoutRequest = endpoint === "/auth/logout";
         const headers = {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + tokenAtRequest
@@ -28,8 +74,11 @@ const Api = {
                     console.warn("Stale 401 ignored due to newer session token.");
                     return null;
                 }
+                if (isLogoutRequest || __isLoggingOut) {
+                    return null;
+                }
                 console.warn("Session expired. Logging out.");
-                logout();
+                logout({ reason: "session_expired", skipApi: true });
                 return null;
             }
             if (response.status === 503) {
@@ -591,30 +640,49 @@ function broadcastEvent(name, payload = {}) {
  * Clears local session and redirects to the login page.
  */
 async function logout(event) {
+    const isEventArg = !!(event && typeof event === "object" && typeof event.type === "string");
+    const opts = !isEventArg && event && typeof event === "object" ? event : {};
+    const clickEvent = isEventArg ? event : null;
+    const skipApi = opts.skipApi === true;
+    const reason = String(opts.reason || "").trim();
+
+    if (__isLoggingOut) return;
+
     // Only ask for confirmation if the user clicked the button manually
-    if(event && event.type === 'click' && !confirm("Are you sure you want to log out?")) {
+    if(clickEvent && clickEvent.type === 'click' && !confirm("Are you sure you want to log out?")) {
         return;
     }
 
+    __isLoggingOut = true;
+
     try {
-        const userJson = localStorage.getItem('hms_user');
-        const token = localStorage.getItem('hms_token');
-        if (userJson) {
-            const user = JSON.parse(userJson);
-            if (user && user.id) {
-                // Fire-and-forget logout POST
-                await Api.post('/auth/logout', { user_id: user.id, token });
+        if (!skipApi) {
+            const userJson = localStorage.getItem('hms_user');
+            const token = localStorage.getItem('hms_token');
+            if (userJson) {
+                const user = JSON.parse(userJson);
+                if (user && user.id) {
+                    await Api.post('/auth/logout', { user_id: user.id, token });
+                }
             }
         }
     } catch (e) {
         console.warn('Logout API call failed', e);
     }
 
+    if (reason) {
+        try {
+            sessionStorage.setItem("hms_logout_reason", reason);
+        } catch (e) {
+            // ignore storage errors
+        }
+    }
+
     // Clear all local session data
     localStorage.clear();
 
     // Redirect to login using absolute path
-    window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
+    redirectToLogin();
 }
 
 // Graceful logout on tab close / navigation away
@@ -642,12 +710,31 @@ function setupAutoLogoutOnClose() {
 }
 
 document.addEventListener("DOMContentLoaded", setupAutoLogoutOnClose);
+document.addEventListener("DOMContentLoaded", setupSessionWatchdog);
 document.addEventListener("DOMContentLoaded", ensureItTicketWidget);
 function normalizeRole(role) {
     return String(role || "")
         .trim()
         .toLowerCase()
         .replace(/[\s-]+/g, "_");
+}
+
+function enforceSessionTimeout() {
+    if (__isLoggingOut) return;
+    const token = localStorage.getItem("hms_token");
+    if (!token) return;
+    if (!isTokenExpired(token)) return;
+    logout({ reason: "session_expired", skipApi: true });
+}
+
+function setupSessionWatchdog() {
+    if (__sessionWatchdogTimer) return;
+    enforceSessionTimeout();
+    __sessionWatchdogTimer = window.setInterval(enforceSessionTimeout, SESSION_WATCHDOG_INTERVAL_MS);
+    window.addEventListener("focus", enforceSessionTimeout);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) enforceSessionTimeout();
+    });
 }
 /**
  * 4. PAGE SECURITY (The "Bouncer")
@@ -659,7 +746,12 @@ function protectPage(allowedRoles) {
 
     // A. Check if logged in
     if (!userJson || !token) {
-        window.location.href = "/Hospital_Management_System/frontend/pages/auth/login.html";
+        redirectToLogin();
+        return;
+    }
+
+    if (isTokenExpired(token)) {
+        logout({ reason: "session_expired", skipApi: true });
         return;
     }
 
@@ -668,7 +760,7 @@ function protectPage(allowedRoles) {
     try {
         user = JSON.parse(userJson);
     } catch (e) {
-        logout();
+        logout({ reason: "invalid_session", skipApi: true });
         return;
     }
 

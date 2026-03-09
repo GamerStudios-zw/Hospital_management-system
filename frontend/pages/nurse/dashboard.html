@@ -123,7 +123,7 @@
 
     </style>
 </head>
-<body class="hms-module module-nurse">
+<body class="hms-module module-nurse admin-theme">
 
 <div class="container-fluid p-0">
     <div class="row g-0">
@@ -198,12 +198,14 @@
                             <div class="label">Other</div>
                             <div class="value text-warning" id="wardOther">--</div>
                         </div>
+                        <button class="btn btn-success btn-sm px-3" onclick="openAddBedModal()"><i class="bi bi-plus-circle me-1"></i> Add Bed</button>
                         <button class="btn btn-outline-dark btn-sm px-3" onclick="loadBeds()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <small class="ward-meta">Last updated: <span id="wardUpdated">--</span></small>
                 </div>
+                <div id="wardStatusPanel" class="card border-0 shadow-sm rounded-4 p-3 mb-3 d-none"></div>
                 <div id="wardContainer" class="row g-4">
                     </div>
             </section>
@@ -525,6 +527,59 @@
     </div>
 </div>
 
+<div class="modal fade" id="addBedModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Add Bed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form onsubmit="event.preventDefault(); createBed();">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ward Name</label>
+                        <select id="newBedWardName" class="form-select" onchange="updateAddBedNumberSuggestion(true)" required>
+                            <option value="General Ward" selected>General Ward</option>
+                            <option value="ICU">ICU</option>
+                            <option value="Martenity">Martenity</option>
+                            <option value="Recovering Ward">Recovering Ward</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Bed Number</label>
+                        <input type="text" id="newBedNumber" class="form-control" maxlength="30" placeholder="G-01" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Initial Bed Status</label>
+                            <select id="newBedStatus" class="form-select">
+                                <option value="Available" selected>Available</option>
+                                <option value="Cleaning">Cleaning</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Reserved">Reserved</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Ward Status</label>
+                            <select id="newBedWardStatus" class="form-select">
+                                <option value="Open" selected>Open</option>
+                                <option value="High Load">High Load</option>
+                                <option value="Isolation">Isolation</option>
+                                <option value="Closed">Closed</option>
+                                <option value="Maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Bed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
@@ -532,10 +587,21 @@
     protectPage(['nurse', 'admin']);
     let activeBedId = null;
     const bedAdmitModal = new bootstrap.Modal(document.getElementById('bedAdmitModal'));
+    const addBedModal = new bootstrap.Modal(document.getElementById('addBedModal'));
     let historySnapshot = null;
     let nurseRegisteredPatients = [];
     let nurseSearchDebounce = null;
     let nursePatientsCacheFetchedAt = 0;
+    const WARD_NAMES = ['General Ward', 'ICU', 'Martenity', 'Recovering Ward'];
+    const WARD_CODE_BY_NAME = {
+        'General Ward': 'G',
+        'ICU': 'I',
+        'Martenity': 'M',
+        'Recovering Ward': 'R'
+    };
+    const BED_STATUSES = ['Available', 'Occupied', 'Cleaning', 'Maintenance', 'Reserved'];
+    const WARD_STATUSES = ['Open', 'High Load', 'Isolation', 'Closed', 'Maintenance'];
+    let nurseBedsCache = [];
 
     function filterNurseTable(tbodyId, query) {
         const tbody = document.getElementById(tbodyId);
@@ -714,13 +780,173 @@
         backdrop.classList.toggle('show', shouldOpen);
     }
 
+    function getBedStatusColor(status) {
+        const key = String(status || '').toLowerCase();
+        if (key === 'occupied') return 'danger';
+        if (key === 'available') return 'success';
+        if (key === 'cleaning') return 'warning';
+        if (key === 'reserved') return 'info';
+        return 'secondary';
+    }
+
+    function getWardStatusColor(status) {
+        const key = String(status || '').toLowerCase();
+        if (key === 'open') return 'success';
+        if (key === 'high load') return 'warning';
+        if (key === 'isolation') return 'info';
+        if (key === 'closed') return 'danger';
+        return 'secondary';
+    }
+
+    function buildSelectOptions(values, selectedValue) {
+        const selected = String(selectedValue || '').toLowerCase();
+        return values.map((value) => {
+            const isSelected = String(value).toLowerCase() === selected ? 'selected' : '';
+            return `<option value="${value}" ${isSelected}>${value}</option>`;
+        }).join('');
+    }
+
+    function getWardCode(wardName) {
+        const name = String(wardName || '').trim();
+        return WARD_CODE_BY_NAME[name] || (name ? name[0].toUpperCase() : 'W');
+    }
+
+    function normalizeBedNumberForWard(wardName, rawBedNumber) {
+        const code = getWardCode(wardName);
+        const raw = String(rawBedNumber || '').trim().toUpperCase();
+        const m = raw.match(/^([A-Z]+)-(\d{1,2})$/);
+        if (!m) {
+            return { ok: false, message: `Bed number must follow ${code}-01 to ${code}-15.` };
+        }
+        const inputPrefix = m[1];
+        const seq = Number(m[2]);
+        if (inputPrefix !== code) {
+            return { ok: false, message: `For ${wardName}, bed number must start with ${code}-.` };
+        }
+        if (!Number.isInteger(seq) || seq < 1 || seq > 15) {
+            return { ok: false, message: `For ${wardName}, bed number must be from ${code}-01 to ${code}-15.` };
+        }
+        return { ok: true, value: `${code}-${String(seq).padStart(2, '0')}` };
+    }
+
+    function suggestWardBedNumber(wardName) {
+        const code = getWardCode(wardName);
+        const used = new Set();
+        nurseBedsCache.forEach((bed) => {
+            if (String(bed.ward_name || '').trim().toLowerCase() !== String(wardName || '').trim().toLowerCase()) return;
+            const m = String(bed.bed_number || '').trim().toUpperCase().match(/^([A-Z]+)-(\d{1,2})$/);
+            if (!m || m[1] !== code) return;
+            const seq = Number(m[2]);
+            if (Number.isInteger(seq) && seq >= 1 && seq <= 15) used.add(seq);
+        });
+        for (let i = 1; i <= 15; i += 1) {
+            if (!used.has(i)) return `${code}-${String(i).padStart(2, '0')}`;
+        }
+        return `${code}-15`;
+    }
+
+    function updateAddBedNumberSuggestion(force = false) {
+        const wardName = document.getElementById('newBedWardName')?.value || WARD_NAMES[0];
+        const input = document.getElementById('newBedNumber');
+        if (!input) return;
+        if (!force && String(input.value || '').trim()) return;
+        input.placeholder = `${getWardCode(wardName)}-01`;
+        input.value = suggestWardBedNumber(wardName);
+    }
+
+    function renderWardStatusPanel(beds) {
+        const panel = document.getElementById('wardStatusPanel');
+        if (!panel) return;
+        const rows = Array.isArray(beds) ? beds : [];
+        const wardMap = new Map();
+        rows.forEach((bed) => {
+            const wardName = (bed.ward_name || 'General Ward').trim();
+            if (!wardMap.has(wardName)) {
+                wardMap.set(wardName, bed.ward_status || 'Open');
+            }
+        });
+
+        if (!wardMap.size) {
+            panel.classList.add('d-none');
+            panel.innerHTML = '';
+            return;
+        }
+
+        let idx = 0;
+        const controls = [];
+        wardMap.forEach((wardStatus, wardName) => {
+            idx += 1;
+            const selectId = `wardStatusSelect_${idx}`;
+            const color = getWardStatusColor(wardStatus);
+            controls.push(`
+                <div class="col-md-6 col-lg-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="fw-semibold">${wardName}</div>
+                            <span class="badge bg-${color}-subtle text-${color} border">${wardStatus || 'Open'}</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <select id="${selectId}" class="form-select form-select-sm">${buildSelectOptions(WARD_STATUSES, wardStatus || 'Open')}</select>
+                            <button class="btn btn-sm btn-outline-primary" onclick='updateWardStatus(${JSON.stringify(wardName)}, "${selectId}")'>Save</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+
+        panel.classList.remove('d-none');
+        panel.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">Ward Status Controls</h6>
+                <small class="text-muted">Status changes apply to all beds in each ward.</small>
+            </div>
+            <div class="row g-3">${controls.join('')}</div>
+        `;
+    }
+
+    function openAddBedModal() {
+        document.getElementById('newBedWardName').value = WARD_NAMES[0];
+        document.getElementById('newBedStatus').value = 'Available';
+        document.getElementById('newBedWardStatus').value = 'Open';
+        updateAddBedNumberSuggestion(true);
+        addBedModal.show();
+    }
+
+    async function createBed() {
+        const wardName = document.getElementById('newBedWardName').value;
+        const bedInput = document.getElementById('newBedNumber').value.trim();
+        const status = document.getElementById('newBedStatus').value;
+        const wardStatus = document.getElementById('newBedWardStatus').value;
+        if (!wardName || !bedInput) return notify("Ward name and bed number are required.");
+        const normalized = normalizeBedNumberForWard(wardName, bedInput);
+        if (!normalized.ok) return notify(normalized.message);
+        const bedNumber = normalized.value;
+        const res = await Api.post('/nurse/bed_create', {
+            ward_name: wardName,
+            bed_number: bedNumber,
+            status,
+            ward_status: wardStatus
+        });
+        if (!res) return;
+        if (!res.bed_id) return notify(res.message || "Failed to add bed.");
+        addBedModal.hide();
+        notify(res.message || "Bed added successfully.", "success");
+        loadBeds();
+    }
+
     async function loadBeds() {
         const beds = await Api.get('/nurse/beds');
         const container = document.getElementById('wardContainer');
+        const wardStatusPanel = document.getElementById('wardStatusPanel');
         if (!container) return;
         container.innerHTML = '';
+        if (wardStatusPanel) {
+            wardStatusPanel.classList.add('d-none');
+            wardStatusPanel.innerHTML = '';
+        }
 
         if(beds) {
+            nurseBedsCache = Array.isArray(beds) ? beds : [];
             let total = 0;
             let occupied = 0;
             let available = 0;
@@ -733,10 +959,14 @@
                 else if (bed.status === 'Available') available += 1;
                 else other += 1;
 
-                const color = bed.status === 'Occupied' ? 'danger' : (bed.status === 'Available' ? 'success' : 'warning');
+                const color = getBedStatusColor(bed.status);
+                const wardStatusColor = getWardStatusColor(bed.ward_status || 'Open');
                 const patientLabel = bed.patient_name ? bed.patient_name : 'Empty';
                 const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
                 const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
+                const wardStatus = bed.ward_status || 'Open';
+                const isWardUnavailable = ['Closed', 'Maintenance'].includes(wardStatus);
+                const canRemove = bed.status !== 'Occupied' && !bed.current_patient_id;
 
                 let actionBtn = '';
                 if (bed.status === 'Occupied') {
@@ -754,10 +984,24 @@
                            </div>
                            <button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Awaiting Doctor</button>`;
                 } else if (bed.status === 'Available') {
-                    actionBtn = `<button onclick='openBedAdmitModal(${JSON.stringify(bed)})' class="btn btn-sm btn-outline-success w-100 rounded-pill">Admit</button>`;
+                    actionBtn = isWardUnavailable
+                        ? `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Ward ${wardStatus}</button>`
+                        : `<button onclick='openBedAdmitModal(${JSON.stringify(bed)})' class="btn btn-sm btn-outline-success w-100 rounded-pill">Admit</button>`;
                 } else {
                     actionBtn = `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Unavailable</button>`;
                 }
+
+                const bedStatusSelectId = `bedStatus_${bed.id}`;
+                const bedStatusControl = bed.status === 'Occupied'
+                    ? `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill mt-2" disabled>Status locked while occupied</button>`
+                    : `<div class="d-flex gap-2 mt-2">
+                            <select id="${bedStatusSelectId}" class="form-select form-select-sm">${buildSelectOptions(BED_STATUSES, bed.status)}</select>
+                            <button class="btn btn-sm btn-outline-primary" onclick="updateBedStatus(${bed.id}, '${bedStatusSelectId}')">Save</button>
+                       </div>`;
+
+                const removeBtn = canRemove
+                    ? `<button onclick='removeBed(${bed.id}, ${JSON.stringify(`${wardLabel} ${bedNumber}`)})' class="btn btn-sm btn-outline-danger w-100 rounded-pill mt-2">Remove Bed</button>`
+                    : `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill mt-2" disabled>Cannot Remove</button>`;
 
                 cards.push(`
                     <div class="col-md-3">
@@ -766,20 +1010,58 @@
                                 <div class="bed-icon text-${color}"><i class="bi bi-hospital"></i></div>
                                 <span class="badge ward-pill bg-${color}-subtle text-${color} border border-${color}">${bed.status}</span>
                             </div>
-                            <div class="ward-meta mb-1">${wardLabel}</div>
+                            <div class="ward-meta mb-1 d-flex justify-content-between align-items-center">
+                                <span>${wardLabel}</span>
+                                <span class="badge bg-${wardStatusColor}-subtle text-${wardStatusColor} border">${wardStatus}</span>
+                            </div>
                             <h6 class="fw-bold mb-1">${bedNumber}</h6>
                             <div class="ward-patient mb-3">${patientLabel}</div>
                             ${actionBtn}
+                            ${bedStatusControl}
+                            ${removeBtn}
                         </div>
                     </div>`);
             });
 
             container.innerHTML = cards.join('');
+            renderWardStatusPanel(beds);
             document.getElementById('wardTotal').innerText = total;
             document.getElementById('wardOccupied').innerText = occupied;
             document.getElementById('wardAvailable').innerText = available;
             document.getElementById('wardOther').innerText = other;
             document.getElementById('wardUpdated').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        }
+    }
+
+    async function updateBedStatus(bedId, selectId) {
+        const status = document.getElementById(selectId)?.value || '';
+        if (!status) return notify("Select a bed status.");
+        const res = await Api.post('/nurse/bed_status_update', { bed_id: bedId, status });
+        if (res) {
+            notify(res.message || "Bed status updated.", "success");
+            loadBeds();
+        }
+    }
+
+    async function removeBed(bedId, label) {
+        if (!confirm(`Remove ${label || 'this bed'} from ward monitor?`)) return;
+        const res = await Api.post('/nurse/bed_delete', { bed_id: bedId });
+        if (res) {
+            notify(res.message || "Bed removed.", "success");
+            loadBeds();
+        }
+    }
+
+    async function updateWardStatus(wardName, selectId) {
+        const wardStatus = document.getElementById(selectId)?.value || '';
+        if (!wardName || !wardStatus) return notify("Ward status is required.");
+        const res = await Api.post('/nurse/ward_status_update', {
+            ward_name: wardName,
+            ward_status: wardStatus
+        });
+        if (res) {
+            notify(res.message || "Ward status updated.", "success");
+            loadBeds();
         }
     }
 
@@ -807,7 +1089,7 @@
         activeBedId = bed.id;
         const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
         const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
-        document.getElementById('bedAdmitLabel').innerText = `${wardLabel} • ${bedNumber}`;
+        document.getElementById('bedAdmitLabel').innerText = `${wardLabel} - ${bedNumber}`;
         loadUrgentPatients();
         bedAdmitModal.show();
     }

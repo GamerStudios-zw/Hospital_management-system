@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HMS Template Launchpad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../../assets/css/sports-academy-theme.css" rel="stylesheet">
+  <style>
+    .icon-brand {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #173d8c;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .quick-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #cfe0ff;
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.06);
+      transition: all 0.2s ease;
+    }
+    .quick-link:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .role-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body class="admin-theme" data-page="landing">
+  <div class="page-shell">
+    <div class="orb orb-one"></div>
+    <div class="orb orb-two"></div>
+    <div class="orb orb-three"></div>
+
+    <nav class="topbar">
+      <div class="container py-3 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+        <a href="../../index.html" class="brand-stack">
+          <span class="brand-mark icon-brand"><i class="bi bi-hospital"></i></span>
+          <div class="brand-copy">
+            <strong>Hospital Management System</strong>
+            <span>Modern template launchpad integrated from sports academy UI</span>
+          </div>
+        </a>
+        <div class="hero-actions">
+          <a href="../auth/login.html" class="btn-primary-soft"><i class="bi bi-box-arrow-in-right"></i> Staff Login</a>
+          <a href="../../index.html" class="btn-ghost-soft"><i class="bi bi-house-door"></i> Classic Home</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-5">
+      <section class="hero-card hero-card-landing">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-8">
+            <div class="brand-stripe mb-4"></div>
+            <span class="eyebrow"><i class="bi bi-stars"></i> New visual experience for HMS</span>
+            <div class="glass-card p-4 mt-3">
+              <div class="chip-row mb-3">
+                <div class="chip"><i class="bi bi-person-vcard"></i> Registration</div>
+                <div class="chip"><i class="bi bi-heart-pulse"></i> Clinical Care</div>
+                <div class="chip"><i class="bi bi-capsule"></i> Pharmacy</div>
+                <div class="chip"><i class="bi bi-shield-check"></i> Role Security</div>
+              </div>
+              <h1 class="section-heading mb-3" style="font-size: clamp(2.2rem, 5vw, 4rem); color: #ffffff;">
+                Hospital Operations Control Center
+              </h1>
+              <p class="lead-copy fs-5 mb-4" style="color: #dce5ff;">
+                This template has been integrated into the HMS frontend and wired to your existing login endpoint and role redirects.
+              </p>
+              <div class="hero-actions">
+                <a href="../auth/login.html" class="btn-primary-soft"><i class="bi bi-key"></i> Open Staff Login</a>
+                <a href="../admin/dashboard.html" class="btn-secondary-soft"><i class="bi bi-speedometer2"></i> Admin Dashboard</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-4"></div>
+        </div>
+      </section>
+
+      <section class="section-block pb-0">
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="list-card portal-card">
+              <span class="eyebrow"><i class="bi bi-building-gear"></i> Operations desks</span>
+              <h2 class="h3 mt-3 mb-2">Core Workspaces</h2>
+              <p class="muted-copy mb-3">Direct links to the role dashboards currently available in your HMS frontend.</p>
+              <div class="role-links">
+                <a class="quick-link" href="../admin/dashboard.html"><i class="bi bi-shield-check"></i> Admin</a>
+                <a class="quick-link" href="../doctor/dashboard.html"><i class="bi bi-clipboard2-pulse"></i> Doctor</a>
+                <a class="quick-link" href="../nurse/dashboard.html"><i class="bi bi-heart"></i> Nurse</a>
+                <a class="quick-link" href="../nurse_aid/dashboard.html"><i class="bi bi-person-plus"></i> Nurse Aid</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="list-card portal-card portal-card-admin">
+              <span class="eyebrow"><i class="bi bi-hdd-network"></i> Service modules</span>
+              <h2 class="h3 mt-3 mb-2">Department Modules</h2>
+              <p class="muted-copy mb-3">Front-office and support modules styled by your existing HMS pages.</p>
+              <div class="role-links">
+                <a class="quick-link" href="../reception/dashboard.html"><i class="bi bi-person-badge"></i> Reception</a>
+                <a class="quick-link" href="../pharmacy/dashboard.html"><i class="bi bi-capsule-pill"></i> Pharmacy</a>
+                <a class="quick-link" href="../it/itdashboard.html"><i class="bi bi-cpu"></i> IT Support</a>
+                <a class="quick-link" href="../../index.html"><i class="bi bi-layout-text-window"></i> Main Site</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

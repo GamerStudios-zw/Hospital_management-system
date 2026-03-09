@@ -66,6 +66,206 @@ class DbSchema {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
+    public static function ensureReceptionIdentityTables($db) {
+        if (!$db) return;
+
+        $db->exec("CREATE TABLE IF NOT EXISTS patient_students (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            issuer_institution VARCHAR(180) NOT NULL,
+            card_number VARCHAR(80) NOT NULL,
+            student_number VARCHAR(30) NULL,
+            faculty VARCHAR(120) NULL,
+            programme VARCHAR(120) NULL,
+            level_name VARCHAR(80) NULL,
+            semester VARCHAR(80) NULL,
+            student_status VARCHAR(80) NULL,
+            expiry_date DATE NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_patient_students_patient (patient_id),
+            INDEX idx_patient_students_card (card_number)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $db->exec("CREATE TABLE IF NOT EXISTS patient_staff (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            issuer_institution VARCHAR(180) NOT NULL,
+            card_number VARCHAR(80) NOT NULL,
+            ec_number VARCHAR(30) NOT NULL,
+            department VARCHAR(120) NULL,
+            faculty VARCHAR(120) NULL,
+            programme VARCHAR(120) NULL,
+            level_name VARCHAR(80) NULL,
+            semester VARCHAR(80) NULL,
+            staff_status VARCHAR(80) NULL,
+            expiry_date DATE NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_patient_staff_patient (patient_id),
+            UNIQUE KEY uq_patient_staff_ec_number (ec_number),
+            INDEX idx_patient_staff_card (card_number)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $studentsCols = $db->query("SHOW COLUMNS FROM patient_students")->fetchAll(PDO::FETCH_ASSOC);
+        $studentsHasPatient = false;
+        foreach ($studentsCols as $col) {
+            if (($col['Field'] ?? '') === 'patient_id') {
+                $studentsHasPatient = true;
+                break;
+            }
+        }
+        $studentsHasStudentNumber = false;
+        foreach ($studentsCols as $col) {
+            if (($col['Field'] ?? '') === 'student_number') {
+                $studentsHasStudentNumber = true;
+                break;
+            }
+        }
+        if (!$studentsHasStudentNumber) {
+            $db->exec("ALTER TABLE patient_students ADD COLUMN student_number VARCHAR(30) NULL AFTER card_number");
+        }
+        $studentsIdx = $db->query("SHOW INDEX FROM patient_students")->fetchAll(PDO::FETCH_ASSOC);
+        $studentsHasStudentNumberIdx = false;
+        foreach ($studentsIdx as $idx) {
+            if (($idx['Key_name'] ?? '') === 'idx_patient_students_student_number') {
+                $studentsHasStudentNumberIdx = true;
+                break;
+            }
+        }
+        if (!$studentsHasStudentNumberIdx) {
+            $db->exec("ALTER TABLE patient_students ADD INDEX idx_patient_students_student_number (student_number)");
+        }
+        if ($studentsHasPatient) {
+            $studentsFk = $db->query("SELECT CONSTRAINT_NAME
+                                      FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                                      WHERE TABLE_SCHEMA = DATABASE()
+                                        AND TABLE_NAME = 'patient_students'
+                                        AND COLUMN_NAME = 'patient_id'
+                                        AND REFERENCED_TABLE_NAME = 'patients'
+                                      LIMIT 1")->fetchColumn();
+            if (!$studentsFk) {
+                $db->exec("ALTER TABLE patient_students
+                           ADD CONSTRAINT fk_patient_students_patient
+                           FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE");
+            }
+        }
+
+        $staffCols = $db->query("SHOW COLUMNS FROM patient_staff")->fetchAll(PDO::FETCH_ASSOC);
+        $staffHasPatient = false;
+        foreach ($staffCols as $col) {
+            if (($col['Field'] ?? '') === 'patient_id') {
+                $staffHasPatient = true;
+                break;
+            }
+        }
+        $staffHasDepartment = false;
+        foreach ($staffCols as $col) {
+            if (($col['Field'] ?? '') === 'department') {
+                $staffHasDepartment = true;
+                break;
+            }
+        }
+        if (!$staffHasDepartment) {
+            $db->exec("ALTER TABLE patient_staff ADD COLUMN department VARCHAR(120) NULL AFTER ec_number");
+        }
+        if ($staffHasPatient) {
+            $staffFk = $db->query("SELECT CONSTRAINT_NAME
+                                   FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                                   WHERE TABLE_SCHEMA = DATABASE()
+                                     AND TABLE_NAME = 'patient_staff'
+                                     AND COLUMN_NAME = 'patient_id'
+                                     AND REFERENCED_TABLE_NAME = 'patients'
+                                   LIMIT 1")->fetchColumn();
+            if (!$staffFk) {
+                $db->exec("ALTER TABLE patient_staff
+                           ADD CONSTRAINT fk_patient_staff_patient
+                           FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE");
+            }
+        }
+    }
+
+    public static function ensureReceptionPatientMedicalAidColumns($db) {
+        if (!$db) return;
+
+        $patientsExists = $db->query("SHOW TABLES LIKE 'patients'")->fetchColumn();
+        if (!$patientsExists) return;
+
+        $cols = $db->query("SHOW COLUMNS FROM patients")->fetchAll(PDO::FETCH_ASSOC);
+        $existing = [];
+        foreach ($cols as $col) {
+            $existing[$col['Field'] ?? ''] = true;
+        }
+
+        if (!isset($existing['has_medical_aid'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN has_medical_aid TINYINT(1) NOT NULL DEFAULT 0");
+        }
+        if (!isset($existing['medical_aid_provider'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_provider VARCHAR(120) NULL");
+        }
+        if (!isset($existing['medical_aid_number'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_number VARCHAR(60) NULL");
+        }
+        if (!isset($existing['medical_aid_member_name'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_member_name VARCHAR(150) NULL");
+        }
+        if (!isset($existing['medical_aid_suffix'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_suffix VARCHAR(30) NULL");
+        }
+        if (!isset($existing['medical_aid_plan'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_plan VARCHAR(120) NULL");
+        }
+        if (!isset($existing['medical_aid_date_joined'])) {
+            $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_date_joined DATE NULL");
+        }
+    }
+
+    public static function ensureVisitEncounters($db) {
+        if (!$db) return;
+
+        // Canonical encounter table for each clinical visit.
+        $db->exec("CREATE TABLE IF NOT EXISTS visits (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            doctor_id INT NULL,
+            status ENUM('waiting','triaged','in_consultation','pharmacy','completed','cancelled') DEFAULT 'waiting',
+            chief_complaint TEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_visits_patient (patient_id),
+            INDEX idx_visits_status (status),
+            INDEX idx_visits_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        // Link queue rows to encounter rows.
+        $queueExists = $db->query("SHOW TABLES LIKE 'patient_queue'")->fetchColumn();
+        if (!$queueExists) return;
+
+        $queueCols = $db->query("SHOW COLUMNS FROM patient_queue")->fetchAll(PDO::FETCH_ASSOC);
+        $hasVisitId = false;
+        foreach ($queueCols as $col) {
+            if (($col['Field'] ?? '') === 'visit_id') {
+                $hasVisitId = true;
+                break;
+            }
+        }
+        if (!$hasVisitId) {
+            $db->exec("ALTER TABLE patient_queue ADD COLUMN visit_id INT NULL AFTER patient_id");
+        }
+
+        $queueIdx = $db->query("SHOW INDEX FROM patient_queue")->fetchAll(PDO::FETCH_ASSOC);
+        $hasVisitIdx = false;
+        foreach ($queueIdx as $idx) {
+            if (($idx['Key_name'] ?? '') === 'idx_patient_queue_visit') {
+                $hasVisitIdx = true;
+                break;
+            }
+        }
+        if (!$hasVisitIdx) {
+            $db->exec("ALTER TABLE patient_queue ADD INDEX idx_patient_queue_visit (visit_id)");
+        }
+    }
+
     public static function ensureNurseModules($db) {
         if (!$db) return;
         $db->exec("CREATE TABLE IF NOT EXISTS nurse_handover (
@@ -132,6 +332,41 @@ class DbSchema {
                            ADD INDEX idx_patient_queue_origin_status (queue_origin, status)");
             }
         }
+    }
+
+    public static function ensureBedManagement($db) {
+        if (!$db) return;
+
+        $db->exec("CREATE TABLE IF NOT EXISTS beds (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ward_name VARCHAR(100) NOT NULL,
+            bed_number VARCHAR(30) NOT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'Available',
+            ward_status VARCHAR(30) NOT NULL DEFAULT 'Open',
+            current_patient_id INT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $cols = $db->query("SHOW COLUMNS FROM beds")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $existing = [];
+        foreach ($cols as $col) {
+            $existing[$col['Field']] = true;
+        }
+
+        $alter = [];
+        if (!isset($existing['ward_name'])) $alter[] = "ADD COLUMN ward_name VARCHAR(100) NOT NULL DEFAULT 'General Ward'";
+        if (!isset($existing['bed_number'])) $alter[] = "ADD COLUMN bed_number VARCHAR(30) NOT NULL DEFAULT 'Bed'";
+        if (!isset($existing['status'])) $alter[] = "ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Available'";
+        if (!isset($existing['ward_status'])) $alter[] = "ADD COLUMN ward_status VARCHAR(30) NOT NULL DEFAULT 'Open'";
+        if (!isset($existing['current_patient_id'])) $alter[] = "ADD COLUMN current_patient_id INT NULL";
+        if (!isset($existing['created_at'])) $alter[] = "ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP";
+
+        if (!empty($alter)) {
+            $db->exec("ALTER TABLE beds " . implode(", ", $alter));
+        }
+
+        $db->exec("UPDATE beds SET status = 'Available' WHERE status IS NULL OR TRIM(status) = ''");
+        $db->exec("UPDATE beds SET ward_status = 'Open' WHERE ward_status IS NULL OR TRIM(ward_status) = ''");
     }
 
     public static function ensureClinicalOperationsModules($db) {

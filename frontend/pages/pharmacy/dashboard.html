@@ -231,6 +231,43 @@
         .modal-footer {
             border-top: 1px solid #e4edf7 !important;
         }
+        .medical-aid-card {
+            border: 1px solid var(--ph-border);
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            box-shadow: var(--ph-shadow);
+            height: 100%;
+            padding: 16px;
+        }
+        .medical-aid-tier {
+            display: inline-block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-radius: 999px;
+            padding: 0.28rem 0.62rem;
+            margin-bottom: 10px;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            background: #e0f2fe;
+            font-weight: 700;
+        }
+        .medical-aid-list {
+            margin: 0;
+            padding-left: 1rem;
+        }
+        .medical-aid-list li {
+            margin-bottom: 0.25rem;
+            color: #334155;
+        }
+        .medical-aid-note {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 8px 10px;
+            color: #475569;
+            font-size: 0.84rem;
+        }
         @media print {
             .no-print { display: none !important; }
         }
@@ -258,7 +295,7 @@
         }
     </style>
 </head>
-<body class="hms-module module-pharmacy">
+<body class="hms-module module-pharmacy admin-theme">
 <div class="container-fluid p-0 no-print">
     <div class="row g-0">
         <div class="col-md-2 sidebar d-flex flex-column">
@@ -748,8 +785,70 @@
 
             <section id="claims" class="tab-section">
                 <div class="d-flex justify-content-between mb-4">
-                    <h3 class="fw-bold">Insurance Claims</h3>
+                    <h3 class="fw-bold">Insurance Claims & Medical Aid</h3>
                     <button class="btn btn-outline-dark fw-bold" onclick="loadClaims()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-4">
+                        <div class="medical-aid-card">
+                            <span class="medical-aid-tier">Basic / Essential</span>
+                            <h6 class="fw-bold mb-2">Basic / Essential Medical Aid Cover</h6>
+                            <p class="small text-muted mb-2">Affordable entry-level protection.</p>
+                            <p class="small fw-bold mb-1">Features</p>
+                            <ul class="medical-aid-list small mb-3">
+                                <li>Limited GP (doctor) visits</li>
+                                <li>Basic medication cover</li>
+                                <li>Limited hospital cover</li>
+                                <li>Basic emergency treatment</li>
+                            </ul>
+                            <p class="small fw-bold mb-1">Who it is for</p>
+                            <ul class="medical-aid-list small mb-3">
+                                <li>Students</li>
+                                <li>Young adults</li>
+                                <li>Low-income earners</li>
+                            </ul>
+                            <div class="medical-aid-note">Example: Around 10 GP visits per year with limited hospital cover.</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="medical-aid-card">
+                            <span class="medical-aid-tier">Standard</span>
+                            <h6 class="fw-bold mb-2">Standard Medical Aid Cover</h6>
+                            <p class="small text-muted mb-2">Mid-level cover with broader benefits.</p>
+                            <p class="small fw-bold mb-1">Features</p>
+                            <ul class="medical-aid-list small mb-3">
+                                <li>Unlimited or more GP visits</li>
+                                <li>Hospital admission cover</li>
+                                <li>Specialist consultations</li>
+                                <li>Chronic disease medication</li>
+                                <li>Basic dental and optical services</li>
+                            </ul>
+                            <p class="small fw-bold mb-1">Who it is for</p>
+                            <ul class="medical-aid-list small mb-3">
+                                <li>Families</li>
+                                <li>Middle-income workers</li>
+                                <li>People with chronic illnesses</li>
+                            </ul>
+                            <div class="medical-aid-note">Often includes maternity care, emergency services, hospital treatment, and chronic medication.</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="medical-aid-card">
+                            <span class="medical-aid-tier">Premium / Comprehensive</span>
+                            <h6 class="fw-bold mb-2">Premium / Comprehensive Cover</h6>
+                            <p class="small text-muted mb-2">Highest level with extensive benefits.</p>
+                            <p class="small fw-bold mb-1">Features</p>
+                            <ul class="medical-aid-list small mb-3">
+                                <li>Full hospital and surgical cover</li>
+                                <li>Specialist consultations</li>
+                                <li>Dental and optical services</li>
+                                <li>Chronic disease management</li>
+                                <li>International treatment options</li>
+                                <li>Higher annual limits</li>
+                            </ul>
+                            <div class="medical-aid-note">Some plans support treatment in South Africa with very high annual benefit limits.</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                     <div class="row g-3">
@@ -1122,7 +1221,7 @@
                 if (isExpired) {
                     expiryBadge = `<span class="badge bg-danger-subtle text-danger border border-danger ms-2">Expired</span>`;
                 } else if (isExpiringSoon) {
-                    expiryBadge = `<span class="badge bg-warning-subtle text-warning border border-warning ms-2">Expiring ≤60d</span>`;
+                    expiryBadge = `<span class="badge bg-warning-subtle text-warning border border-warning ms-2">Expiring <=60d</span>`;
                 }
 
                 tbody.innerHTML += `
@@ -1197,7 +1296,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 </style></head><body>
 <div class="center">
   <div style="font-weight:bold;">HMS PHARMACY</div>
-  <div class="small">MHT-P11 • 58mm</div>
+  <div class="small">MHT-P11 - 58mm</div>
 </div>
 <hr>
 <div class="row"><span>Date</span><span>${date}</span></div>
@@ -1694,7 +1793,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 .center { text-align: center; }
 .small { font-size: 9px; }
 </style></head><body>
-<div class="center"><div style="font-weight:bold;">STOCK REPORT</div><div class="small">MHT-P11 • 58mm</div></div>
+<div class="center"><div style="font-weight:bold;">STOCK REPORT</div><div class="small">MHT-P11 - 58mm</div></div>
 <hr>${rows}<hr><div class="center small">${new Date().toLocaleString()}</div></body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
@@ -1712,7 +1811,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 .center { text-align: center; }
 .small { font-size: 9px; }
 </style></head><body>
-<div class="center"><div style="font-weight:bold;">DISPENSE LOG</div><div class="small">MHT-P11 • 58mm</div></div>
+<div class="center"><div style="font-weight:bold;">DISPENSE LOG</div><div class="small">MHT-P11 - 58mm</div></div>
 <hr>${rows}<hr><div class="center small">${new Date().toLocaleDateString()}</div></body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
@@ -1834,7 +1933,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
             inventoryExpiryChart = new Chart(expiryCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Expired', '≤ 60 Days', '61–120 Days', '120+ Days'],
+                    labels: ['Expired', '<= 60 Days', '61-120 Days', '120+ Days'],
                     datasets: [{
                         data: [expiryBuckets.expired, expiryBuckets.soon, expiryBuckets.mid, expiryBuckets.safe],
                         backgroundColor: ['#ef4444', '#f97316', '#eab308', '#22c55e'],

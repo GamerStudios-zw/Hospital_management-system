@@ -81,7 +81,7 @@ switch ($action) {
                           LIMIT 1
                       )
                       LEFT JOIN users d ON d.id = q.doctor_assigned
-                      WHERE p.status IN ('Pending', 'External')
+                      WHERE LOWER(p.status) IN ('pending', 'external')
                       AND LOWER(q.status) IN (
                           'completed',
                           'admission pending',
@@ -106,7 +106,7 @@ switch ($action) {
                              r.created_at,
                              p.full_name as patient_name,
                              p.national_id,
-                             (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = r.patient_id AND pr.status IN ('Pending','External')) as pending_prescriptions
+                             (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = r.patient_id AND LOWER(pr.status) IN ('pending','external')) as pending_prescriptions
                       FROM pharmacy_requests r
                       JOIN patients p ON r.patient_id = p.id
                       WHERE LOWER(r.status) IN ('pending', 'ready')
@@ -169,7 +169,7 @@ switch ($action) {
 
                 // If no pending/external prescriptions remain, move admission to "Ready for Admission"
                 if (!empty($presc['patient_id'])) {
-                    $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
+                    $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND LOWER(status) IN ('pending','external')");
                     $pendingStmt->execute([$presc['patient_id']]);
                     $remaining = (int)$pendingStmt->fetchColumn();
                     if ($remaining === 0) {
@@ -256,8 +256,8 @@ switch ($action) {
 
     // 5. DASHBOARD STATS
     case 'stats':
-        $pending = $db->query("SELECT COUNT(*) FROM prescriptions WHERE status IN ('Pending', 'External')")->fetchColumn();
-        $today = $db->query("SELECT COUNT(*) FROM prescriptions WHERE status = 'Dispensed' AND DATE(created_at) = CURDATE()")->fetchColumn();
+        $pending = $db->query("SELECT COUNT(*) FROM prescriptions WHERE LOWER(status) IN ('pending', 'external')")->fetchColumn();
+        $today = $db->query("SELECT COUNT(*) FROM prescriptions WHERE LOWER(status) = 'dispensed' AND DATE(created_at) = CURDATE()")->fetchColumn();
         echo json_encode([
             "pending" => (int)$pending,
             "dispensed_today" => (int)$today
@@ -267,20 +267,20 @@ switch ($action) {
     // 6. ANALYTICS
     case 'analytics':
         if ($method === 'GET') {
-            $statusRows = $db->query("SELECT status, COUNT(*) as count
+            $statusRows = $db->query("SELECT LOWER(status) as status, COUNT(*) as count
                                       FROM prescriptions
-                                      GROUP BY status")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                                      GROUP BY LOWER(status)")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             $dispensedRows = $db->query("SELECT DATE(created_at) as day, COUNT(*) as count
                                          FROM prescriptions
-                                         WHERE status = 'Dispensed'
+                                         WHERE LOWER(status) = 'dispensed'
                                          AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                                          GROUP BY DATE(created_at)
                                          ORDER BY day")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             $pendingRows = $db->query("SELECT DATE(created_at) as day, COUNT(*) as count
                                        FROM prescriptions
-                                       WHERE status IN ('Pending','External')
+                                       WHERE LOWER(status) IN ('pending','external')
                                        AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                                        GROUP BY DATE(created_at)
                                        ORDER BY day")->fetchAll(PDO::FETCH_ASSOC) ?: [];

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HMS Changelog Addendum - 2026-02-25</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #111827; line-height: 1.45; }
+h1 { margin: 0 0 6px 0; font-size: 24px; }
+.meta { color: #4b5563; margin-bottom: 16px; }
+h2 { margin-top: 22px; font-size: 18px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+h3 { margin-top: 16px; font-size: 16px; }
+ul { margin: 6px 0 12px 20px; }
+code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 4px; }
+</style>
+</head>
+<body>
+<h1>Hospital Management System - Changelog Addendum</h1>
+<div class="meta">Date: 2026-02-25 | Commit: e7b08c9</div>
+
+<h2>Summary</h2>
+<p>This addendum records queue-flow updates completed on February 25, 2026.</p>
+
+<h2>Implemented Changes</h2>
+
+<h3>1) Nurse Aid triage queue now requires explicit Nurse Aid pull</h3>
+<ul>
+<li>File: <code>backend/routes/nurse_aid.php</code></li>
+<li><code>stats</code> and <code>triage_queue</code> now include only rows where <code>queue_origin = 'nurse_aid_search'</code>.</li>
+<li><code>pull_registered_patient</code> now marks existing active triage rows with <code>queue_origin = 'nurse_aid_search'</code>.</li>
+<li>New queue rows created from Nurse Aid search are inserted with <code>queue_origin = 'nurse_aid_search'</code>.</li>
+</ul>
+
+<h3>2) Schema support for queue origin tracking</h3>
+<ul>
+<li>File: <code>backend/utils/DbSchema.php</code></li>
+<li>Added migration guard in <code>ensureNurseModules()</code> to add:
+<code>patient_queue.queue_origin</code> and index <code>idx_patient_queue_origin_status</code>.</li>
+</ul>
+
+<h3>3) Reception dashboard flow table simplified</h3>
+<ul>
+<li>File: <code>frontend/pages/reception/dashboard.html</code></li>
+<li>Removed <code>Doctor</code> column and corresponding <code>doctor_assigned</code> cell from active flow table rendering.</li>
+</ul>
+
+<h2>Validation Performed</h2>
+<ul>
+<li><code>php -l backend/routes/nurse_aid.php</code> - no syntax errors.</li>
+<li><code>php -l backend/utils/DbSchema.php</code> - no syntax errors.</li>
+<li>Confirmed <code>patient_queue.queue_origin</code> exists after schema ensure.</li>
+</ul>
+
+<h2>Changed Files</h2>
+<ul>
+<li><code>backend/routes/nurse_aid.php</code></li>
+<li><code>backend/utils/DbSchema.php</code></li>
+<li><code>frontend/pages/reception/dashboard.html</code></li>
+</ul>
+</body>
+</html>
+
