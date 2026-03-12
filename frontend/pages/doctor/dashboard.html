@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Command Center | HMS</title>
+    <title>Nurse In Charge Command Center | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="../../assets/css/fonts.css" rel="stylesheet">
     <link href="../../assets/css/theme.css" rel="stylesheet">
@@ -198,7 +198,7 @@
 <div class="container-fluid p-0">
     <div class="row g-0">
         <div class="col-md-2 sidebar d-flex flex-column">
-            <div class="p-4 text-center"><h4 class="fw-bold text-primary mb-0">HMS DOCTOR</h4></div>
+            <div class="p-4 text-center"><h4 class="fw-bold text-primary mb-0">HMS NURSE IN CHARGE</h4></div>
             <nav class="nav flex-column mt-3 flex-grow-1">
                 <a href="#" class="nav-link active doctor-tab-link" data-tab="queue"><i class="bi bi-people me-3"></i> Waiting Room</a>
                 <a href="#" class="nav-link doctor-tab-link" data-tab="appointments"><i class="bi bi-calendar-check me-3"></i> Appointments</a>
@@ -206,6 +206,7 @@
                 <a href="#" class="nav-link doctor-tab-link" data-tab="timeline"><i class="bi bi-diagram-3 me-3"></i> Patient Timeline</a>
                 <a href="#" class="nav-link doctor-tab-link" data-tab="tasks"><i class="bi bi-list-check me-3"></i> Task Board</a>
                 <a href="#" class="nav-link doctor-tab-link" data-tab="escalations"><i class="bi bi-exclamation-triangle me-3"></i> Escalations</a>
+                <a href="#" class="nav-link doctor-tab-link" data-tab="referrals"><i class="bi bi-send-check me-3"></i> External Referrals</a>
                 <a href="#" class="nav-link doctor-tab-link" data-tab="discharge"><i class="bi bi-box-arrow-right me-3"></i> Discharge Summary</a>
                 <a href="#" class="nav-link doctor-tab-link" data-tab="handover"><i class="bi bi-arrow-left-right me-3"></i> Shift Handover</a>
                 <a href="#" class="nav-link doctor-tab-link" data-tab="roster"><i class="bi bi-calendar-event me-3"></i> My Shifts</a>
@@ -219,7 +220,7 @@
         <main class="col-md-10 p-4">
             <div class="mobile-topbar d-lg-none">
                 <button class="btn btn-outline-primary btn-sm" onclick="toggleSidebar(true)"><i class="bi bi-list"></i></button>
-                <div class="fw-bold text-primary">Doctor Dashboard</div>
+                <div class="fw-bold text-primary">Nurse In Charge Dashboard</div>
             </div>
             <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
                 <div class="row g-2 align-items-center">
@@ -233,8 +234,18 @@
                 </div>
             </div>
             <section id="queue" class="tab-section active">
-                <div class="d-flex justify-content-between mb-4">
-                    <h3 class="fw-bold">Waiting Room</h3>
+                <div class="d-flex justify-content-between align-items-end mb-4 gap-3 flex-wrap">
+                    <div>
+                        <h3 class="fw-bold mb-1">Waiting Room</h3>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="small text-muted mb-0" for="queueVisitFilter">Visit Filter</label>
+                            <select id="queueVisitFilter" class="form-select form-select-sm" style="width: 220px;" onchange="loadQueue()">
+                                <option value="all">All Visit Types</option>
+                                <option value="general">General Consultation</option>
+                                <option value="counselling_only">Counselling Only</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="bg-white py-2 px-4 rounded-4 shadow-sm"><span class="text-primary fw-bold fs-4" id="statWaiting">0</span> <small>Waiting</small></div>
                 </div>
                 <div class="row g-4 mb-4">
@@ -401,6 +412,65 @@
                 </div>
             </section>
 
+            <section id="referrals" class="tab-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="fw-bold">External Referrals</h3>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="printReferralsRegister()"><i class="bi bi-printer me-1"></i> Print</button>
+                        <button class="btn btn-outline-dark btn-sm" onclick="loadReferrals()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Patient</label>
+                            <select id="referralPatient" class="form-select"></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">External Doctor</label>
+                            <input type="text" id="referralDoctorName" class="form-control" placeholder="e.g., Dr. Moyo">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Destination Facility</label>
+                            <input type="text" id="referralDestination" class="form-control" placeholder="e.g., Karanda Hospital">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Urgency</label>
+                            <select id="referralUrgency" class="form-select">
+                                <option value="normal">Normal</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Reason</label>
+                            <input type="text" id="referralReason" class="form-control" placeholder="Specialist review required">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Referral Date</label>
+                            <input type="datetime-local" id="referralDate" class="form-control">
+                        </div>
+                        <div class="col-md-10">
+                            <label class="form-label small fw-bold">Notes (optional)</label>
+                            <input type="text" id="referralNotes" class="form-control" placeholder="Additional context for external specialist">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" onclick="createExternalReferral()">Create</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Patient</th><th>External Doctor</th><th>Facility</th><th>Urgency</th><th>Status</th><th>Reason</th></tr>
+                            </thead>
+                            <tbody id="referralsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             <section id="discharge" class="tab-section">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="fw-bold">Discharge Summary</h3>
@@ -471,8 +541,8 @@
 
             <section id="roster" class="tab-section">
                 <div class="d-flex justify-content-between mb-4">
-                    <h3 class="fw-bold">Doctor Duty Roster</h3>
-                    <div class="bg-white py-2 px-4 rounded-4 shadow-sm"><small class="text-muted">Role:</small> <span class="fw-bold text-primary">Doctor</span></div>
+                    <h3 class="fw-bold">Nurse In Charge Duty Roster</h3>
+                    <div class="bg-white py-2 px-4 rounded-4 shadow-sm"><small class="text-muted">Role:</small> <span class="fw-bold text-primary">Nurse In Charge</span></div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <div class="table-responsive">
@@ -509,6 +579,32 @@
                 <form id="consultForm" class="needs-validation" novalidate>
                     <div class="row g-3">
                         <div class="col-12"><label class="form-label fw-bold">Clinical Notes</label><textarea id="consultDiagnosis" class="form-control" rows="2" required></textarea></div>
+                        <div id="counsellingFields" class="col-12 d-none">
+                            <div class="border rounded-3 p-3 bg-light">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Counselling Outcome</label>
+                                        <select id="counsellingOutcome" class="form-select form-select-sm" onchange="handleCounsellingOutcomeChange()">
+                                            <option value="resolved" selected>Resolved</option>
+                                            <option value="follow_up_needed">Follow-up Needed</option>
+                                            <option value="risk_escalation">Risk / Escalation</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 d-none" id="counsellingFollowUpGroup">
+                                        <label class="form-label small fw-bold">Follow-up Date & Time</label>
+                                        <input type="datetime-local" id="counsellingFollowUpAt" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-4 d-none" id="counsellingEscalationGroup">
+                                        <label class="form-label small fw-bold">Escalation Reason</label>
+                                        <input type="text" id="counsellingEscalationReason" class="form-control form-control-sm" placeholder="Immediate concern for nurse team">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small fw-bold">Safety Plan (Optional)</label>
+                                        <input type="text" id="counsellingSafetyPlan" class="form-control form-control-sm" placeholder="Brief safety/psychosocial plan">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <hr>
                         <div class="col-12 mb-2">
                             <div class="form-check form-switch">
@@ -525,7 +621,11 @@
                             <input type="text" id="manualMedName" class="form-control form-control-sm" placeholder="Type name...">
                         </div>
                         <div class="col-md-2"><label class="form-label fw-bold small">Qty</label><input type="number" id="consultQty" class="form-control form-control-sm" value="1" min="1"></div>
-                        <div class="col-md-3"><label class="form-label fw-bold small">Dosage</label><input type="text" id="consultDosage" class="form-control form-control-sm" placeholder="1x3"></div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">Dosage</label>
+                            <input type="text" id="consultDosage" class="form-control form-control-sm" placeholder="e.g., 500mg bd x5 | Injection IM stat">
+                            <small class="text-muted">Injection shorthand is normalized; route + schedule are mandatory (e.g., <code>inj IV q8h x3</code>). In-stock injections are routed to Nurse In Charge for administration.</small>
+                        </div>
                         <div class="col-md-2 d-flex align-items-end"><button type="button" class="btn btn-secondary btn-sm w-100" onclick="addMedicationToList()">Add</button></div>
                     </div>
                 </form>
@@ -538,8 +638,8 @@
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
                 <div class="d-flex gap-2 w-100">
-                    <button onclick="sendToUrgentCare()" class="btn btn-outline-danger w-100 py-2 fw-bold">Send Back to Nurse (Urgent)</button>
-                    <button onclick="completeAndRefer()" class="btn btn-outline-warning w-100 py-2 fw-bold">Complete & Refer to Nurse (Admission)</button>
+                    <button id="sendUrgentBtn" onclick="sendToUrgentCare()" class="btn btn-outline-danger w-100 py-2 fw-bold">Send Back to Nurse (Urgent)</button>
+                    <button id="completeReferBtn" onclick="completeAndRefer()" class="btn btn-outline-warning w-100 py-2 fw-bold">Complete & Refer to Nurse (Admission)</button>
                     <button id="completeConsultBtn" onclick="finishConsultation()" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Complete Consultation</button>
                 </div>
             </div>
@@ -604,16 +704,82 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
 <script>
-    protectPage(['doctor', 'admin']);
+    protectPage(['doctor', 'nurse_in_charge', 'admin']);
     let currentPrescriptions = [];
     let activeQueueId = null;
     let activePatientName = "";
+    let activeVisitType = 'general';
+    let latestReferralRows = [];
     let currentHistory = null;
+    let doctorActiveTab = 'queue';
+    const doctorSoftNoticeShown = Object.create(null);
     const consultModal = new bootstrap.Modal(document.getElementById('consultModal'));
     const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
     const clinicalModal = new bootstrap.Modal(document.getElementById('clinicalNotesModal'));
     let pendingCompleteId = null;
+    let queueLoadToken = 0;
     const escapeHtml = (val) => String(val ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const normalizeVisitType = (value) => String(value || 'general').trim().toLowerCase() === 'counselling_only' ? 'counselling_only' : 'general';
+    const DOCTOR_SEARCH_CONTEXTS = {
+        queue: {
+            placeholder: 'Search waiting room by patient, vitals, status, or notes...',
+            tables: ['queueTableBody'],
+            lists: []
+        },
+        appointments: {
+            placeholder: 'Search appointments by patient, date/time, status, or notes...',
+            tables: ['appointmentTable'],
+            lists: []
+        },
+        directory: {
+            placeholder: 'Search patient history directory by patient name or demographic...',
+            tables: ['directoryTableBody'],
+            lists: []
+        },
+        timeline: {
+            placeholder: 'Search timeline by event, actor, date, or note...',
+            tables: [],
+            lists: ['timelineList']
+        },
+        tasks: {
+            placeholder: 'Search tasks by patient, owner, status, or task text...',
+            tables: ['tasksTable'],
+            lists: []
+        },
+        escalations: {
+            placeholder: 'Search escalations by patient, reason, status, or priority...',
+            tables: ['escalationsTable'],
+            lists: []
+        },
+        referrals: {
+            placeholder: 'Search external referrals by patient, destination, status, or notes...',
+            tables: ['referralsTable'],
+            lists: []
+        },
+        discharge: {
+            placeholder: 'Search discharge summary by patient, summary, status, or time...',
+            tables: ['dischargeTable'],
+            lists: []
+        },
+        handover: {
+            placeholder: 'Search shift handover by nurse, shift, date, or notes...',
+            tables: ['handoverTable'],
+            lists: []
+        },
+        roster: {
+            placeholder: 'Search shifts by date, ward, status, or supervisor...',
+            tables: ['rosterTableBody'],
+            lists: []
+        }
+    };
+
+    function showDoctorSoftNotice(key, message) {
+        if (doctorSoftNoticeShown[key]) return;
+        doctorSoftNoticeShown[key] = true;
+        if (typeof showBanner === 'function') {
+            showBanner(message, { type: 'info', timeoutMs: 7000 });
+        }
+    }
 
     function filterTbodyRows(tbodyId, query) {
         const tbody = document.getElementById(tbodyId);
@@ -650,11 +816,29 @@
         });
     }
 
+    function getDoctorSearchContext() {
+        const activeSectionId = document.querySelector('.tab-section.active')?.id || doctorActiveTab || 'queue';
+        return DOCTOR_SEARCH_CONTEXTS[activeSectionId] || DOCTOR_SEARCH_CONTEXTS.queue;
+    }
+
+    function updateDoctorSearchContext(tabId) {
+        if (tabId) doctorActiveTab = tabId;
+        const input = document.getElementById('doctorPatientSearch');
+        const ctx = getDoctorSearchContext();
+        if (input && ctx?.placeholder) {
+            input.placeholder = ctx.placeholder;
+        }
+        applyDoctorPatientSearch();
+    }
+
     function applyDoctorPatientSearch() {
         const input = document.getElementById('doctorPatientSearch');
         const query = input ? input.value : '';
-        ['queueTableBody', 'appointmentTable', 'directoryTableBody', 'tasksTable', 'escalationsTable', 'dischargeTable', 'handoverTable', 'rosterTableBody'].forEach(id => filterTbodyRows(id, query));
-        filterListRows('timelineList', query);
+        const ctx = getDoctorSearchContext();
+        const targetTables = Array.isArray(ctx?.tables) ? ctx.tables : [];
+        const targetLists = Array.isArray(ctx?.lists) ? ctx.lists : [];
+        targetTables.forEach(id => filterTbodyRows(id, query));
+        targetLists.forEach(id => filterListRows(id, query));
     }
 
     function clearDoctorPatientSearch() {
@@ -685,12 +869,82 @@
         return list;
     }
 
+    function formatVisitTypeBadge(visitType) {
+        const key = normalizeVisitType(visitType);
+        if (key === 'counselling_only') {
+            return '<span class="badge bg-info-subtle text-info border ms-2">Counselling</span>';
+        }
+        return '<span class="badge bg-secondary-subtle text-secondary border ms-2">General</span>';
+    }
+
+    function applyConsultMode(visitType) {
+        activeVisitType = normalizeVisitType(visitType);
+        const isCounselling = activeVisitType === 'counselling_only';
+        const counsellingFields = document.getElementById('counsellingFields');
+        const sendUrgentBtn = document.getElementById('sendUrgentBtn');
+        const completeReferBtn = document.getElementById('completeReferBtn');
+        if (counsellingFields) counsellingFields.classList.toggle('d-none', !isCounselling);
+        if (sendUrgentBtn) sendUrgentBtn.classList.toggle('d-none', isCounselling);
+        if (completeReferBtn) completeReferBtn.classList.toggle('d-none', isCounselling);
+        handleCounsellingOutcomeChange();
+        syncCompleteButtonLabel();
+    }
+
+    function handleCounsellingOutcomeChange() {
+        const outcome = String(document.getElementById('counsellingOutcome')?.value || 'resolved').trim().toLowerCase();
+        const followGroup = document.getElementById('counsellingFollowUpGroup');
+        const followInput = document.getElementById('counsellingFollowUpAt');
+        const escalationGroup = document.getElementById('counsellingEscalationGroup');
+        const escalationInput = document.getElementById('counsellingEscalationReason');
+        const needsFollowUp = outcome === 'follow_up_needed';
+        const needsEscalation = outcome === 'risk_escalation';
+        if (followGroup) followGroup.classList.toggle('d-none', !needsFollowUp);
+        if (escalationGroup) escalationGroup.classList.toggle('d-none', !needsEscalation);
+        if (followInput) {
+            followInput.required = needsFollowUp;
+            if (!needsFollowUp) followInput.value = '';
+        }
+        if (escalationInput) {
+            escalationInput.required = needsEscalation;
+            if (!needsEscalation) escalationInput.value = '';
+        }
+    }
+
+    function handleDoctorRealtime(evt) {
+        const detail = evt && evt.detail ? evt.detail : {};
+        const eventName = String(detail.event || '');
+        const payload = detail.payload || {};
+        if (!eventName) return;
+
+        if (eventName === 'reception.counselling_assigned') {
+            const sessionUser = JSON.parse(localStorage.getItem("hms_user") || "{}");
+            const myId = Number(sessionUser?.id || 0);
+            const myRole = String(sessionUser?.role || '').trim().toLowerCase();
+            const assignedId = Number(payload.doctor_assigned || 0);
+            if (myRole !== 'admin' && assignedId > 0 && myId > 0 && assignedId !== myId) return;
+            const patientName = payload.patient_name || (payload.patient_id ? `Patient #${payload.patient_id}` : 'a patient');
+            if (typeof showBanner === 'function') {
+                showBanner(`Counselling assignment received: ${patientName}.`, { type: 'info', timeoutMs: 5000 });
+            }
+            loadQueue();
+            return;
+        }
+
+        if (['doctor.complete', 'doctor.urgent_care', 'doctor.counselling_completed', 'nurse.save_vitals', 'reception.checkin'].includes(eventName)) {
+            loadQueue();
+        }
+        if (['doctor.follow_up_created', 'doctor.appointment_update', 'reception.appointment_update'].includes(eventName)) {
+            loadAppointments();
+        }
+    }
+
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
         document.getElementById(id)?.classList.add('active');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         const navLink = el || document.querySelector(`.doctor-tab-link[data-tab="${id}"]`);
         if (navLink) navLink.classList.add('active');
+        updateDoctorSearchContext(id);
         if (window.location.hash !== `#${id}`) {
             history.replaceState(null, '', `#${id}`);
         }
@@ -701,6 +955,7 @@
         if(id === 'timeline') loadTimeline();
         if(id === 'tasks') loadTasks();
         if(id === 'escalations') loadEscalations();
+        if(id === 'referrals') loadReferrals();
         if(id === 'discharge') { loadDischarges(); loadDischargeCandidates(); }
         if(id === 'handover') loadHandover();
         if(id === 'roster') loadShifts();
@@ -708,7 +963,7 @@
 
     function activateInitialDoctorTab() {
         const hash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
-        const validTabs = ['queue', 'appointments', 'directory', 'timeline', 'tasks', 'escalations', 'discharge', 'handover', 'roster'];
+        const validTabs = ['queue', 'appointments', 'directory', 'timeline', 'tasks', 'escalations', 'referrals', 'discharge', 'handover', 'roster'];
         if (!hash || !validTabs.includes(hash)) return;
         switchTab(hash);
     }
@@ -770,9 +1025,8 @@
         } else if (appointments) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">No appointments found.</td></tr>';
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load appointments.', { type: 'error' });
-            }
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-muted">No appointments available yet.</td></tr>';
+            showDoctorSoftNotice('appointments_load', 'No appointment data available yet.');
         }
         applyDoctorPatientSearch();
     }
@@ -806,50 +1060,65 @@
 
     async function updateAppointmentStatus(appointmentId, status) {
         if (String(status || '').toLowerCase() !== 'completed') {
-            notify('Only Reception can mark patient arrival. Doctor can only complete checked-in appointments.', 'warning');
+            notify('Only Reception can mark patient arrival. Nurse In Charge can only complete checked-in appointments.', 'warning');
             return;
         }
         const label = status.replace('_', ' ');
-        if (!confirm(`Set status to "${label}"?`)) return;
+        const confirmed = await smartConfirm(`Set status to "${label}"?`, {
+            title: "Update Appointment",
+            confirmText: "Confirm"
+        });
+        if (!confirmed) return;
         const res = await Api.post('/doctor/appointment_update', { appointment_id: appointmentId, status });
         if (res && !res.error) {
             loadAppointments();
+            loadQueue();
         } else if (res && res.message) {
             notify(res.message, 'warning');
         }
     }
 
     async function loadQueue() {
-        const queue = await Api.get('/doctor/waiting_list');
+        const currentToken = ++queueLoadToken;
+        const queue = await Api.get(`/doctor/waiting_list?ts=${Date.now()}`);
+        if (currentToken !== queueLoadToken) return;
         const tbody = document.getElementById('queueTableBody');
         tbody.innerHTML = '';
-        if(queue && Array.isArray(queue)) {
-            const sortedQueue = sortDoctorQueueRows(queue);
+        const visitFilter = String(document.getElementById('queueVisitFilter')?.value || 'all').trim().toLowerCase();
+        if (Array.isArray(queue)) {
+            const sortedQueue = sortDoctorQueueRows(queue).filter((row) => {
+                if (visitFilter === 'all') return true;
+                return normalizeVisitType(row?.visit_type) === visitFilter;
+            });
             sortedQueue.forEach(p => {
                 const risk = classifyVitalsRisk(p || {});
                 const vitalsRisk = p.bp ? renderVitalsRiskBadge(p) : '';
                 const vitalsTriggers = p.bp ? renderVitalsRiskTriggers(p, { className: 'small text-muted mt-1', prefix: 'Trigger' }) : '';
                 const vitals = p.bp
-                    ? `<div><span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}�C | P: ${p.pulse ?? '-'} | SpO2: ${p.spo2 ?? '-'}</span> ${vitalsRisk}</div>${vitalsTriggers}`
+                    ? `<div><span class="vitals-badge">BP: ${p.bp} | T: ${p.temperature}C | P: ${p.pulse ?? '-'} | SpO2: ${p.spo2 ?? '-'}</span> ${vitalsRisk}</div>${vitalsTriggers}`
                     : '<span class="badge bg-light text-muted border">Vitals Pending</span>';
                 const vitalsWithNotes = p.nurse_notes ? `${vitals}<span class="badge bg-info-subtle text-info border ms-2">Nurse notes available</span>` : vitals;
                 const rowClass = doctorQueueRowClass(risk.level);
                 const criticalMarker = risk.level === 'red' ? '<span class="doctor-alert-dot"></span>' : '';
+                const visitBadge = formatVisitTypeBadge(p.visit_type);
                 const statusBadgeClass = risk.level === 'red'
                     ? 'bg-danger-subtle text-danger'
                     : (risk.level === 'orange'
                         ? 'bg-warning-subtle text-warning'
                         : (risk.level === 'yellow' ? 'bg-warning-subtle text-warning' : 'bg-success-subtle text-success'));
-                tbody.innerHTML += `<tr class="${rowClass}"><td class="ps-4"><strong>${criticalMarker}${p.full_name}</strong></td><td>${vitalsWithNotes}</td><td><span class="badge ${statusBadgeClass}">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
+                tbody.innerHTML += `<tr class="${rowClass}"><td class="ps-4"><strong>${criticalMarker}${p.full_name}</strong>${visitBadge}</td><td>${vitalsWithNotes}</td><td><span class="badge ${statusBadgeClass}">${p.status}</span></td><td class="text-end pe-4"><button class="btn btn-primary btn-sm rounded-pill" onclick='startConsult(${JSON.stringify(p)})'>Call Patient</button></td></tr>`;
             });
-            document.getElementById('statWaiting').innerText = sortedQueue.length;
-        } else if (queue) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No patients waiting.</td></tr>';
-            document.getElementById('statWaiting').innerText = '0';
-        } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load waiting room.', { type: 'error' });
+            if (!sortedQueue.length) {
+                const emptyText = visitFilter === 'counselling_only'
+                    ? 'No counselling-only patients waiting.'
+                    : (visitFilter === 'general' ? 'No general consultations waiting.' : 'No patients waiting.');
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">${emptyText}</td></tr>`;
             }
+            document.getElementById('statWaiting').innerText = String(sortedQueue.length);
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No waiting-room data yet.</td></tr>';
+            document.getElementById('statWaiting').innerText = '0';
+            showDoctorSoftNotice('queue_load', 'Waiting room is empty for now.');
         }
         applyDoctorPatientSearch();
         loadDoctorAnalytics();
@@ -860,7 +1129,7 @@
         const tbody = document.getElementById('directoryTableBody');
         tbody.innerHTML = '';
         if(patients) patients.forEach(p => {
-            tbody.innerHTML += `<tr><td class="ps-4"><strong>${p.full_name}</strong></td><td>${p.gender} | ${p.dob}</td><td class="text-end pe-4"><button class="btn btn-outline-primary btn-sm" onclick="openHistory(${p.id})">View Records</button></td></tr>`;
+            tbody.innerHTML += `<tr><td class="ps-4"><button class="btn btn-link p-0 fw-semibold text-decoration-underline" onclick="openHistory(${p.id})">${p.full_name}</button></td><td>${p.gender} | ${p.dob}</td><td class="text-end pe-4"><button class="btn btn-outline-primary btn-sm" onclick="openHistory(${p.id})">View Records</button></td></tr>`;
         });
         applyDoctorPatientSearch();
     }
@@ -880,6 +1149,7 @@
         renderPatientOptions(document.getElementById('timelinePatient'), patients, '-- Select Patient --');
         renderPatientOptions(document.getElementById('taskPatient'), patients, '-- Select Patient --');
         renderPatientOptions(document.getElementById('escPatient'), patients, '-- Select Patient --');
+        renderPatientOptions(document.getElementById('referralPatient'), patients, '-- Select Patient --');
         await loadDischargeCandidates();
     }
 
@@ -994,9 +1264,8 @@
         } else if (rows) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No escalations yet.</td></tr>';
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load escalations.', { type: 'error' });
-            }
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No escalation records yet.</td></tr>';
+            showDoctorSoftNotice('escalations_load', 'No escalation records available yet.');
         }
         applyDoctorPatientSearch();
     }
@@ -1009,6 +1278,134 @@
         if (res) {
             document.getElementById('escReason').value = '';
             loadEscalations();
+        }
+    }
+
+    async function loadReferrals() {
+        const rows = await Api.get('/doctor/referral_list?limit=200');
+        const tbody = document.getElementById('referralsTable');
+        if (!tbody) return;
+        latestReferralRows = Array.isArray(rows) ? rows : [];
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const when = r.referral_date || r.created_at;
+                const timeStr = when ? new Date(when).toLocaleString() : '-';
+                const urgency = String(r.urgency || 'normal').toLowerCase();
+                const urgencyBadge = urgency === 'urgent' ? 'danger' : (urgency === 'high' ? 'warning' : 'secondary');
+                const status = String(r.status || 'pending');
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${timeStr}</td>
+                        <td>${r.patient_name || '-'}</td>
+                        <td>${r.external_provider_name || '-'}</td>
+                        <td>${r.destination || '-'}</td>
+                        <td><span class="badge bg-${urgencyBadge}-subtle text-${urgencyBadge}">${urgency}</span></td>
+                        <td>${status}</td>
+                        <td>${r.reason || '-'}</td>
+                    </tr>`;
+            });
+        } else if (rows) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No external referrals yet.</td></tr>';
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No external referrals available yet.</td></tr>';
+            showDoctorSoftNotice('referrals_load', 'No referral records available yet.');
+        }
+        applyDoctorPatientSearch();
+    }
+
+    function printReferralsRegister() {
+        if (!Array.isArray(latestReferralRows) || latestReferralRows.length === 0) {
+            notify("No external referrals available to print.");
+            return;
+        }
+        const user = JSON.parse(localStorage.getItem("hms_user") || "{}");
+        const preparedBy = user?.full_name || "Nurse In Charge";
+        const generatedAt = new Date().toLocaleString();
+        const rowsHtml = latestReferralRows.map((r) => {
+            const when = r.referral_date || r.created_at;
+            return `<tr>
+                <td>${escapeHtml(when ? new Date(when).toLocaleString() : '-')}</td>
+                <td>${escapeHtml(r.patient_name || '-')}</td>
+                <td>${escapeHtml(r.external_provider_name || '-')}</td>
+                <td>${escapeHtml(r.destination || '-')}</td>
+                <td>${escapeHtml(String(r.urgency || 'normal'))}</td>
+                <td>${escapeHtml(String(r.status || 'pending'))}</td>
+                <td>${escapeHtml(r.reason || '-')}</td>
+            </tr>`;
+        }).join('');
+
+        const win = window.open('', '_blank');
+        if (!win) {
+            notify("Pop-up blocked. Allow pop-ups to print the register.");
+            return;
+        }
+        win.document.write(`
+            <html>
+            <head>
+                <title>External Referrals Register</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+                    h1 { margin: 0 0 8px; }
+                    .meta { margin-bottom: 14px; color: #334155; font-size: 13px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+                    th, td { border: 1px solid #dbe2ea; padding: 8px; font-size: 12px; text-align: left; vertical-align: top; }
+                    th { background: #f8fafc; text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+                </style>
+            </head>
+            <body>
+                <h1>External Referrals Register</h1>
+                <div class="meta">Generated: ${escapeHtml(generatedAt)}<br>Prepared by: ${escapeHtml(preparedBy)}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Patient</th>
+                            <th>External Doctor</th>
+                            <th>Facility</th>
+                            <th>Urgency</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+                <script>window.onload = function(){ window.print(); window.close(); };<\/script>
+            </body>
+            </html>
+        `);
+    }
+
+    async function createExternalReferral() {
+        const patientId = document.getElementById('referralPatient')?.value || '';
+        const externalDoctorName = document.getElementById('referralDoctorName')?.value.trim() || '';
+        const destination = document.getElementById('referralDestination')?.value.trim() || '';
+        const urgency = document.getElementById('referralUrgency')?.value || 'normal';
+        const reason = document.getElementById('referralReason')?.value.trim() || '';
+        const referralDate = document.getElementById('referralDate')?.value || '';
+        const notes = document.getElementById('referralNotes')?.value.trim() || '';
+
+        if (!patientId) return notify("Select a patient");
+        if (!externalDoctorName) return notify("Enter external doctor name");
+        if (!destination) return notify("Enter destination facility");
+        if (!reason) return notify("Enter referral reason");
+
+        const payload = {
+            patient_id: Number(patientId),
+            external_doctor_name: externalDoctorName,
+            destination,
+            urgency,
+            reason,
+            notes: notes || null,
+            referral_date: referralDate || null
+        };
+        const res = await Api.post('/doctor/referral_create', payload);
+        if (res) {
+            document.getElementById('referralDoctorName').value = '';
+            document.getElementById('referralDestination').value = '';
+            document.getElementById('referralReason').value = '';
+            document.getElementById('referralNotes').value = '';
+            loadReferrals();
         }
     }
 
@@ -1056,7 +1453,7 @@
                 tbody.innerHTML += `
                     <tr>
                         <td>${dateStr}</td>
-                        <td>${r.full_name || 'Doctor'}</td>
+                        <td>${r.full_name || 'Nurse In Charge'}</td>
                         <td>${r.notes}</td>
                     </tr>`;
             });
@@ -1101,7 +1498,7 @@
 
                 tbody.innerHTML += `<tr>
                     <td class="ps-4 fw-medium">${date}</td>
-                    <td><span class="badge bg-info-subtle text-info">${s.shift_type || 'Doctor'}</span></td>
+                    <td><span class="badge bg-info-subtle text-info">${s.shift_type || 'Nurse In Charge'}</span></td>
                     <td>${start}</td>
                     <td>${end}</td>
                     <td><span class="badge bg-success">Confirmed</span></td>
@@ -1116,7 +1513,20 @@
     async function startConsult(p) {
         activeQueueId = p.queue_id;
         activePatientName = p.full_name;
+        activeVisitType = normalizeVisitType(p.visit_type);
         currentPrescriptions = [];
+        document.getElementById('consultDiagnosis').value = '';
+        document.getElementById('externalMedToggle').checked = false;
+        toggleManualMed();
+        const followUpAt = document.getElementById('counsellingFollowUpAt');
+        const outcome = document.getElementById('counsellingOutcome');
+        const escalationReason = document.getElementById('counsellingEscalationReason');
+        const safetyPlan = document.getElementById('counsellingSafetyPlan');
+        if (outcome) outcome.value = 'resolved';
+        if (followUpAt) followUpAt.value = '';
+        if (escalationReason) escalationReason.value = '';
+        if (safetyPlan) safetyPlan.value = '';
+        applyConsultMode(activeVisitType);
         syncCompleteButtonLabel();
         document.getElementById('prescriptionListTable').innerHTML = '';
         document.getElementById('prescriptionContainer').style.display = 'none';
@@ -1128,8 +1538,9 @@
         const riskBadge = p.bp ? renderVitalsRiskBadge(p) : '';
         const riskAction = p.bp ? `<div class="small fw-semibold mt-1">${classifyVitalsRisk(p).action}</div>` : '';
         const riskTriggers = p.bp ? renderVitalsRiskTriggers(p, { className: 'small text-muted mt-1', prefix: 'Trigger' }) : '';
+        const visitTypeBadge = formatVisitTypeBadge(p.visit_type);
         document.getElementById('modalVitalsDisplay').innerHTML = p.bp
-            ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}�C</div><div class="vitals-badge">Pulse: ${p.pulse ?? '-'}</div><div class="vitals-badge">SpO2: ${p.spo2 ?? '-'}</div><div>${riskBadge}${riskAction}${riskTriggers}</div>${nurseNotesHtml}`
+            ? `<div class="vitals-badge">BP: ${p.bp}</div><div class="vitals-badge">Temp: ${p.temperature}C</div><div class="vitals-badge">Pulse: ${p.pulse ?? '-'}</div><div class="vitals-badge">SpO2: ${p.spo2 ?? '-'}</div><div>${visitTypeBadge}</div><div>${riskBadge}${riskAction}${riskTriggers}</div>${nurseNotesHtml}`
             : `Vitals not captured.${nurseNotesHtml}`;
         await loadMedicines();
         consultModal.show();
@@ -1148,17 +1559,67 @@
         document.getElementById('medManualGroup').classList.toggle('d-none', !isExternal);
     }
 
+    function normalizePrescriptionDosage(rawDosage) {
+        let dosage = String(rawDosage || '').trim();
+        if (!dosage) return '';
+
+        dosage = dosage.replace(/\s+/g, ' ');
+        dosage = dosage.replace(/\bi\s*x\s*(\d+)\b/ig, 'Injection for $1 days');
+        dosage = dosage.replace(/\binj(?:ection)?\b/ig, 'Injection');
+        dosage = dosage.replace(/\bim\b/ig, 'IM');
+        dosage = dosage.replace(/\biv\b/ig, 'IV');
+        dosage = dosage.replace(/\bsc\b/ig, 'SC');
+        dosage = dosage.replace(/\bid\b/ig, 'ID');
+
+        dosage = dosage.replace(/\bq\s*(\d+)\s*h\b/ig, 'every $1 hours');
+        dosage = dosage.replace(/\bInjection\s*x\s*(\d+)\b/ig, 'Injection for $1 days');
+        dosage = dosage.replace(/\bx\s*(\d+)\b/ig, 'for $1 days');
+        dosage = dosage.replace(/\bod\b/ig, 'once daily');
+        dosage = dosage.replace(/\bbd\b/ig, 'twice daily');
+        dosage = dosage.replace(/\btds\b/ig, 'three times daily');
+        dosage = dosage.replace(/\bqid\b/ig, 'four times daily');
+        dosage = dosage.replace(/\bnocte\b/ig, 'at night');
+        dosage = dosage.replace(/\bprn\b/ig, 'as needed');
+        dosage = dosage.replace(/\bstat\b/ig, 'immediately');
+
+        return dosage.replace(/\s+/g, ' ').trim();
+    }
+
+    function validateInjectionDosage(dosage) {
+        const value = String(dosage || '').trim();
+        if (!value) return { ok: false, message: 'Enter dosage' };
+
+        const isInjection = /\bInjection\b|\bIM\b|\bIV\b|\bSC\b|\bID\b/i.test(value);
+        if (!isInjection) return { ok: true };
+
+        const hasRoute = /\b(IM|IV|SC|ID|intramuscular|intravenous|subcutaneous|intradermal)\b/i.test(value);
+        const hasSchedule = /\b(immediately|once|daily|every \d+ hours|twice daily|three times daily|four times daily|as needed|at night|for \d+ days|for \d+ doses)\b/i.test(value);
+
+        if (!hasRoute || !hasSchedule) {
+            return {
+                ok: false,
+                message: "Injection orders must include route (IM/IV/SC/ID) and schedule (e.g., immediately, every 8 hours, or for 3 days)."
+            };
+        }
+        return { ok: true };
+    }
+
     function addMedicationToList() {
         const isExternal = document.getElementById('externalMedToggle').checked;
         const medSelect = document.getElementById('consultMed');
         const manualName = document.getElementById('manualMedName').value;
         const qty = Number(document.getElementById('consultQty').value);
-        const dosage = document.getElementById('consultDosage').value;
+        const dosageRaw = document.getElementById('consultDosage').value;
+        const dosage = normalizePrescriptionDosage(dosageRaw);
 
         if (!isExternal && !medSelect.value) return notify("Select medicine");
         if (isExternal && !manualName.trim()) return notify("Enter name");
         if (!Number.isFinite(qty) || qty < 1) return notify("Enter quantity");
         if (!dosage.trim()) return notify("Enter dosage");
+        const dosageCheck = validateInjectionDosage(dosage);
+        if (!dosageCheck.ok) return notify(dosageCheck.message, "warning");
+
+        document.getElementById('consultDosage').value = dosage;
 
         currentPrescriptions.push({
             medicine_id: isExternal ? null : medSelect.value,
@@ -1187,45 +1648,98 @@
     function syncCompleteButtonLabel() {
         const btn = document.getElementById('completeConsultBtn');
         if (!btn) return;
+        if (activeVisitType === 'counselling_only') {
+            btn.textContent = 'Complete Counselling';
+            return;
+        }
         const hasExternalMedication = currentPrescriptions.some(p => !p.medicine_id || p.manual_name);
         btn.textContent = hasExternalMedication ? 'Complete & Print' : 'Complete Consultation';
     }
 
     async function finishConsultation() {
-        const notes = document.getElementById('consultDiagnosis').value;
-        if (!notes.trim()) return notify("Notes required");
+        const notes = (document.getElementById('consultDiagnosis').value || '').trim();
+        if (!notes) return notify("Notes required");
+
+        if (activeVisitType === 'counselling_only') {
+            const outcome = String(document.getElementById('counsellingOutcome')?.value || 'resolved').trim().toLowerCase();
+            const followUpAt = String(document.getElementById('counsellingFollowUpAt')?.value || '').trim();
+            const escalationReason = String(document.getElementById('counsellingEscalationReason')?.value || '').trim();
+            const safetyPlan = String(document.getElementById('counsellingSafetyPlan')?.value || '').trim();
+            if (outcome === 'follow_up_needed' && !followUpAt) {
+                return notify("Follow-up date/time is required for follow-up outcome.");
+            }
+            if (outcome === 'risk_escalation' && !escalationReason) {
+                return notify("Escalation reason is required for risk escalation.");
+            }
+            const counsellingPayload = {
+                queue_id: activeQueueId,
+                notes,
+                outcome,
+                follow_up_at: followUpAt || null,
+                escalation_reason: escalationReason || null,
+                safety_plan: safetyPlan || null
+            };
+            const counsellingRes = await Api.post('/doctor/counselling_complete', counsellingPayload);
+            if (counsellingRes) {
+                notify(counsellingRes.message || 'Counselling completed.', { type: 'success', timeoutMs: 5000 });
+                consultModal.hide();
+                await Promise.all([loadQueue(), loadAppointments()]);
+            }
+            return;
+        }
+
         const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
         const res = await Api.post('/doctor/complete_multiple', data);
         if (res) {
+            const nurseInjectionCount = Number(res.routing?.nurse_injections || 0);
+            if (nurseInjectionCount > 0) {
+                notify(`${nurseInjectionCount} injection order${nurseInjectionCount === 1 ? '' : 's'} routed to Nurse In Charge for administration.`, 'info');
+            }
             const hasExternalMedication = currentPrescriptions.some(p => !p.medicine_id || p.manual_name);
             if (hasExternalMedication) printThermalReceipt();
             consultModal.hide();
-            loadQueue();
+            await loadQueue();
         }
     }
 
     async function completeAndRefer() {
+        if (activeVisitType === 'counselling_only') {
+            notify("Use Complete Counselling for counselling-only visits.");
+            return;
+        }
         const notes = document.getElementById('consultDiagnosis').value;
         if (!notes.trim()) return notify("Notes required");
-        if (!confirm("Complete consultation and refer this patient to Nurse for admission?")) return;
+        const confirmed = await smartConfirm("Complete consultation and refer this patient to Nurse for admission?", {
+            title: "Refer to Nurse",
+            confirmText: "Refer"
+        });
+        if (!confirmed) return;
         const data = { queue_id: activeQueueId, notes: notes, prescriptions: currentPrescriptions };
         const res = await Api.post('/doctor/complete_refer', data);
         if (res) {
+            const nurseInjectionCount = Number(res.routing?.nurse_injections || 0);
+            if (nurseInjectionCount > 0) {
+                notify(`${nurseInjectionCount} injection order${nurseInjectionCount === 1 ? '' : 's'} routed to Nurse In Charge for administration.`, 'info');
+            }
             const hasExternalMedication = currentPrescriptions.some(p => !p.medicine_id || p.manual_name);
             if (hasExternalMedication) printThermalReceipt();
             consultModal.hide();
-            loadQueue();
+            await loadQueue();
         }
     }
 
     async function sendToUrgentCare() {
         const reason = document.getElementById('consultDiagnosis').value;
         if (!reason.trim()) return notify("Clinical notes are required");
-        if (!confirm("Send this patient back to Nurse for urgent care?")) return;
+        const confirmed = await smartConfirm("Send this patient back to Nurse for urgent care?", {
+            title: "Urgent Care",
+            confirmText: "Send"
+        });
+        if (!confirmed) return;
         const res = await Api.post('/doctor/urgent_care', { queue_id: activeQueueId, reason: reason });
         if (res) {
             consultModal.hide();
-            loadQueue();
+            await loadQueue();
         }
     }
 
@@ -1286,7 +1800,7 @@
 
                 <h2>Visits</h2>
                 <table>
-                    <thead><tr><th>Date</th><th>Status</th><th>Doctor</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Status</th><th>Nurse In Charge</th></tr></thead>
                     <tbody>${visitRows}</tbody>
                 </table>
 
@@ -1312,7 +1826,17 @@
         currentHistory = data || null;
         document.getElementById('histPatientName').innerText = data.patient.full_name;
         document.getElementById('uploadPatientId').value = pid;
-        document.getElementById('historyTimeline').innerHTML = data.vitals.map(v => `<div class="p-3 mb-2 bg-white border rounded shadow-sm"><b>Date: ${new Date(v.created_at).toDateString()}</b><br>BP: ${v.bp} | T: ${v.temperature}°C | Pulse: ${v.pulse}${v.notes ? `<br><span class="text-primary">Nurse notes:</span> ${escapeHtml(v.notes)}` : ''}</div>`).join('') || 'No records';
+        document.getElementById('historyTimeline').innerHTML = data.vitals.map(v => {
+            const riskBadge = renderVitalsRiskBadge(v);
+            const riskTriggers = renderVitalsRiskTriggers(v, { className: 'small text-muted mt-1', prefix: 'Trigger' });
+            return `<div class="p-3 mb-2 bg-white border rounded shadow-sm">
+                <b>Date: ${new Date(v.created_at).toDateString()}</b><br>
+                BP: ${v.bp} | T: ${v.temperature}°C | Pulse: ${v.pulse} | SpO2: ${v.spo2 ?? '-'}
+                <div class="mt-2">${riskBadge}</div>
+                ${riskTriggers}
+                ${v.notes ? `<br><span class="text-primary">Nurse notes:</span> ${escapeHtml(v.notes)}` : ''}
+            </div>`;
+        }).join('') || 'No records';
         document.getElementById('fileList').innerHTML = data.files.map(f => `<a href="${CONFIG.BACKEND_ROOT}/${f.file_path}" target="_blank" class="list-group-item list-group-item-action d-flex justify-content-between"><span>${f.report_name}</span><i class="bi bi-download"></i></a>`).join('') || 'No files';
         historyModal.show();
     }
@@ -1366,10 +1890,11 @@
 
     async function showDoctorLoginBanner() {
         try {
-            const [queue, tasks, esc] = await Promise.all([
+            const [queue, tasks, esc, refs] = await Promise.all([
                 Api.get('/doctor/waiting_list'),
                 Api.get('/doctor/task_list'),
-                Api.get('/doctor/escalation_list')
+                Api.get('/doctor/escalation_list'),
+                Api.get('/doctor/referral_list?limit=20')
             ]);
             const waiting = Array.isArray(queue) ? queue.length : 0;
             const openTasks = Array.isArray(tasks)
@@ -1378,10 +1903,14 @@
             const openEsc = Array.isArray(esc)
                 ? esc.filter(e => String(e.status || 'open').toLowerCase() !== 'closed').length
                 : 0;
+            const openRefs = Array.isArray(refs)
+                ? refs.filter(r => String(r.status || 'pending').toLowerCase() !== 'completed').length
+                : 0;
             const parts = [];
             if (waiting) parts.push(`${waiting} patient${waiting === 1 ? '' : 's'} waiting`);
             if (openTasks) parts.push(`${openTasks} task${openTasks === 1 ? '' : 's'} open`);
             if (openEsc) parts.push(`${openEsc} escalation${openEsc === 1 ? '' : 's'}`);
+            if (openRefs) parts.push(`${openRefs} active referral${openRefs === 1 ? '' : 's'}`);
             if (parts.length && typeof showBanner === 'function') {
                 showBanner(`Welcome back. ${parts.join(' \u2022 ')}`, { type: 'warning', timeoutMs: 10000 });
             }
@@ -1391,7 +1920,16 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+        const referralDateEl = document.getElementById('referralDate');
+        if (referralDateEl && !referralDateEl.value) {
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            referralDateEl.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        }
+        applyConsultMode('general');
+        updateDoctorSearchContext('queue');
         bindDoctorNavTabs();
+        window.addEventListener('hms:realtime', handleDoctorRealtime);
         loadQueue();
         loadPatientOptions();
         showDoctorLoginBanner();

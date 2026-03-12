@@ -332,7 +332,7 @@ switch ($action) {
             $auth->execute([$bedRow['current_patient_id']]);
             if (!$auth->fetchColumn()) {
                 http_response_code(400);
-                echo json_encode(["message" => "Doctor discharge command required."]);
+                echo json_encode(["message" => "Nurse In Charge discharge command required."]);
                 exit;
             }
             // Sets status to 'Cleaning' to trigger custodial workflow
@@ -500,7 +500,8 @@ switch ($action) {
                                  q.created_at,
                                  q.status,
                                  v.temperature as last_temp, v.pulse as last_pulse, v.bp as last_bp, v.spo2 as last_spo2, v.created_at as last_vitals_at,
-                                 (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = p.id AND pr.status IN ('Pending','External')) as pending_prescriptions
+                                 (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = p.id AND LOWER(pr.status) IN ('pending','external')) as pending_prescriptions,
+                                 (SELECT COUNT(*) FROM prescriptions pr2 WHERE pr2.patient_id = p.id AND LOWER(pr2.status) = 'nurse_admin_pending') as pending_injections
                           FROM patient_queue q
                           JOIN patients p ON q.patient_id = p.id
                           LEFT JOIN (
@@ -544,7 +545,7 @@ switch ($action) {
             $notes = RequestValidator::optionalString($data, 'notes', 1000);
             try {
                 $db->beginTransaction();
-                $check = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
+                $check = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND LOWER(status) IN ('pending','external')");
                 $check->execute([$patientId]);
                 $count = (int)$check->fetchColumn();
                 if ($count === 0) {
@@ -561,7 +562,7 @@ switch ($action) {
                     echo json_encode(["message" => "Pharmacy request already pending for this patient.", "pending_prescriptions" => $count]);
                     exit;
                 }
-                $insert = $db->prepare("INSERT INTO pharmacy_requests (patient_id, requested_by, status, notes) VALUES (?, ?, 'Pending', ?)");
+                $insert = $db->prepare("INSERT INTO pharmacy_requests (patient_id, requested_by, status, notes) VALUES (?, ?, 'pending', ?)");
                 $insert->execute([
                     $patientId,
                     isset($user->id) ? $user->id : null,
@@ -571,7 +572,7 @@ switch ($action) {
                 $db->prepare("UPDATE patient_queue
                               SET status = 'Waiting Pharmacy'
                               WHERE patient_id = ?
-                                AND status IN ('Admission Pending','admission pending')")
+                                AND LOWER(status) = 'admission pending'")
                    ->execute([$patientId]);
                 $db->commit();
                 try {
@@ -596,6 +597,158 @@ switch ($action) {
         }
         break;
 
+    // 4f. INJECTION ADMINISTRATION QUEUE (Nurse In Charge)
+    case 'injection_queue':
+        if ($method === 'GET') {
+            try {
+                $query = "SELECT pr.id as prescription_id,
+                                 pr.patient_id,
+                                 pat.full_name,
+                                 pat.national_id,
+                                 pr.quantity,
+                                 pr.dosage,
+                                 pr.created_at,
+                                 COALESCE(med.name, NULLIF(TRIM(pr.medication_name), ''), pr.notes, 'Injection') as medication_name,
+                                 q.id as queue_id,
+                                 q.status as queue_status
+                          FROM prescriptions pr
+                          JOIN patients pat ON pat.id = pr.patient_id
+                          LEFT JOIN medicines med ON med.id = pr.medicine_id
+                          LEFT JOIN patient_queue q ON q.id = COALESCE(
+                              pr.queue_id,
+                              (
+                                  SELECT q2.id
+                                  FROM patient_queue q2
+                                  WHERE q2.patient_id = pr.patient_id
+                                    AND (pr.visit_id IS NULL OR q2.visit_id = pr.visit_id)
+                                  ORDER BY q2.id DESC
+                                  LIMIT 1
+                              ),
+                              (
+                                  SELECT q3.id
+                                  FROM patient_queue q3
+                                  WHERE q3.patient_id = pr.patient_id
+                                  ORDER BY q3.id DESC
+                                  LIMIT 1
+                              )
+                          )
+                          WHERE LOWER(TRIM(pr.status)) = 'nurse_admin_pending'
+                          ORDER BY pr.created_at ASC";
+                $stmt = $db->query($query);
+                echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to load injection queue: " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 4g. MARK INJECTION AS ADMINISTERED
+    case 'administer_injection':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $prescriptionId = RequestValidator::requireInt($data, 'prescription_id', 1);
+            try {
+                $db->beginTransaction();
+
+                $rxStmt = $db->prepare("SELECT pr.id, pr.patient_id, pr.medicine_id, pr.quantity, pr.status, pr.notes,
+                                               COALESCE(m.name, NULLIF(TRIM(pr.medication_name), ''), pr.notes, 'Injection') as medication_name
+                                        FROM prescriptions pr
+                                        LEFT JOIN medicines m ON m.id = pr.medicine_id
+                                        WHERE pr.id = ?
+                                        LIMIT 1
+                                        FOR UPDATE");
+                $rxStmt->execute([$prescriptionId]);
+                $rx = $rxStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+                if (!$rx) {
+                    $db->rollBack();
+                    http_response_code(404);
+                    echo json_encode(["message" => "Injection prescription not found."]);
+                    exit;
+                }
+
+                $rxStatus = strtolower(trim((string)($rx['status'] ?? '')));
+                if ($rxStatus !== 'nurse_admin_pending') {
+                    $db->rollBack();
+                    http_response_code(409);
+                    echo json_encode(["message" => "This prescription is not waiting for nurse administration."]);
+                    exit;
+                }
+
+                $medicineId = isset($rx['medicine_id']) ? (int)$rx['medicine_id'] : 0;
+                $quantity = isset($rx['quantity']) ? (int)$rx['quantity'] : 1;
+                if ($quantity <= 0) $quantity = 1;
+
+                if ($medicineId > 0) {
+                    $stockStmt = $db->prepare("SELECT stock_quantity FROM medicines WHERE id = ? LIMIT 1 FOR UPDATE");
+                    $stockStmt->execute([$medicineId]);
+                    $stock = $stockStmt->fetchColumn();
+                    if ($stock === false) {
+                        throw new Exception("Medication stock record not found.");
+                    }
+                    $stockQty = (int)$stock;
+                    if ($stockQty < $quantity) {
+                        throw new Exception("Insufficient stock to administer injection. Available: " . $stockQty);
+                    }
+                    $db->prepare("UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?")
+                       ->execute([$quantity, $medicineId]);
+                }
+
+                $notes = trim((string)($rx['notes'] ?? ''));
+                $stamp = '[Injection administered by ' . trim((string)($user->full_name ?? 'nurse')) . ' on ' . date('Y-m-d H:i:s') . ']';
+                $nextNotes = $notes === '' ? $stamp : ($notes . ' ' . $stamp);
+                $db->prepare("UPDATE prescriptions SET status = 'nurse_administered', notes = ? WHERE id = ?")
+                   ->execute([$nextNotes, $prescriptionId]);
+
+                $patientId = isset($rx['patient_id']) ? (int)$rx['patient_id'] : 0;
+                $remaining = 0;
+                if ($patientId > 0) {
+                    $remainingStmt = $db->prepare("SELECT COUNT(*)
+                                                   FROM prescriptions
+                                                   WHERE patient_id = ?
+                                                     AND LOWER(status) IN ('pending','external','nurse_admin_pending')");
+                    $remainingStmt->execute([$patientId]);
+                    $remaining = (int)$remainingStmt->fetchColumn();
+                    if ($remaining === 0) {
+                        $db->prepare("UPDATE patient_queue
+                                      SET status = 'Ready for Admission'
+                                      WHERE patient_id = ?
+                                        AND LOWER(status) = 'waiting pharmacy'")
+                           ->execute([$patientId]);
+                    }
+                }
+
+                $db->commit();
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Administered injection', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'prescription',
+                        'entity_id' => (string)$prescriptionId,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'nurse',
+                        'source' => 'nurse/administer_injection',
+                        'metadata' => [
+                            'patient_id' => $patientId > 0 ? (string)$patientId : null,
+                            'remaining_medications' => (string)$remaining
+                        ]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                Realtime::emit('nurse.injection_administered', ['prescription_id' => $prescriptionId, 'patient_id' => $patientId]);
+                echo json_encode([
+                    "message" => "Injection administered and recorded.",
+                    "prescription_id" => $prescriptionId,
+                    "remaining_medications" => $remaining
+                ]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to administer injection: " . $e->getMessage()]);
+            }
+        }
+        break;
+
     // 5. SHIFT ROSTER (Matches rosterBody in dashboard)
     case 'shifts':
         if ($method === 'GET') {
@@ -610,7 +763,62 @@ switch ($action) {
     case 'history':
         if ($method === 'GET') {
             try {
-                $recentQuery = "SELECT v.id, v.created_at, v.temperature, v.pulse, v.bp, v.weight, v.spo2,
+                foreach (array_keys($_GET) as $queryKey) {
+                    if (!in_array($queryKey, ['patient_id'], true)) {
+                        http_response_code(400);
+                        echo json_encode(["message" => "Unsupported query parameter: $queryKey."]);
+                        exit;
+                    }
+                }
+
+                $pid = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : 0;
+                if ($pid > 0) {
+                    $patientStmt = $db->prepare("SELECT id, full_name, national_id, dob, gender, phone FROM patients WHERE id = ? LIMIT 1");
+                    $patientStmt->execute([$pid]);
+                    $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                    if (!$patient) {
+                        http_response_code(404);
+                        echo json_encode(["message" => "Patient not found."]);
+                        exit;
+                    }
+
+                    $vitalsStmt = $db->prepare("SELECT * FROM patient_vitals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 100");
+                    $vitalsStmt->execute([$pid]);
+                    $vitals = $vitalsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                    foreach ($vitals as &$v) {
+                        $v = array_merge($v, VitalRisk::classify($v['temperature'] ?? null, $v['pulse'] ?? null, $v['bp'] ?? null, $v['spo2'] ?? null));
+                    }
+                    unset($v);
+
+                    $visitsStmt = $db->prepare("SELECT id, patient_id, status, doctor_assigned, created_at
+                                                FROM patient_queue
+                                                WHERE patient_id = ?
+                                                ORDER BY created_at DESC
+                                                LIMIT 50");
+                    $visitsStmt->execute([$pid]);
+
+                    $rxStmt = $db->prepare("SELECT pr.*, COALESCE(m.name, pr.medication_name) as medicine_name
+                                            FROM prescriptions pr
+                                            LEFT JOIN medicines m ON pr.medicine_id = m.id
+                                            WHERE pr.patient_id = ?
+                                            ORDER BY pr.created_at DESC
+                                            LIMIT 50");
+                    $rxStmt->execute([$pid]);
+
+                    $filesStmt = $db->prepare("SELECT * FROM medical_reports WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50");
+                    $filesStmt->execute([$pid]);
+
+                    echo json_encode([
+                        "patient" => $patient,
+                        "vitals" => $vitals,
+                        "visits" => $visitsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+                        "prescriptions" => $rxStmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+                        "files" => $filesStmt->fetchAll(PDO::FETCH_ASSOC) ?: []
+                    ]);
+                    exit;
+                }
+
+                $recentQuery = "SELECT v.id, v.patient_id, v.created_at, v.temperature, v.pulse, v.bp, v.weight, v.spo2,
                                        p.full_name as patient_name
                                 FROM patient_vitals v
                                 JOIN patients p ON v.patient_id = p.id
@@ -671,7 +879,46 @@ switch ($action) {
         }
         break;
 
-    // 7. PATIENTS LIST (for nurse modules)
+    // 7. SEARCH PATIENTS (scoped nurse search)
+    case 'search':
+        if ($method === 'GET') {
+            foreach (array_keys($_GET) as $queryKey) {
+                if (!in_array($queryKey, ['q'], true)) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "Unsupported query parameter: $queryKey."]);
+                    exit;
+                }
+            }
+
+            $q = trim((string)($_GET['q'] ?? ''));
+            if (strlen($q) < 2) {
+                echo json_encode([]);
+                exit;
+            }
+            if (strlen($q) > 80) {
+                http_response_code(400);
+                echo json_encode(["message" => "q is too long."]);
+                exit;
+            }
+            if (!preg_match('/^[A-Za-z0-9\+\-\s]+$/', $q)) {
+                http_response_code(400);
+                echo json_encode(["message" => "q contains invalid characters."]);
+                exit;
+            }
+
+            $like = '%' . $q . '%';
+            $stmt = $db->prepare("SELECT id, full_name, national_id, dob, gender
+                                  FROM patients
+                                  WHERE full_name LIKE ?
+                                     OR national_id LIKE ?
+                                  ORDER BY full_name ASC
+                                  LIMIT 25");
+            $stmt->execute([$like, $like]);
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
+        break;
+
+    // 8. PATIENTS LIST (for nurse modules)
     case 'patients':
         if ($method === 'GET') {
             $stmt = $db->query("SELECT id, full_name, national_id, dob, gender FROM patients ORDER BY full_name ASC");
@@ -679,7 +926,7 @@ switch ($action) {
         }
         break;
 
-    // 8. NURSE HANDOVER
+    // 9. NURSE HANDOVER
     case 'handover_create':
         if ($method === 'POST') {
             $data = RequestValidator::json();
@@ -873,7 +1120,7 @@ switch ($action) {
                     [$pid]
                 );
                 $meds = $safeQuery(
-                    "SELECT pr.created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note
+                    "SELECT pr.created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.medication_name, pr.notes)) as note
                      FROM prescriptions pr
                      LEFT JOIN medicines m ON pr.medicine_id = m.id
                      WHERE pr.patient_id = ?
@@ -883,7 +1130,7 @@ switch ($action) {
                 );
                 if (empty($meds)) {
                     $meds = $safeQuery(
-                        "SELECT pr.created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.notes)) as note
+                        "SELECT pr.created_at, CONCAT('Prescription: ', COALESCE(m.name, pr.medication_name, pr.notes)) as note
                          FROM prescriptions pr
                          LEFT JOIN medicines m ON pr.medicine_id = m.id
                          INNER JOIN visits v ON pr.visit_id = v.id

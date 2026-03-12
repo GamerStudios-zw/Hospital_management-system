@@ -227,7 +227,7 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4">Time</th>
+                                    <th class="ps-4">Patient ID</th>
                                     <th>Patient</th>
                                     <th>Temp</th>
                                     <th>Pulse</th>
@@ -269,7 +269,7 @@
             <section id="tasks" class="tab-section">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="fw-bold">Urgent Care</h3>
-                    <button class="btn btn-outline-dark btn-sm" onclick="loadUrgentCare(); loadTasks();"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadUrgentCare(); loadInjectionQueue(); loadTasks();"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 mb-4">
                     <div class="table-responsive p-3">
@@ -284,6 +284,29 @@
                             </thead>
                             <tbody id="urgentCareTable">
                                 <tr><td colspan="4" class="text-center text-muted py-3">Loading urgent care...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="fw-bold mb-1">Injection Administration Queue</h6>
+                        <p class="text-muted small mb-0">These injectable orders are routed for Nurse In Charge administration. Other medications remain in pharmacy flow.</p>
+                    </div>
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>National ID</th>
+                                    <th>Medication</th>
+                                    <th>Dose</th>
+                                    <th>Ordered</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="injectionTable">
+                                <tr><td colspan="6" class="text-center text-muted py-3">Loading injections...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -492,7 +515,7 @@
                 </div>
                 <div class="modal-footer border-0 p-4">
                     <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Doctor</button>
+                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Nurse In Charge</button>
                 </div>
             </form>
         </div>
@@ -580,6 +603,50 @@
     </div>
 </div>
 
+<div class="modal fade" id="nurseHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Patient History: <span id="nurseHistoryPatientName" class="text-success"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="nurseHistoryPatientMeta" class="small text-muted mb-3"></div>
+
+                <h6 class="fw-bold mb-2">Vitals</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Time</th><th>Temp</th><th>Pulse</th><th>BP</th><th>SpO2</th><th>Risk</th></tr>
+                        </thead>
+                        <tbody id="nurseHistoryVitalsBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold mb-2">Visits</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Time</th><th>Status</th><th>Assigned</th></tr>
+                        </thead>
+                        <tbody id="nurseHistoryVisitsBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold mb-2">Prescriptions</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Time</th><th>Medicine</th><th>Qty</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="nurseHistoryMedsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="../../assets/js/app.js"></script>
@@ -588,10 +655,12 @@
     let activeBedId = null;
     const bedAdmitModal = new bootstrap.Modal(document.getElementById('bedAdmitModal'));
     const addBedModal = new bootstrap.Modal(document.getElementById('addBedModal'));
+    const nurseHistoryModal = new bootstrap.Modal(document.getElementById('nurseHistoryModal'));
     let historySnapshot = null;
+    let nursePatientHistorySnapshot = null;
     let nurseRegisteredPatients = [];
     let nurseSearchDebounce = null;
-    let nursePatientsCacheFetchedAt = 0;
+    let nurseActiveTab = 'wards';
     const WARD_NAMES = ['General Ward', 'ICU', 'Martenity', 'Recovering Ward'];
     const WARD_CODE_BY_NAME = {
         'General Ward': 'G',
@@ -602,6 +671,62 @@
     const BED_STATUSES = ['Available', 'Occupied', 'Cleaning', 'Maintenance', 'Reserved'];
     const WARD_STATUSES = ['Open', 'High Load', 'Isolation', 'Closed', 'Maintenance'];
     let nurseBedsCache = [];
+    const NURSE_SEARCH_CONTEXTS = {
+        wards: {
+            placeholder: 'Search ward monitor by ward, bed, status, or patient...',
+            tables: [],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        history: {
+            placeholder: 'Search history by patient, date/time, vitals, or risk...',
+            tables: ['historyTableBody'],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        timeline: {
+            placeholder: 'Search timeline by patient, event, date, or notes...',
+            tables: [],
+            lists: ['timelineList'],
+            allowRegisteredLookup: true
+        },
+        tasks: {
+            placeholder: 'Search urgent care, injection queue, and tasks by patient, status, medicine, or notes...',
+            tables: ['urgentCareTable', 'injectionTable', 'tasksTable'],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        admission: {
+            placeholder: 'Search admission waiting by patient, bed, ward, or status...',
+            tables: ['admissionTable'],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        escalations: {
+            placeholder: 'Search escalations by patient, reason, status, or priority...',
+            tables: ['escalationsTable'],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        discharge: {
+            placeholder: 'Search discharge summary by patient, summary, status, or time...',
+            tables: ['dischargeTable'],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        handover: {
+            placeholder: 'Search handover by nurse, shift, date, or notes...',
+            tables: ['handoverTable'],
+            lists: [],
+            allowRegisteredLookup: false
+        },
+        roster: {
+            placeholder: 'Search roster by nurse, shift, ward, or status...',
+            tables: ['rosterBody'],
+            lists: [],
+            allowRegisteredLookup: false
+        }
+    };
 
     function filterNurseTable(tbodyId, query) {
         const tbody = document.getElementById(tbodyId);
@@ -619,11 +744,52 @@
         });
     }
 
+    function filterNurseListRows(listId, query) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+        const q = String(query || '').trim().toLowerCase();
+        const rows = Array.from(list.querySelectorAll('li'));
+        rows.forEach((row) => {
+            const text = (row.textContent || '').toLowerCase();
+            if (!q) {
+                row.style.display = '';
+                return;
+            }
+            row.style.display = text.includes(q) ? '' : 'none';
+        });
+    }
+
+    function getNurseSearchContext() {
+        const activeSectionId = document.querySelector('.tab-section.active')?.id || nurseActiveTab || 'wards';
+        return NURSE_SEARCH_CONTEXTS[activeSectionId] || NURSE_SEARCH_CONTEXTS.wards;
+    }
+
+    function updateNurseSearchContext(tabId) {
+        if (tabId) nurseActiveTab = tabId;
+        const input = document.getElementById('nursePatientSearch');
+        const ctx = getNurseSearchContext();
+        if (input && ctx?.placeholder) {
+            input.placeholder = ctx.placeholder;
+        }
+        if (!ctx?.allowRegisteredLookup) {
+            hideNurseSearchResults();
+        }
+        applyNursePatientSearch();
+    }
+
     function applyNursePatientSearch() {
         const input = document.getElementById('nursePatientSearch');
         const query = input ? input.value : '';
-        ['historyTableBody', 'urgentCareTable', 'admissionTable', 'tasksTable', 'escalationsTable', 'dischargeTable'].forEach(id => filterNurseTable(id, query));
-        scheduleNurseRegisteredPatientSearch(query);
+        const ctx = getNurseSearchContext();
+        const targetTables = Array.isArray(ctx?.tables) ? ctx.tables : [];
+        const targetLists = Array.isArray(ctx?.lists) ? ctx.lists : [];
+        targetTables.forEach(id => filterNurseTable(id, query));
+        targetLists.forEach(id => filterNurseListRows(id, query));
+        if (ctx?.allowRegisteredLookup) {
+            scheduleNurseRegisteredPatientSearch(query);
+        } else {
+            hideNurseSearchResults();
+        }
     }
 
     function clearNursePatientSearch() {
@@ -733,22 +899,29 @@
         box.classList.remove('d-none');
     }
 
-    async function refreshNurseRegisteredPatients(force = false) {
-        const now = Date.now();
-        const cacheFresh = nurseRegisteredPatients.length > 0 && (now - nursePatientsCacheFetchedAt) < 30000;
-        if (!force && cacheFresh) return;
-
-        const rows = await Api.get('/nurse/patients');
+    async function refreshNurseRegisteredPatients(query) {
+        const q = normalizeNurseSearch(query);
+        if (q.length < 2) {
+            nurseRegisteredPatients = [];
+            return;
+        }
+        const rows = await Api.get(`/nurse/search?q=${encodeURIComponent(q)}`);
         if (Array.isArray(rows)) {
             nurseRegisteredPatients = rows;
-            nursePatientsCacheFetchedAt = Date.now();
+        } else {
+            nurseRegisteredPatients = [];
         }
     }
 
     function scheduleNurseRegisteredPatientSearch(query) {
         clearTimeout(nurseSearchDebounce);
+        const q = normalizeNurseSearch(query);
+        if (q.length < 2) {
+            hideNurseSearchResults();
+            return;
+        }
         nurseSearchDebounce = setTimeout(async () => {
-            await refreshNurseRegisteredPatients(false);
+            await refreshNurseRegisteredPatients(q);
             renderNurseRegisteredPatientResults(query);
         }, 180);
     }
@@ -758,12 +931,13 @@
         document.getElementById(id).classList.add('active');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         el.classList.add('active');
+        updateNurseSearchContext(id);
         if (window.innerWidth < 992) toggleSidebar(false);
 
         if(id === 'wards') loadBeds();
         if(id === 'history') loadHistory();
         if(id === 'timeline') loadTimeline();
-        if(id === 'tasks') { loadUrgentCare(); loadTasks(); }
+        if(id === 'tasks') { loadUrgentCare(); loadInjectionQueue(); loadTasks(); }
         if(id === 'admission') loadAdmissionWaiting();
         if(id === 'escalations') loadEscalations();
         if(id === 'discharge') loadDischarges();
@@ -971,18 +1145,18 @@
                 let actionBtn = '';
                 if (bed.status === 'Occupied') {
                     const dischargeReady = Number(bed.discharge_ready || 0) > 0;
-                    const summaryText = (bed.discharge_ready && bed.discharge_status) ? `Doctor command: ${bed.discharge_status}` : '';
+                    const summaryText = (bed.discharge_ready && bed.discharge_status) ? `Nurse In Charge command: ${bed.discharge_status}` : '';
                     actionBtn = dischargeReady
                         ? `<div class="mb-2 d-flex align-items-center gap-2">
-                                <span class="badge bg-success-subtle text-success border border-success">Doctor Command</span>
+                                <span class="badge bg-success-subtle text-success border border-success">Nurse In Charge Command</span>
                                 <small class="text-muted">${summaryText}</small>
                            </div>
                            <button onclick="discharge(${bed.id})" class="btn btn-sm btn-outline-danger w-100 rounded-pill">Discharge</button>`
                         : `<div class="mb-2 d-flex align-items-center gap-2">
-                                <span class="badge bg-secondary-subtle text-secondary border border-secondary">Awaiting Doctor</span>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary">Awaiting Nurse In Charge</span>
                                 <small class="text-muted">No discharge command yet</small>
                            </div>
-                           <button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Awaiting Doctor</button>`;
+                           <button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Awaiting Nurse In Charge</button>`;
                 } else if (bed.status === 'Available') {
                     actionBtn = isWardUnavailable
                         ? `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Ward ${wardStatus}</button>`
@@ -1044,7 +1218,12 @@
     }
 
     async function removeBed(bedId, label) {
-        if (!confirm(`Remove ${label || 'this bed'} from ward monitor?`)) return;
+        const confirmed = await smartConfirm(`Remove ${label || 'this bed'} from ward monitor?`, {
+            title: "Remove Bed",
+            confirmText: "Remove",
+            danger: true
+        });
+        if (!confirmed) return;
         const res = await Api.post('/nurse/bed_delete', { bed_id: bedId });
         if (res) {
             notify(res.message || "Bed removed.", "success");
@@ -1066,22 +1245,27 @@
     }
 
     async function discharge(bedId) {
-        if(confirm("Are you sure you want to discharge this patient?")) {
-            const res = await Api.post('/nurse/discharge', { bed_id: bedId });
-            if (res && res.message && res.message.toLowerCase().includes('doctor discharge command required')) {
-                return notify(res.message);
+        const confirmed = await smartConfirm("Are you sure you want to discharge this patient?", {
+            title: "Discharge Patient",
+            confirmText: "Discharge",
+            danger: true
+        });
+        if (!confirmed) return;
+
+        const res = await Api.post('/nurse/discharge', { bed_id: bedId });
+        if (res && res.message && res.message.toLowerCase().includes('doctor discharge command required')) {
+            return notify(res.message);
+        }
+        if(res) {
+            // notify other open dashboards to refresh immediately
+            try { localStorage.setItem('hms_discharge_event', String(Date.now())); } catch (e) {}
+            if (typeof broadcastEvent === 'function') {
+                broadcastEvent('discharge_completed', { bed_id: bedId });
             }
-            if(res) {
-                // notify other open dashboards to refresh immediately
-                try { localStorage.setItem('hms_discharge_event', String(Date.now())); } catch (e) {}
-                if (typeof broadcastEvent === 'function') {
-                    broadcastEvent('discharge_completed', { bed_id: bedId });
-                }
-                loadBeds();
-                loadDischarges();
-                loadAdmissionWaiting();
-                loadUrgentCare();
-            }
+            loadBeds();
+            loadDischarges();
+            loadAdmissionWaiting();
+            loadUrgentCare();
         }
     }
 
@@ -1144,13 +1328,28 @@
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        if (Array.isArray(data.recent) && data.recent.length) {
-            data.recent.forEach(r => {
-                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+        const recentRows = Array.isArray(data.recent) ? data.recent : [];
+        const uniqueRows = [];
+        const seen = new Set();
+        recentRows.forEach((r) => {
+            const pid = Number(r.patient_id || 0);
+            const key = pid > 0 ? `id:${pid}` : `name:${String(r.patient_name || '').trim().toLowerCase()}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            uniqueRows.push(r);
+        });
+
+        if (uniqueRows.length) {
+            uniqueRows.forEach(r => {
+                const patientId = Number(r.patient_id || 0);
+                const patientName = r.patient_name || 'Unknown';
+                const patientCell = patientId > 0
+                    ? `<button class="btn btn-link p-0 fw-semibold text-decoration-underline" onclick="openNurseHistory(${patientId})">${patientName}</button>`
+                    : `<span class="fw-semibold">${patientName}</span>`;
                 tbody.innerHTML += `
                     <tr>
-                        <td class="ps-4 small text-muted">${timeStr}</td>
-                        <td class="fw-semibold">${r.patient_name || 'Unknown'}</td>
+                        <td class="ps-4 small text-muted">${patientId > 0 ? patientId : '-'}</td>
+                        <td>${patientCell}</td>
                         <td>${r.temperature ?? '-'}</td>
                         <td>${r.pulse ?? '-'}</td>
                         <td>${r.bp ?? '-'}</td>
@@ -1162,6 +1361,68 @@
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No history found.</td></tr>';
         }
         applyNursePatientSearch();
+    }
+
+    async function openNurseHistory(patientId) {
+        const pid = Number(patientId || 0);
+        if (!Number.isFinite(pid) || pid <= 0) {
+            notify('Patient history is unavailable for this row.', 'warning');
+            return;
+        }
+        const data = await Api.get(`/nurse/history?patient_id=${pid}`);
+        if (!data || !data.patient) return;
+        nursePatientHistorySnapshot = data;
+
+        const patient = data.patient || {};
+        document.getElementById('nurseHistoryPatientName').innerText = patient.full_name || `Patient #${pid}`;
+        document.getElementById('nurseHistoryPatientMeta').innerText =
+            `${patient.gender || '-'} | ${patient.dob || '-'} | National ID: ${patient.national_id || '-'}`;
+
+        const vitalsBody = document.getElementById('nurseHistoryVitalsBody');
+        const visitsBody = document.getElementById('nurseHistoryVisitsBody');
+        const medsBody = document.getElementById('nurseHistoryMedsBody');
+
+        if (vitalsBody) {
+            const vitals = Array.isArray(data.vitals) ? data.vitals : [];
+            vitalsBody.innerHTML = vitals.length
+                ? vitals.map(v => `
+                    <tr>
+                        <td class="small">${v.created_at ? new Date(v.created_at).toLocaleString() : '-'}</td>
+                        <td>${v.temperature ?? '-'}</td>
+                        <td>${v.pulse ?? '-'}</td>
+                        <td>${v.bp ?? '-'}</td>
+                        <td>${v.spo2 ?? '-'}</td>
+                        <td>${renderVitalsRiskBadge(v)}${renderVitalsRiskTriggers(v, { className: 'small text-muted mt-1', prefix: 'Trigger' })}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="6" class="text-center text-muted">No vitals found.</td></tr>';
+        }
+
+        if (visitsBody) {
+            const visits = Array.isArray(data.visits) ? data.visits : [];
+            visitsBody.innerHTML = visits.length
+                ? visits.map(v => `
+                    <tr>
+                        <td class="small">${v.created_at ? new Date(v.created_at).toLocaleString() : '-'}</td>
+                        <td>${v.status || '-'}</td>
+                        <td>${v.doctor_assigned || '-'}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="3" class="text-center text-muted">No visits found.</td></tr>';
+        }
+
+        if (medsBody) {
+            const meds = Array.isArray(data.prescriptions) ? data.prescriptions : [];
+            medsBody.innerHTML = meds.length
+                ? meds.map(m => `
+                    <tr>
+                        <td class="small">${m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
+                        <td>${m.medicine_name || m.notes || 'External'}</td>
+                        <td>${m.quantity ?? '-'}</td>
+                        <td>${m.status || '-'}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="4" class="text-center text-muted">No prescriptions found.</td></tr>';
+        }
+
+        nurseHistoryModal.show();
     }
 
     function printCurrentView() {
@@ -1363,6 +1624,60 @@
         applyNursePatientSearch();
     }
 
+    async function loadInjectionQueue() {
+        const rows = await Api.get('/nurse/injection_queue');
+        const tbody = document.getElementById('injectionTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (rows && rows.length) {
+            rows.forEach(r => {
+                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                const medName = r.medication_name || 'Injection';
+                const dosage = r.dosage || '-';
+                const qty = Number(r.quantity || 1);
+                const queueStatus = String(r.queue_status || '').trim();
+                const queueBadge = queueStatus
+                    ? `<span class="badge bg-light text-dark border">${queueStatus}</span>`
+                    : `<span class="badge bg-light text-muted border">No active queue</span>`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${r.full_name || 'Unknown patient'}</td>
+                        <td>${r.national_id || 'N/A'}</td>
+                        <td>
+                            <div class="fw-semibold">${medName}</div>
+                            <div class="small text-muted mt-1">${queueBadge}</div>
+                        </td>
+                        <td>${dosage}<div class="small text-muted">Qty: ${qty}</div></td>
+                        <td>${timeStr}</td>
+                        <td class="text-end">
+                            <button class="btn btn-outline-success btn-sm" onclick="administerInjection(${Number(r.prescription_id || 0)})">Administer</button>
+                        </td>
+                    </tr>`;
+            });
+        } else if (rows) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No injections waiting for nurse administration.</td></tr>';
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Failed to load injection queue.</td></tr>';
+        }
+        applyNursePatientSearch();
+    }
+
+    async function administerInjection(prescriptionId) {
+        const id = Number(prescriptionId || 0);
+        if (!Number.isFinite(id) || id <= 0) return notify("Invalid prescription ID.");
+        const confirmed = await smartConfirm("Mark this injection as administered by Nurse In Charge?", {
+            title: "Administer Injection",
+            confirmText: "Mark Administered"
+        });
+        if (!confirmed) return;
+        const res = await Api.post('/nurse/administer_injection', { prescription_id: id });
+        if (res) {
+            showNotification(res.message || "Injection administration saved.");
+            loadInjectionQueue();
+            loadAdmissionWaiting();
+        }
+    }
+
     async function loadAdmissionWaiting() {
         const rows = await Api.get('/nurse/admission_waiting_list');
         const tbody = document.getElementById('admissionTable');
@@ -1373,6 +1688,7 @@
             sortedRows.forEach(r => {
                 const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
                 const count = Number(r.pending_prescriptions || 0);
+                const injectionCount = Number(r.pending_injections || 0);
                 const statusText = String(r.status || 'Admission Pending');
                 const statusLower = statusText.toLowerCase();
                 const risk = classifyVitalsRisk(r || {});
@@ -1387,7 +1703,11 @@
                         : '<span class="badge bg-warning-subtle text-warning">Admission Pending</span>';
                 const action = count > 0
                     ? `<button class="btn btn-outline-primary btn-sm" onclick="requestPharmacyMeds(${r.patient_id}, ${r.queue_id})">Request Pharmacy</button>`
-                    : `<span class="text-muted small">No prescriptions</span>`;
+                    : `<span class="text-muted small">No pharmacy meds</span>`;
+                const rxSummary = `
+                    <span class="badge bg-light text-dark border">${count} pharmacy</span>
+                    ${injectionCount > 0 ? `<div class="mt-1"><span class="badge bg-warning-subtle text-warning">${injectionCount} injections (nurse queue)</span></div>` : ''}
+                `;
                 tbody.innerHTML += `
                     <tr class="${rowClass}">
                         <td>${criticalMarker}${r.full_name}</td>
@@ -1397,23 +1717,28 @@
                             <div class="mt-1">${riskBadge}</div>
                             ${riskTriggers}
                         </td>
-                        <td><span class="badge bg-light text-dark border">${count}</span></td>
+                        <td>${rxSummary}</td>
                         <td>${timeStr}</td>
-                        <td class="text-end">${action}</td>
+                        <td class="text-end">${action}${injectionCount > 0 ? '<div class="small text-muted mt-1">Administer injections in Urgent Care tab.</div>' : ''}</td>
                     </tr>`;
             });
         } else if (rows) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No patients awaiting admission.</td></tr>';
         } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No patients awaiting admission yet.</td></tr>';
             if (typeof showBanner === 'function') {
-                showBanner('Failed to load admission waiting list.', { type: 'error' });
+                showBanner('Admission waiting list is empty for now.', { type: 'info', timeoutMs: 7000 });
             }
         }
         applyNursePatientSearch();
     }
 
     async function requestPharmacyMeds(patientId, queueId) {
-        if (!confirm("Request pharmacy to prepare the prescribed meds for this patient?")) return;
+        const confirmed = await smartConfirm("Request pharmacy to prepare the prescribed meds for this patient?", {
+            title: "Send Pharmacy Request",
+            confirmText: "Send Request"
+        });
+        if (!confirmed) return;
         const res = await Api.post('/nurse/pharmacy_request', { patient_id: patientId, queue_id: queueId });
         if (res) {
             showNotification("Pharmacy request sent.");
@@ -1574,6 +1899,7 @@
     document.addEventListener("DOMContentLoaded", () => {
         const user = JSON.parse(localStorage.getItem("hms_user"));
         if(user) document.getElementById('navUserName').innerText = user.full_name;
+        updateNurseSearchContext('wards');
         loadPatientOptions();
         showNurseLoginBanner();
         document.addEventListener('click', (e) => {

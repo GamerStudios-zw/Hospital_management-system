@@ -62,32 +62,54 @@ switch ($action) {
     // 1. GET PENDING PRESCRIPTIONS (Matches loadPending() in dashboard)
     case 'pending':
         if ($method === 'GET') {
-            // Use LEFT JOIN so manual/external medicines still show up
-            $query = "SELECT p.id, p.quantity, p.dosage, p.created_at, p.notes as manual_name,
-                             pat.full_name as patient_name, pat.medical_aid_number,
-                             med.name as med_name, med.stock_quantity,
+            // Keep prescription visibility resilient even when queue transitions change.
+            $query = "SELECT p.id,
+                             p.quantity,
+                             p.dosage,
+                             p.created_at,
+                             COALESCE(NULLIF(TRIM(p.medication_name), ''), p.notes) as manual_name,
+                             pat.full_name as patient_name,
+                             pat.medical_aid_number,
+                             pat.national_id,
+                             COALESCE(med.name, NULLIF(TRIM(p.medication_name), ''), p.notes) as med_name,
+                             med.stock_quantity,
                              q.doctor_assigned,
-                             IFNULL(d.full_name, q.doctor_assigned) as doctor_name,
+                             COALESCE(d.full_name, '') as doctor_name,
                              cs.requires_approval as controlled_requires_approval
                       FROM prescriptions p
                       JOIN patients pat ON p.patient_id = pat.id
                       LEFT JOIN medicines med ON p.medicine_id = med.id
                       LEFT JOIN controlled_substances cs ON cs.medicine_id = p.medicine_id
-                      JOIN patient_queue q ON q.id = (
-                          SELECT q2.id
-                          FROM patient_queue q2
-                          WHERE q2.patient_id = p.patient_id
-                          ORDER BY (q2.doctor_assigned IS NULL) ASC, q2.created_at DESC, q2.id DESC
-                          LIMIT 1
+                      LEFT JOIN patient_queue q ON q.id = COALESCE(
+                          p.queue_id,
+                          (
+                              SELECT q2.id
+                              FROM patient_queue q2
+                              WHERE q2.patient_id = p.patient_id
+                                AND (p.visit_id IS NULL OR q2.visit_id = p.visit_id)
+                              ORDER BY q2.id DESC
+                              LIMIT 1
+                          ),
+                          (
+                              SELECT q3.id
+                              FROM patient_queue q3
+                              WHERE q3.patient_id = p.patient_id
+                              ORDER BY q3.id DESC
+                              LIMIT 1
+                          )
                       )
                       LEFT JOIN users d ON d.id = q.doctor_assigned
-                      WHERE LOWER(p.status) IN ('pending', 'external')
-                      AND LOWER(q.status) IN (
-                          'completed',
-                          'admission pending',
-                          'waiting pharmacy',
-                          'ready for admission'
-                      )
+                      WHERE LOWER(TRIM(p.status)) IN ('pending', 'external')
+                        AND (
+                            q.id IS NULL
+                            OR LOWER(TRIM(q.status)) IN (
+                                'completed',
+                                'admission pending',
+                                'waiting pharmacy',
+                                'ready for admission',
+                                'with doctor'
+                            )
+                        )
                       ORDER BY p.created_at ASC";
 
             $stmt = $db->prepare($query);
@@ -164,19 +186,19 @@ switch ($action) {
                     $updateStock->execute([$presc['quantity'], $presc['medicine_id']]);
                 }
 
-                $updateStatus = $db->prepare("UPDATE prescriptions SET status = 'Dispensed' WHERE id = ?");
+                $updateStatus = $db->prepare("UPDATE prescriptions SET status = 'dispensed' WHERE id = ?");
                 $updateStatus->execute([$data->prescription_id]);
 
                 // If no pending/external prescriptions remain, move admission to "Ready for Admission"
                 if (!empty($presc['patient_id'])) {
-                    $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND LOWER(status) IN ('pending','external')");
+                    $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND LOWER(status) IN ('pending','external','nurse_admin_pending')");
                     $pendingStmt->execute([$presc['patient_id']]);
                     $remaining = (int)$pendingStmt->fetchColumn();
                     if ($remaining === 0) {
                         $db->prepare("UPDATE patient_queue
                                       SET status = 'Ready for Admission'
                                       WHERE patient_id = ?
-                                        AND status IN ('Waiting Pharmacy','waiting pharmacy')")
+                                        AND LOWER(status) = 'waiting pharmacy'")
                            ->execute([$presc['patient_id']]);
                     }
                 }
@@ -225,11 +247,11 @@ switch ($action) {
         if ($method === 'GET') {
             $query = "SELECT p.id, p.quantity, p.dosage, p.created_at,
                              pat.full_name as patient_name,
-                             IFNULL(med.name, p.notes) as med_name
+                             COALESCE(med.name, p.medication_name, p.notes) as med_name
                       FROM prescriptions p
                       JOIN patients pat ON p.patient_id = pat.id
                       LEFT JOIN medicines med ON p.medicine_id = med.id
-                      WHERE p.status = 'Dispensed'
+                      WHERE LOWER(p.status) = 'dispensed'
                       ORDER BY p.created_at DESC
                       LIMIT 100";
 
@@ -339,7 +361,7 @@ switch ($action) {
                 echo json_encode(["message" => "Patient and medicine required"]);
                 exit;
             }
-            $currentStmt = $db->prepare("SELECT COALESCE(m.name, pr.notes) as med
+            $currentStmt = $db->prepare("SELECT COALESCE(m.name, pr.medication_name, pr.notes) as med
                                          FROM prescriptions pr
                                          LEFT JOIN medicines m ON pr.medicine_id = m.id
                                          WHERE pr.patient_id = ?
@@ -442,7 +464,7 @@ switch ($action) {
     case 'controlled_requests':
         if ($method === 'GET') {
             $stmt = $db->query("SELECT r.*, pr.id as prescription_id, pat.full_name as patient_name,
-                                       COALESCE(m.name, pr.notes) as med_name
+                                       COALESCE(m.name, pr.medication_name, pr.notes) as med_name
                                 FROM controlled_requests r
                                 JOIN prescriptions pr ON r.prescription_id = pr.id
                                 JOIN patients pat ON pr.patient_id = pat.id
@@ -683,15 +705,15 @@ switch ($action) {
     case 'claimable':
         if ($method === 'GET') {
             $stmt = $db->query("SELECT p.id, p.patient_id, pat.full_name as patient_name,
-                                       COALESCE(m.name, p.notes) as med_name,
+                                       COALESCE(m.name, p.medication_name, p.notes) as med_name,
                                        p.status, p.created_at
-                                FROM prescriptions p
-                                JOIN patients pat ON p.patient_id = pat.id
-                                LEFT JOIN medicines m ON p.medicine_id = m.id
-                                WHERE p.status IN ('Pending','External','Dispensed')
-                                AND pat.has_medical_aid = 1
-                                ORDER BY p.created_at DESC
-                                LIMIT 100");
+                                 FROM prescriptions p
+                                 JOIN patients pat ON p.patient_id = pat.id
+                                 LEFT JOIN medicines m ON p.medicine_id = m.id
+                                 WHERE LOWER(p.status) IN ('pending','external','dispensed')
+                                 AND pat.has_medical_aid = 1
+                                 ORDER BY p.created_at DESC
+                                 LIMIT 100");
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
         }
         break;
@@ -722,7 +744,7 @@ switch ($action) {
     case 'claim_list':
         if ($method === 'GET') {
             $stmt = $db->query("SELECT c.*, pat.full_name as patient_name,
-                                       COALESCE(m.name, p.notes) as med_name
+                                       COALESCE(m.name, p.medication_name, p.notes) as med_name
                                 FROM insurance_claims c
                                 JOIN prescriptions p ON c.prescription_id = p.id
                                 JOIN patients pat ON c.patient_id = pat.id
