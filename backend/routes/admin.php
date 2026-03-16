@@ -7,10 +7,13 @@ require_once __DIR__ . '/../utils/ActivityLogger.php';
 require_once __DIR__ . '/../utils/DbSchema.php';
 require_once __DIR__ . '/../utils/Realtime.php';
 require_once __DIR__ . '/../utils/UsernameStrategy.php';
+require_once __DIR__ . '/../services/ReminderService.php';
 
 $database = new Database();
 $db = $database->getConnection();
+DbSchema::ensureNurseInChargeRole($db, true);
 DbSchema::ensureUserRole($db, 'it_support');
+DbSchema::ensurePrescriptionWorkflow($db);
 
 // Determine the resource (admin, users, or logs) based on the URL
 // Assuming URL structure: /backend/index.php/{resource}/{action}
@@ -30,7 +33,7 @@ if ($resource === 'admin') {
         // [GET] /admin/stats
         case 'stats':
             try {
-                $doctors = $db->query("SELECT COUNT(*) FROM users WHERE role = 'doctor'")->fetchColumn();
+                $doctors = $db->query("SELECT COUNT(*) FROM users WHERE role IN ('doctor', 'nurse_in_charge')")->fetchColumn();
                 $nurses = $db->query("SELECT COUNT(*) FROM users WHERE role = 'nurse'")->fetchColumn();
                 $receptionists = $db->query("SELECT COUNT(*) FROM users WHERE role = 'receptionist'")->fetchColumn();
                 $patients = $db->query("SELECT COUNT(*) FROM patients")->fetchColumn();
@@ -102,7 +105,7 @@ if ($resource === 'admin') {
                     }
                     $rangeWhere = $rangeFilters ? (" WHERE " . implode(" AND ", $rangeFilters)) : "";
 
-                    $pendingPrescriptionsStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE status IN ('Pending', 'External')" . $rangeWhere);
+                    $pendingPrescriptionsStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE LOWER(status) IN ('pending', 'external')" . $rangeWhere);
                     $pendingPrescriptionsStmt->execute($rangeParams);
                     $pendingPrescriptions = (int)$pendingPrescriptionsStmt->fetchColumn();
 
@@ -160,7 +163,7 @@ if ($resource === 'admin') {
                     }
 
                     $totalStaff = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
-                    $doctors = (int)$db->query("SELECT COUNT(*) FROM users WHERE role = 'doctor'")->fetchColumn();
+                    $doctors = (int)$db->query("SELECT COUNT(*) FROM users WHERE role IN ('doctor', 'nurse_in_charge')")->fetchColumn();
                     $nurses = (int)$db->query("SELECT COUNT(*) FROM users WHERE role = 'nurse'")->fetchColumn();
 
                     $presentStmt = $db->prepare("SELECT COUNT(DISTINCT s.user_id)
@@ -292,14 +295,20 @@ if ($resource === 'admin') {
 
                 $fullName = trim((string)($data->full_name ?? ''));
                 $password = (string)($data->password ?? '');
+                $email = strtolower(trim((string)($data->email ?? '')));
 
-                if ($fullName === '' || empty($data->role) || $password === '') {
+                if ($fullName === '' || empty($data->role) || $password === '' || $email === '') {
                     http_response_code(400);
-                    echo json_encode(["message" => "full_name, role, and password are required."]);
+                    echo json_encode(["message" => "full_name, email, role, and password are required."]);
+                    exit;
+                }
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "A valid email address is required."]);
                     exit;
                 }
                 $role = strtolower(trim((string)$data->role));
-                $allowedRoles = ['admin', 'doctor', 'nurse', 'nurse_aid', 'receptionist', 'pharmacist', 'senior_pharmacist', 'it_support'];
+                $allowedRoles = ['admin', 'doctor', 'nurse_in_charge', 'nurse', 'nurse_aid', 'receptionist', 'pharmacist', 'senior_pharmacist', 'it_support'];
                 if (!in_array($role, $allowedRoles, true)) {
                     http_response_code(400);
                     echo json_encode(["message" => "Invalid role selected."]);
@@ -308,7 +317,6 @@ if ($resource === 'admin') {
 
                 try {
                     $generatedUsername = UsernameStrategy::buildFromFullName($db, $fullName);
-                    $generatedEmail = UsernameStrategy::buildEmailFromFullName($db, $fullName, 'gov');
 
                     $check = $db->prepare("SELECT id FROM users WHERE username = ?");
                     $check->execute([$generatedUsername]);
@@ -322,12 +330,12 @@ if ($resource === 'admin') {
                     }
 
                     $check = $db->prepare("SELECT id FROM users WHERE email = ?");
-                    $check->execute([$generatedEmail]);
+                    $check->execute([$email]);
                     if($check->rowCount() > 0) {
                         http_response_code(409);
                         echo json_encode([
-                            "message" => "Generated email already exists.",
-                            "email" => $generatedEmail
+                            "message" => "Email already exists.",
+                            "email" => $email
                         ]);
                         exit;
                     }
@@ -336,7 +344,7 @@ if ($resource === 'admin') {
                     $sql = "INSERT INTO users (full_name, email, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, 1)";
                     $stmt = $db->prepare($sql);
 
-                    if($stmt->execute([$fullName, $generatedEmail, $generatedUsername, $hash, $role])) {
+                    if($stmt->execute([$fullName, $email, $generatedUsername, $hash, $role])) {
                         $newId = $db->lastInsertId();
                         // Log the action
                         ActivityLogger::log($db, $user->full_name ?? 'Admin', "Created user: " . $generatedUsername, 'Success', null, [
@@ -350,7 +358,7 @@ if ($resource === 'admin') {
                                 'username' => $generatedUsername,
                                 'full_name' => $fullName,
                                 'role' => $role,
-                                'email' => $generatedEmail
+                                'email' => $email
                             ],
                             'safe_fields' => ['username', 'full_name', 'role', 'email']
                         ]);
@@ -358,7 +366,7 @@ if ($resource === 'admin') {
                         echo json_encode([
                             "message" => "User created successfully",
                             "username" => $generatedUsername,
-                            "email" => $generatedEmail
+                            "email" => $email
                         ]);
                     }
                 } catch (Exception $e) {
@@ -416,6 +424,79 @@ if ($resource === 'admin') {
                     }
                     http_response_code(500);
                     echo json_encode(["success" => false, "message" => "Failed to revoke sessions: " . $e->getMessage()]);
+                }
+            }
+            break;
+
+        // [POST] /admin/send_reminders
+        case 'send_reminders':
+            if ($method === 'POST') {
+                $data = RequestValidator::json(false);
+                $dryRun = filter_var($data->dry_run ?? false, FILTER_VALIDATE_BOOLEAN);
+                $force = filter_var($data->force ?? false, FILTER_VALIDATE_BOOLEAN);
+                $includeInternal = filter_var($data->include_internal ?? true, FILTER_VALIDATE_BOOLEAN);
+                $targetUserIds = [];
+                $targetEmails = [];
+                if (isset($data->target_user_ids)) {
+                    if (is_array($data->target_user_ids)) {
+                        $targetUserIds = $data->target_user_ids;
+                    } elseif (is_string($data->target_user_ids)) {
+                        $targetUserIds = explode(',', $data->target_user_ids);
+                    }
+                }
+                if (isset($data->target_emails)) {
+                    if (is_array($data->target_emails)) {
+                        $targetEmails = $data->target_emails;
+                    } elseif (is_string($data->target_emails)) {
+                        $targetEmails = explode(',', $data->target_emails);
+                    }
+                }
+
+                try {
+                    DbSchema::ensureVisitEncounters($db);
+                    DbSchema::ensureDoctorModules($db);
+                    DbSchema::ensureNurseModules($db);
+                    DbSchema::ensurePrescriptionWorkflow($db);
+                    DbSchema::ensureITModules($db);
+
+                    $service = new ReminderService($db);
+                    $result = $service->dispatchPendingTaskReminders([
+                        'dry_run' => $dryRun,
+                        'force' => $force,
+                        'include_internal' => $includeInternal,
+                        'target_user_ids' => $targetUserIds,
+                        'target_emails' => $targetEmails
+                    ]);
+
+                    try {
+                        ActivityLogger::log($db, $user->full_name ?? 'Admin', 'Dispatched reminder emails', 'Success', null, [
+                            'event_type' => 'audit',
+                            'entity_type' => 'reminder_dispatch',
+                            'entity_id' => null,
+                            'actor_id' => isset($user->id) ? (string)$user->id : null,
+                            'actor_role' => $user->role ?? 'admin',
+                            'source' => 'admin/send_reminders',
+                            'new_values' => [
+                                'dry_run' => $dryRun ? 1 : 0,
+                                'force' => $force ? 1 : 0,
+                                'include_internal' => $includeInternal ? 1 : 0,
+                                'target_user_ids' => count($result['target_user_ids'] ?? []),
+                                'target_emails' => count($result['target_emails'] ?? []),
+                                'total_recipients' => (int)($result['total_recipients'] ?? 0),
+                                'sent' => (int)($result['sent'] ?? 0),
+                                'failed' => (int)($result['failed'] ?? 0),
+                                'skipped' => (int)($result['skipped'] ?? 0)
+                            ],
+                            'safe_fields' => ['dry_run', 'force', 'include_internal', 'target_user_ids', 'target_emails', 'total_recipients', 'sent', 'failed', 'skipped']
+                        ]);
+                    } catch (Exception $e) {
+                        // ignore logging errors
+                    }
+
+                    echo json_encode($result);
+                } catch (Exception $e) {
+                    http_response_code(500);
+                    echo json_encode(["message" => "Failed to dispatch reminders: " . $e->getMessage()]);
                 }
             }
             break;

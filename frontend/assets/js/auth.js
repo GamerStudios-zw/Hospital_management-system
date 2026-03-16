@@ -1,5 +1,5 @@
 // Global API Configuration
-const API_BASE_URL = "http://localhost/Hospital_Management_System/backend/index.php";
+const API_BASE_URL = `${window.location.origin}/Hospital_Management_System/backend/index.php`;
 const notify = window.notify || function(message, options = {}) {
     if (window.showBanner) return window.showBanner(message, options);
     if (window.showNotification) return window.showNotification(message, options);
@@ -47,6 +47,7 @@ async function login(event) {
             // 2. Redirect based on Role
             const role = result.data.user.role;
             switch(role) {
+                case 'nurse_in_charge':
                 case 'doctor':
                     window.location.href = "../../pages/doctor/dashboard.html"; // Update path as needed
                     break;

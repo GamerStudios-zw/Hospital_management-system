@@ -91,14 +91,15 @@ switch ($action) {
                       FROM patient_queue q
                       JOIN patients p ON q.patient_id = p.id
                       LEFT JOIN (
-                          SELECT pv1.patient_id, pv1.temperature, pv1.pulse, pv1.bp, pv1.spo2, pv1.created_at
+                          SELECT pv1.queue_id, pv1.temperature, pv1.pulse, pv1.bp, pv1.spo2, pv1.created_at
                           FROM patient_vitals pv1
                           INNER JOIN (
-                              SELECT patient_id, MAX(id) as latest_id
+                              SELECT queue_id, MAX(id) as latest_id
                               FROM patient_vitals
-                              GROUP BY patient_id
+                              WHERE queue_id IS NOT NULL AND queue_id > 0
+                              GROUP BY queue_id
                           ) lv ON lv.latest_id = pv1.id
-                      ) v ON v.patient_id = p.id
+                      ) v ON v.queue_id = q.id
                       WHERE q.status IN ('Waiting', 'waiting', 'Urgent Care', 'urgent care', 'In Triage', 'in triage')
                         AND LOWER(COALESCE(q.queue_origin, '')) = 'nurse_aid_search'
                         AND NOT EXISTS (
@@ -390,7 +391,62 @@ switch ($action) {
     case 'history':
         if ($method === 'GET') {
             try {
-                $recentQuery = "SELECT v.id, v.created_at, v.temperature, v.pulse, v.bp, v.weight, v.spo2,
+                foreach (array_keys($_GET) as $queryKey) {
+                    if (!in_array($queryKey, ['patient_id'], true)) {
+                        http_response_code(400);
+                        echo json_encode(["message" => "Unsupported query parameter: $queryKey."]);
+                        exit;
+                    }
+                }
+
+                $pid = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : 0;
+                if ($pid > 0) {
+                    $patientStmt = $db->prepare("SELECT id, full_name, national_id, dob, gender, phone FROM patients WHERE id = ? LIMIT 1");
+                    $patientStmt->execute([$pid]);
+                    $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                    if (!$patient) {
+                        http_response_code(404);
+                        echo json_encode(["message" => "Patient not found."]);
+                        exit;
+                    }
+
+                    $vitalsStmt = $db->prepare("SELECT * FROM patient_vitals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 100");
+                    $vitalsStmt->execute([$pid]);
+                    $vitals = $vitalsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                    foreach ($vitals as &$v) {
+                        $v = array_merge($v, VitalRisk::classify($v['temperature'] ?? null, $v['pulse'] ?? null, $v['bp'] ?? null, $v['spo2'] ?? null));
+                    }
+                    unset($v);
+
+                    $visitsStmt = $db->prepare("SELECT id, patient_id, status, doctor_assigned, created_at
+                                                FROM patient_queue
+                                                WHERE patient_id = ?
+                                                ORDER BY created_at DESC
+                                                LIMIT 50");
+                    $visitsStmt->execute([$pid]);
+
+                    $rxStmt = $db->prepare("SELECT pr.*, COALESCE(m.name, pr.medication_name) as medicine_name
+                                            FROM prescriptions pr
+                                            LEFT JOIN medicines m ON pr.medicine_id = m.id
+                                            WHERE pr.patient_id = ?
+                                            ORDER BY pr.created_at DESC
+                                            LIMIT 50");
+                    $rxStmt->execute([$pid]);
+
+                    $filesStmt = $db->prepare("SELECT * FROM medical_reports WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50");
+                    $filesStmt->execute([$pid]);
+
+                    echo json_encode([
+                        "patient" => $patient,
+                        "vitals" => $vitals,
+                        "visits" => $visitsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+                        "prescriptions" => $rxStmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+                        "files" => $filesStmt->fetchAll(PDO::FETCH_ASSOC) ?: []
+                    ]);
+                    exit;
+                }
+
+                $recentQuery = "SELECT v.id, v.patient_id, v.created_at, v.temperature, v.pulse, v.bp, v.weight, v.spo2,
                                        p.full_name as patient_name
                                 FROM patient_vitals v
                                 JOIN patients p ON v.patient_id = p.id

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../utils/ActivityLogger.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../services/NotificationService.php';
 // JWT support for issuing tokens
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/jwt.php';
@@ -14,6 +15,7 @@ use Firebase\JWT\Key;
 class AuthController {
     private $db;
     private $user;
+    private $failedLoginAlertEmailFallback = '0774251433aa@gmail.com';
 
     public function __construct() {
         $database = new Database();
@@ -35,6 +37,9 @@ class AuthController {
 
         // 2. Debug: Check if input is received
         if (!$data) {
+            $this->sendFailedLoginAlert('', 'No JSON payload received', 400, [
+                'raw_body_preview' => substr((string)$json, 0, 300)
+            ]);
             http_response_code(400);
             echo json_encode(["message" => "No JSON received", "debug_raw" => $json]);
             return;
@@ -44,6 +49,7 @@ class AuthController {
         $password = trim($data->password ?? '');
 
         if (empty($username) || empty($password)) {
+            $this->sendFailedLoginAlert($username, 'Empty username or password', 400);
             http_response_code(400);
             echo json_encode(["message" => "Empty username or password"]);
             return;
@@ -60,6 +66,7 @@ class AuthController {
 
         // CHECK 1: Did we find the user?
         if (!$row) {
+            $this->sendFailedLoginAlert($username, "User not found", 401);
             try {
                 ActivityLogger::log($this->db, $username ?: 'unknown', 'Login Failed', 'Failed', null, [
                     'event_type' => 'audit',
@@ -101,6 +108,10 @@ class AuthController {
             }
 
             if ($activeCount >= 3) {
+                $this->sendFailedLoginAlert($username, 'Blocked: active sessions limit reached', 409, [
+                    'user_id' => (int)$row['id'],
+                    'active_sessions' => $activeCount
+                ]);
                 try {
                     ActivityLogger::log($this->db, $row['username'], 'Login Blocked (Active Sessions Limit)', 'Failed', null, [
                         'event_type' => 'audit',
@@ -201,6 +212,7 @@ class AuthController {
             }
         } else {
             // FAILURE - PRINT DEBUG INFO
+            $this->sendFailedLoginAlert($username, 'Password mismatch', 401);
             try {
                 ActivityLogger::log($this->db, $username ?: 'unknown', 'Login Failed', 'Failed', null, [
                     'event_type' => 'audit',
@@ -226,6 +238,80 @@ class AuthController {
                 ]
             ]);
         }
+    }
+
+    private function sendFailedLoginAlert($attemptedUsername, $reason, $statusCode = 401, array $extra = []) {
+        try {
+            $recipient = $this->resolveFailedLoginAlertRecipient();
+            if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+                return;
+            }
+
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            $attempt = trim((string)$attemptedUsername);
+            $safeAttempt = htmlspecialchars($attempt !== '' ? $attempt : '[empty]');
+            $safeReason = htmlspecialchars((string)$reason);
+            $safeIp = htmlspecialchars((string)$ip);
+            $safeUa = htmlspecialchars((string)$ua);
+            $safeStatus = (int)$statusCode;
+            $safeTime = htmlspecialchars(date('Y-m-d H:i:s'));
+            $safeHost = htmlspecialchars($_SERVER['HTTP_HOST'] ?? 'unknown');
+
+            $extraHtml = '';
+            foreach ($extra as $k => $v) {
+                $key = htmlspecialchars((string)$k);
+                $val = htmlspecialchars(is_scalar($v) ? (string)$v : json_encode($v));
+                $extraHtml .= "<li><strong>{$key}:</strong> {$val}</li>";
+            }
+            if ($extraHtml !== '') {
+                $extraHtml = "<p><strong>Extra:</strong></p><ul>{$extraHtml}</ul>";
+            }
+
+            $subject = "HMS Security Alert: Failed login attempt";
+            $body = "<div style=\"font-family:Arial,Helvetica,sans-serif;line-height:1.5\">"
+                . "<h3 style=\"margin:0 0 12px\">Failed Login Attempt</h3>"
+                . "<p><strong>Attempted username/email:</strong> {$safeAttempt}</p>"
+                . "<p><strong>Reason:</strong> {$safeReason}</p>"
+                . "<p><strong>Status code:</strong> {$safeStatus}</p>"
+                . "<p><strong>IP:</strong> {$safeIp}</p>"
+                . "<p><strong>User-Agent:</strong> {$safeUa}</p>"
+                . "<p><strong>Host:</strong> {$safeHost}</p>"
+                . "<p><strong>Time:</strong> {$safeTime}</p>"
+                . $extraHtml
+                . "</div>";
+
+            $notifier = new NotificationService();
+            $notifier->sendEmail($recipient, $subject, $body);
+        } catch (Throwable $e) {
+            // Do not block login flow if alerting fails.
+        }
+    }
+
+    private function resolveFailedLoginAlertRecipient(): string {
+        $envEmail = trim((string)(getenv('HMS_LOGIN_ALERT_EMAIL') ?: ''));
+        if ($envEmail !== '' && filter_var($envEmail, FILTER_VALIDATE_EMAIL)) {
+            return strtolower($envEmail);
+        }
+
+        try {
+            if ($this->db) {
+                $stmt = $this->db->prepare("SELECT contact_email FROM system_settings WHERE id = 1 LIMIT 1");
+                $stmt->execute();
+                $settingsEmail = trim((string)$stmt->fetchColumn());
+                if ($settingsEmail !== '' && filter_var($settingsEmail, FILTER_VALIDATE_EMAIL)) {
+                    return strtolower($settingsEmail);
+                }
+            }
+        } catch (Throwable $e) {
+            // ignore settings lookup errors
+        }
+
+        $fallback = trim((string)$this->failedLoginAlertEmailFallback);
+        if ($fallback !== '' && filter_var($fallback, FILTER_VALIDATE_EMAIL)) {
+            return strtolower($fallback);
+        }
+        return '';
     }
 
     public function logout() {

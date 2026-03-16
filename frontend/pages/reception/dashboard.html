@@ -21,6 +21,7 @@
         --rcp-radius: 16px;
         --rcp-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
     }
+    html, body { height: 100%; overflow: hidden; }
     body {
         font-family: var(--app-font);
         color: var(--rcp-text);
@@ -29,6 +30,8 @@
             radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
             var(--rcp-bg);
     }
+    .container-fluid { height: 100vh; }
+    .container-fluid > .row { height: 100vh; }
     .sidebar {
         min-height: 100vh;
         color: #f8fafc;
@@ -62,10 +65,18 @@
         background: transparent !important;
         padding: 24px;
         height: 100vh;
-        overflow-y: auto;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
     .section { display:none; animation: fadeIn 0.22s ease; }
-    .section.active { display:block; }
+    .section.active {
+        display:block;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
     .card {
@@ -255,6 +266,7 @@
             <li><a class="nav-link" onclick="showSection('directory')"><i class="bi bi-people me-2"></i> Patient Directory</a></li>
             <li><a class="nav-link" onclick="showSection('register')"><i class="bi bi-person-plus me-2"></i> Register New</a></li>
             <li><a class="nav-link" onclick="showSection('appointments')"><i class="bi bi-calendar-check me-2"></i> Appointments</a></li>
+            <li><a class="nav-link" onclick="showSection('visits')"><i class="bi bi-clock-history me-2"></i> Visits Log</a></li>
             <li><a class="nav-link" onclick="showSection('summary')"><i class="bi bi-clipboard-data me-2"></i> Daily Summary</a></li>
             <li><a class="nav-link" onclick="showSection('handover')"><i class="bi bi-arrow-left-right me-2"></i> Shift Handover</a></li>
             <li><a class="nav-link" onclick="showSection('shifts')"><i class="bi bi-calendar-event me-2"></i> My Shifts</a></li>
@@ -291,7 +303,7 @@
                 </div>
                 <div class="col-md-4">
                     <div class="card p-4 border-0 shadow-sm text-center">
-                        <h6 class="text-muted">Doctors Active</h6>
+                        <h6 class="text-muted">Nurse In Charge Active</h6>
                         <h2 class="fw-bold text-success">3</h2>
                     </div>
                 </div>
@@ -352,7 +364,7 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light"><tr><th class="ps-4">Name</th><th>National ID</th><th>Phone</th><th>Action</th></tr></thead>
+                            <thead class="bg-light"><tr><th class="ps-4">Name</th><th>Primary ID</th><th>Phone</th><th>Action</th></tr></thead>
                             <tbody id="directoryTable"></tbody>
                         </table>
                     </div>
@@ -367,14 +379,27 @@
                         <h4 class="mb-4 fw-bold">Register New Patient</h4>
                         <form id="registrationForm" class="register-form-scroll" onsubmit="event.preventDefault(); registerPatient();">
                             <div class="row g-3">
-                                <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" placeholder="Al Ali" minlength="3" maxlength="150" required></div>
+                                <div class="col-md-6"><label class="form-label small fw-bold">Full Name</label><input id="regName" class="form-control" placeholder="Al Ali" minlength="3" maxlength="150" pattern="[A-Za-z]+(?:[ '\-][A-Za-z]+)*(?:\s+[A-Za-z]+(?:[ '\-][A-Za-z]+)*)+" required></div>
                                 <div class="col-md-3"><label class="form-label small fw-bold">Patient Number (System Generated)</label><input id="regPatientNumber" class="form-control" placeholder="Auto-generated on save" readonly></div>
-                                <div class="col-md-3"><label class="form-label small fw-bold">National ID</label><input id="regId" class="form-control" placeholder="00-000000-A-00" pattern="\\d{2}-\\d{6,8}-[A-Za-z]-\\d{2}" maxlength="16" required></div>
-                                <div class="col-md-3"><label class="form-label small fw-bold">Date of Birth</label><input id="regDob" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" maxlength="10" required></div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Visit Type</label>
+                                    <select id="regVisitType" class="form-select" onchange="syncVisitTypeAssignment()">
+                                        <option value="general" selected>General Consultation</option>
+                                        <option value="counselling_only">Counselling Only</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 d-none" id="regCounsellingDoctorGroup">
+                                    <label class="form-label small fw-bold">Assign Nurse In Charge</label>
+                                    <select id="regCounsellingDoctor" class="form-select">
+                                        <option value="">Select Nurse In Charge...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">National ID (Optional)</label><input id="regId" class="form-control" placeholder="Optional: 00-000000-A-00" pattern="\d{2}-\d{6,8}-[A-Za-z]-\d{2}" maxlength="16"></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Date of Birth</label><input id="regDob" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" maxlength="10" required></div>
 
-                                <div class="col-md-3"><label class="form-label small fw-bold">Gender</label><select id="regGender" class="form-select"><option value="male">Male</option><option value="female">Female</option></select></div>
-                                <div class="col-md-3"><label class="form-label small fw-bold">Phone (+263...)</label><input id="regPhone" class="form-control" placeholder="+263700000000" pattern="\\+263\\d{9}" maxlength="13" required></div>
-                                <div class="col-md-6"><label class="form-label small fw-bold">Address</label><input id="regAddress" class="form-control" minlength="3" maxlength="255" required></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Gender</label><select id="regGender" class="form-select" required><option value="male">Male</option><option value="female">Female</option></select></div>
+                                <div class="col-md-3"><label class="form-label small fw-bold">Phone (+263...)</label><input id="regPhone" class="form-control" placeholder="+263700000000" pattern="\+263\d{9}" maxlength="13" required></div>
+                                <div class="col-md-6"><label class="form-label small fw-bold">Address</label><input id="regAddress" class="form-control" minlength="3" maxlength="255" pattern="[A-Za-z0-9#.,'()/ -]{3,255}" required></div>
 
                                 <div class="col-12 mt-3">
                                     <div class="p-3 rounded border bg-light">
@@ -386,7 +411,7 @@
                                         <div id="aidFields" class="row g-3">
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold">Medical Aid Provider</label>
-                                                <select id="aidProvider" class="form-select">
+                                                <select id="aidProvider" class="form-select" required>
                                                     <option value="">Select provider</option>
                                                     <option value="Cimas Health Group">Cimas Health Group</option>
                                                     <option value="CellMed Health Fund">CellMed Health Fund</option>
@@ -403,18 +428,18 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-6"><label class="form-label small fw-bold">Member Name</label><input id="aidMemberName" class="form-control" maxlength="150" readonly></div>
-                                            <div class="col-md-4"><label class="form-label small fw-bold">Member Number</label><input id="aidNumber" class="form-control" placeholder="Member Number" maxlength="60"></div>
-                                            <div class="col-md-4"><label class="form-label small fw-bold">Suffix</label><input id="aidSuffix" class="form-control" maxlength="30"></div>
+                                            <div class="col-md-4"><label class="form-label small fw-bold">Member Number</label><input id="aidNumber" class="form-control" placeholder="Member Number" maxlength="60" pattern="[A-Za-z0-9/-]{2,60}" required></div>
+                                            <div class="col-md-4"><label class="form-label small fw-bold">Suffix</label><input id="aidSuffix" class="form-control" maxlength="30" pattern="[A-Za-z0-9/-]{1,30}"></div>
                                             <div class="col-md-4">
                                                 <label class="form-label small fw-bold">Plan / Cover Type</label>
-                                                <select id="aidPlan" class="form-select">
+                                                <select id="aidPlan" class="form-select" required>
                                                     <option value="">Select cover type</option>
                                                     <option value="Basic / Essential Medical Aid Cover">Basic / Essential Medical Aid Cover</option>
                                                     <option value="Standard Medical Aid Cover">Standard Medical Aid Cover</option>
                                                     <option value="Premium / Comprehensive Medical Aid Cover">Premium / Comprehensive Medical Aid Cover</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-12"><label class="form-label small fw-bold">Date Joined</label><input id="aidDateJoined" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" maxlength="10"></div>
+                                            <div class="col-md-12"><label class="form-label small fw-bold">Date Joined</label><input id="aidDateJoined" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" maxlength="10"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -429,7 +454,7 @@
                                         <div id="identityFields" class="row g-3">
                                             <div class="col-md-4">
                                                 <label class="form-label small fw-bold">Registration Type</label>
-                                                <select id="registrationType" class="form-select" onchange="syncRegistrationTypeRules()">
+                                                <select id="registrationType" class="form-select" onchange="syncRegistrationTypeRules()" required>
                                                     <option value="">Select type</option>
                                                     <option value="Student">Student</option>
                                                     <option value="Staff">Staff</option>
@@ -438,9 +463,9 @@
                                             </div>
                                             <div id="identityCaptureHint" class="col-12 small text-muted">Select registration type to capture identity details.</div>
                                             <div id="identityCaptureFields" class="col-12 row g-3 d-none">
-                                                <div class="col-md-8"><label class="form-label small fw-bold">Issuer / Institution</label><input id="identityIssuer" class="form-control" value="Bindura University of Science Education" placeholder="Bindura University of Science Education" maxlength="150"></div>
-                                                <div class="col-md-4"><label id="identityCardNumberLabel" class="form-label small fw-bold">Card Number</label><input id="identityCardNumber" class="form-control" placeholder="B227140A" maxlength="80" oninput="syncStudentNumberFromCard()"></div>
-                                                <div id="identityEcNumberGroup" class="col-md-4"><label id="identityEcNumberLabel" class="form-label small fw-bold">Recognition Number</label><input id="identityEcNumber" class="form-control" placeholder="Required based on ID Type" maxlength="30" pattern="[A-Za-z0-9/\\-]{3,30}"></div>
+                                                <div class="col-md-8"><label class="form-label small fw-bold">Issuer / Institution</label><input id="identityIssuer" class="form-control" value="Bindura University of Science Education" placeholder="Bindura University of Science Education" maxlength="150" pattern="[A-Za-z0-9&(),./ -]{2,150}" required></div>
+                                                <div class="col-md-4"><label id="identityCardNumberLabel" class="form-label small fw-bold">Card Number</label><input id="identityCardNumber" class="form-control" placeholder="B227140A" maxlength="80" oninput="syncStudentNumberFromCard()" required></div>
+                                                <div id="identityEcNumberGroup" class="col-md-4"><label id="identityEcNumberLabel" class="form-label small fw-bold">Recognition Number</label><input id="identityEcNumber" class="form-control" placeholder="Required based on ID Type" maxlength="30" pattern="[A-Za-z0-9/-]{3,30}"></div>
                                                 <div id="identityFacultyGroup" class="col-md-4">
                                                     <label class="form-label small fw-bold">Faculty</label>
                                                     <select id="identityFaculty" class="form-select">
@@ -454,7 +479,7 @@
                                                 </div>
                                                 <div id="identityDepartmentGroup" class="col-md-4 d-none">
                                                     <label class="form-label small fw-bold">Department</label>
-                                                    <input id="identityDepartment" class="form-control" placeholder="e.g., Accounts Department" maxlength="120">
+                                                    <input id="identityDepartment" class="form-control" placeholder="e.g., Accounts Department" maxlength="120" pattern="[A-Za-z0-9&(),./ -]{2,120}">
                                                 </div>
                                                 <div id="identityProgrammeGroup" class="col-md-4">
                                                     <label class="form-label small fw-bold">Programme</label>
@@ -484,11 +509,11 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label small fw-bold">Status</label>
-                                                    <select id="identityStatus" class="form-select" disabled>
+                                                    <select id="identityStatus" class="form-select" disabled required>
                                                         <option value="">Select registration type first</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-3"><label class="form-label small fw-bold">Expiry Date</label><input id="identityExpiryDate" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" maxlength="10"></div>
+                                                <div class="col-md-3"><label class="form-label small fw-bold">Expiry Date</label><input id="identityExpiryDate" type="text" class="form-control" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" maxlength="10"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -496,9 +521,9 @@
 
                                 <hr class="my-4">
                                 <h6 class="fw-bold text-primary">Emergency / Next of Kin</h6>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Full Name</label><input id="kinName" class="form-control" placeholder="Al Ali" minlength="3" maxlength="150" required></div>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Relationship</label><input id="kinRelation" class="form-control" minlength="2" maxlength="80" required></div>
-                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Phone</label><input id="kinPhone" class="form-control" placeholder="+263..." pattern="\\+263\\d{9}" maxlength="13" required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Full Name</label><input id="kinName" class="form-control" placeholder="Al Ali" minlength="3" maxlength="150" pattern="[A-Za-z]+(?:[ '\-][A-Za-z]+)*(?:\s+[A-Za-z]+(?:[ '\-][A-Za-z]+)*)+" required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Relationship</label><input id="kinRelation" class="form-control" minlength="2" maxlength="80" pattern="[A-Za-z][A-Za-z /&-]{1,79}" required></div>
+                                <div class="col-md-4"><label class="form-label small fw-bold">Kin Phone</label><input id="kinPhone" class="form-control" placeholder="+263..." pattern="\+263\d{9}" maxlength="13" required></div>
 
                                 <hr class="my-4">
                                 <div class="col-md-12"><label class="form-label small fw-bold text-danger">Allergies & Medical Notes</label><textarea id="regAllergies" class="form-control" rows="2" placeholder="List allergies or type 'None'" maxlength="1000" required></textarea></div>
@@ -524,10 +549,10 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">Patient</label>
-                        <select id="apptPatient" class="form-select"></select>
+                        <select id="apptPatient" class="form-select" required></select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Doctor (optional)</label>
+                        <label class="form-label small fw-bold">Nurse In Charge (optional)</label>
                         <select id="apptDoctor" class="form-select"></select>
                     </div>
                     <div class="col-md-4">
@@ -536,7 +561,7 @@
                     </div>
                     <div class="col-md-8">
                         <label class="form-label small fw-bold">Reason</label>
-                        <input type="text" id="apptReason" class="form-control" placeholder="Consultation / Follow-up" maxlength="1000">
+                        <input type="text" id="apptReason" class="form-control" placeholder="Consultation / Follow-up" minlength="3" maxlength="1000" pattern="[A-Za-z0-9 .,;:()'!?/&%#-]{3,1000}">
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
                         <button class="btn btn-primary w-100" onclick="createAppointment()">Create</button>
@@ -550,12 +575,36 @@
                             <tr>
                                 <th>Date</th>
                                 <th>Patient</th>
-                                <th>Doctor</th>
+                                                <th>Nurse In Charge</th>
                                 <th>Status</th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="appointmentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="visits" class="section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold">Hospital Visits</h4>
+                <button class="btn btn-outline-dark btn-sm" onclick="loadVisits()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive p-3">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Patient</th>
+                                <th>Primary ID</th>
+                                <th>Nurse In Charge</th>
+                                <th>Status</th>
+                                <th>Chief Complaint</th>
+                            </tr>
+                        </thead>
+                        <tbody id="visitsTable"></tbody>
                     </table>
                 </div>
             </div>
@@ -601,7 +650,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">Notes</label>
-                        <input type="text" id="handoverNotes" class="form-control" placeholder="Pending issues, cash, files..." maxlength="2000">
+                        <input type="text" id="handoverNotes" class="form-control" placeholder="Pending issues, cash, files..." minlength="3" maxlength="2000" pattern="[A-Za-z0-9 .,;:()'!?/&%#-]{3,2000}" required>
                     </div>
                     <div class="col-12 text-end">
                         <button class="btn btn-primary" onclick="createHandover()">Save Handover</button>
@@ -688,7 +737,7 @@
                                             <tr>
                                                 <th>Date</th>
                                                 <th>Status</th>
-                                                <th>Doctor</th>
+                                <th>Nurse In Charge</th>
                                             </tr>
                                         </thead>
                                         <tbody id="historyVisitsBody"></tbody>
@@ -743,6 +792,7 @@
     let historySnapshot = null;
     let cachedPatients = [];
     let cachedDoctors = [];
+    const receptionSoftNoticeShown = Object.create(null);
     const DEFAULT_IDENTITY_ISSUER = 'Bindura University of Science Education';
     const ALLOWED_MEDICAL_AID_PROVIDERS = [
         'Cimas Health Group',
@@ -763,6 +813,12 @@
         'Standard Medical Aid Cover',
         'Premium / Comprehensive Medical Aid Cover'
     ];
+    const STUDENT_STATUSES = ['Block Release', 'Conventional'];
+    const STAFF_STATUSES = ['Fulltime', 'Parttime'];
+    const LEVEL_OPTIONS = ['1', '2', '3', '4', '5', '6', '7'];
+    const SEMESTER_OPTIONS = ['1', '2'];
+    const ALLOWED_UPLOAD_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'];
+    const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
     const UNIVERSITY_FACULTIES = [
         'Faculty of Science Education',
         'Faculty of Science and Engineering',
@@ -812,12 +868,29 @@
             'Bachelor of History and Heritage Studies'
         ]
     };
+    function showReceptionSoftNotice(key, message) {
+        if (receptionSoftNoticeShown[key]) return;
+        receptionSoftNoticeShown[key] = true;
+        if (typeof showBanner === 'function') {
+            showBanner(message, { type: 'info', timeoutMs: 7000 });
+        }
+    }
+
+    function formatPrimaryIdentifier(row) {
+        const primary = String(row?.primary_identifier || '').trim();
+        const fallback = String(row?.national_id || '').trim();
+        const identityType = String(row?.identity_type || '').trim();
+        const value = primary || fallback || '-';
+        if (value === '-') return value;
+        return identityType ? `${value} (${identityType})` : value;
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
         loadDashboardStats();
         loadDoctors();
         loadDirectory();
         loadAppointments();
+        loadVisits();
         loadSummary();
         loadHandover();
         window.addEventListener('hms:realtime', handleReceptionRealtime);
@@ -826,10 +899,13 @@
         enforceMedicalAidAlwaysOn();
         enforceIdentityAlwaysOn();
         enforceIdentityIssuerDefault();
+        syncVisitTypeAssignment();
         syncAidMemberNameFromFullName();
         document.getElementById('regName')?.addEventListener('input', syncAidMemberNameFromFullName);
         document.getElementById('identityFaculty')?.addEventListener('change', refreshProgrammeOptionsForFaculty);
         ['regDob', 'aidDateJoined', 'identityExpiryDate'].forEach(bindBritishDateInputMask);
+        configureReceptionInputConstraints();
+        bindRealtimeValidationHandlers();
     });
 
     function handleReceptionRealtime(evt) {
@@ -857,6 +933,17 @@
                 showBanner(`Nurse Aid requested triage for ${patientName}, but patient is currently ${status}.`, { type: 'warning', timeoutMs: 10000 });
             }
         }
+        if (eventName === 'reception.counselling_assigned') {
+            const patientName = payload.patient_name || (payload.patient_id ? `Patient #${payload.patient_id}` : 'a patient');
+            if (typeof showBanner === 'function') {
+                showBanner(`Counselling-only visit assigned for ${patientName}.`, { type: 'info', timeoutMs: 5000 });
+            }
+            loadDashboardStats();
+            loadVisits();
+        }
+        if (eventName.startsWith('reception.') && document.getElementById('visits')?.classList.contains('active')) {
+            loadVisits();
+        }
     }
 
     // --- NAVIGATION & UI ---
@@ -873,6 +960,7 @@
         if(id === 'directory') loadDirectory();
         if(id === 'dashboard') loadDashboardStats();
         if(id === 'appointments') loadAppointments();
+        if(id === 'visits') loadVisits();
         if(id === 'summary') loadSummary();
         if(id === 'handover') loadHandover();
         if(id === 'shifts') loadMyShifts();
@@ -935,6 +1023,22 @@
         const memberName = document.getElementById('aidMemberName');
         if (!memberName) return;
         memberName.value = fullName;
+    }
+
+    function syncVisitTypeAssignment() {
+        const visitTypeField = document.getElementById('regVisitType');
+        const assignGroup = document.getElementById('regCounsellingDoctorGroup');
+        const assignField = document.getElementById('regCounsellingDoctor');
+        const visitType = String(visitTypeField?.value || 'general').trim().toLowerCase();
+        const isCounselling = visitType === 'counselling_only';
+        if (assignGroup) assignGroup.classList.toggle('d-none', !isCounselling);
+        if (assignField) {
+            assignField.required = isCounselling;
+            if (!isCounselling) {
+                assignField.value = '';
+                clearInputError(assignField);
+            }
+        }
     }
 
     function enforceIdentityIssuerDefault() {
@@ -1084,8 +1188,12 @@
             facultyField.required = true;
             departmentField.required = false;
             departmentField.value = '';
+            clearInputError(departmentField);
+            programmeField.required = true;
+            levelField.required = true;
+            semesterField.required = true;
             refreshProgrammeOptionsForFaculty();
-            setStatusOptions(['Block Release', 'Conventional'], 'Select student status', true);
+            setStatusOptions(STUDENT_STATUSES, 'Select student status', true);
             showStudentAcademicFields(true);
             return;
         }
@@ -1109,12 +1217,19 @@
             departmentGroup.classList.remove('d-none');
             facultyField.required = false;
             facultyField.value = '';
+            clearInputError(facultyField);
             departmentField.required = true;
+            programmeField.required = false;
+            levelField.required = false;
+            semesterField.required = false;
             programmeField.value = '';
+            clearInputError(programmeField);
+            clearInputError(levelField);
+            clearInputError(semesterField);
             const programmeList = document.getElementById('identityProgrammeList');
             if (programmeList) programmeList.innerHTML = '';
             programmeField.placeholder = 'Select faculty first';
-            setStatusOptions(['Fulltime', 'Parttime'], 'Select staff status', true);
+            setStatusOptions(STAFF_STATUSES, 'Select staff status', true);
             showStudentAcademicFields(false);
             return;
         }
@@ -1138,6 +1253,9 @@
         departmentGroup.classList.add('d-none');
         facultyField.required = false;
         departmentField.required = false;
+        programmeField.required = false;
+        levelField.required = false;
+        semesterField.required = false;
         facultyField.value = '';
         departmentField.value = '';
         programmeField.value = '';
@@ -1145,21 +1263,80 @@
         if (programmeList) programmeList.innerHTML = '';
         programmeField.placeholder = 'Select faculty first';
         setStatusOptions([], 'Select registration type first', false);
+        [cardField, ecField, facultyField, departmentField, programmeField, levelField, semesterField, statusField, expiryField].forEach(clearInputError);
         showStudentAcademicFields(true);
     }
 
     // --- VALIDATION HELPERS ---
-    const validateZimID = (id) => /^\d{2}-\d{6,8}-[A-Za-z]-\d{2}$/.test(id);
-    const validatePhone = (phone) => /^\+263\d{9}$/.test(phone);
-    const validateFullName = (name) => /^[A-Za-z]+(?:\s+[A-Za-z]+)+$/.test((name || '').trim());
-    const validateEcNumber = (ec) => /^[A-Za-z0-9\/\-]{3,30}$/.test((ec || '').trim());
-    const validateStaffEcNumber = (ec) => /^\d{4}$/.test((ec || '').trim());
-    const validateCardNumber = (value) => /^[A-Za-z0-9\/\-]{2,80}$/.test((value || '').trim());
+    const normalizeSpaces = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+    const getTodayIsoDate = () => new Date().toISOString().slice(0, 10);
+    const formatDateTimeLocal = (date) => {
+        const d = date instanceof Date ? date : new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hour = String(d.getHours()).padStart(2, '0');
+        const minute = String(d.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+    };
+    const validateZimID = (id) => /^\d{2}-\d{6,8}-[A-Za-z]-\d{2}$/.test(normalizeSpaces(id));
+    const validatePhone = (phone) => /^\+263\d{9}$/.test(normalizeSpaces(phone));
+    const validateFullName = (name) => /^[A-Za-z]+(?:[ '\-][A-Za-z]+)*(?:\s+[A-Za-z]+(?:[ '\-][A-Za-z]+)*)+$/.test(normalizeSpaces(name));
+    const validateEcNumber = (ec) => /^[A-Za-z0-9\/\-]{3,30}$/.test(normalizeSpaces(ec));
+    const validateStaffEcNumber = (ec) => /^\d{4}$/.test(normalizeSpaces(ec));
+    const validateCardNumber = (value) => /^[A-Za-z0-9\/\-]{2,80}$/.test(normalizeSpaces(value));
+    const validateAddress = (value) => /^[A-Za-z0-9#.,'()/\-\s]{3,255}$/.test(normalizeSpaces(value));
+    const validateRelation = (value) => /^[A-Za-z][A-Za-z\s\-\/&]{1,79}$/.test(normalizeSpaces(value));
+    const validateIssuer = (value) => /^[A-Za-z0-9&(),./\-\s]{2,150}$/.test(normalizeSpaces(value));
+    const validateDepartment = (value) => /^[A-Za-z0-9&(),./\-\s]{2,120}$/.test(normalizeSpaces(value));
+    const validateAidMemberNumber = (value) => /^[A-Za-z0-9\/\-]{2,60}$/.test(normalizeSpaces(value));
+    const validateAidSuffix = (value) => /^[A-Za-z0-9\/\-]{1,30}$/.test(normalizeSpaces(value));
+    const validateGeneralText = (value, min = 1, max = 2000) => {
+        const normalized = normalizeSpaces(value);
+        if (!validateTextLen(normalized, min, max)) return false;
+        return /^[A-Za-z0-9\s.,;:()'"!?/\-&%#]+$/.test(normalized);
+    };
+    const validateReportName = (value) => {
+        const normalized = normalizeSpaces(value);
+        return validateTextLen(normalized, 3, 255) && /^[A-Za-z0-9\s.,()\-\/&]+$/.test(normalized);
+    };
+    const validateDateTimeLocal = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return false;
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) return false;
+        const dt = new Date(raw);
+        return !Number.isNaN(dt.getTime());
+    };
+    const isKnownPatientId = (id) => cachedPatients.some((p) => Number(p.id) === Number(id));
+    const isKnownDoctorId = (id) => cachedDoctors.some((d) => Number(d.id) === Number(id));
+    const clearInputError = (field) => {
+        if (!field) return;
+        field.classList.remove('is-invalid');
+        field.setCustomValidity('');
+    };
+    const setInputError = (field, message) => {
+        if (!field) return;
+        field.classList.add('is-invalid');
+        field.setCustomValidity(message || 'Invalid value');
+    };
+    const failValidation = (field, message) => {
+        if (field) {
+            setInputError(field, message);
+            field.reportValidity();
+            field.focus();
+        }
+        notify(message);
+        return false;
+    };
+    const clearValidationState = (container) => {
+        if (!container) return;
+        container.querySelectorAll('input, select, textarea').forEach(clearInputError);
+    };
     const validateTextLen = (value, min, max) => {
-        const len = (value || '').trim().length;
+        const len = normalizeSpaces(value).length;
         return len >= min && len <= max;
     };
-    const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test((value || '').trim());
+    const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
     const formatBritishDateInput = (value) => {
         const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
         if (!digits) return '';
@@ -1193,22 +1370,124 @@
         const applyMask = () => {
             input.value = formatBritishDateInput(input.value);
             input.classList.remove('is-invalid');
+            input.setCustomValidity('');
         };
         input.addEventListener('input', applyMask);
         input.addEventListener('blur', () => {
             const raw = (input.value || '').trim();
             if (!raw) {
                 input.classList.remove('is-invalid');
+                input.setCustomValidity('');
                 return;
             }
             if (!parseBritishDateToISO(raw)) {
                 input.classList.add('is-invalid');
+                input.setCustomValidity('Invalid date.');
                 return;
             }
             input.value = formatBritishDateInput(raw);
             input.classList.remove('is-invalid');
+            input.setCustomValidity('');
         });
     };
+    function configureReceptionInputConstraints() {
+        const summaryDate = document.getElementById('summaryDate');
+        if (summaryDate) {
+            summaryDate.min = '2000-01-01';
+            summaryDate.max = getTodayIsoDate();
+        }
+        const apptDate = document.getElementById('apptDate');
+        if (apptDate) {
+            apptDate.min = formatDateTimeLocal(new Date());
+            apptDate.step = '60';
+            apptDate.addEventListener('focus', () => {
+                apptDate.min = formatDateTimeLocal(new Date());
+            });
+        }
+        const handoverStart = document.getElementById('handoverStart');
+        const handoverEnd = document.getElementById('handoverEnd');
+        if (handoverStart) {
+            handoverStart.step = '60';
+        }
+        if (handoverEnd) {
+            handoverEnd.step = '60';
+        }
+    }
+    function bindFieldValidation(inputId, validator, events = ['input', 'blur']) {
+        const field = document.getElementById(inputId);
+        if (!field) return;
+        const check = () => {
+            const message = validator(field.value);
+            if (message) {
+                setInputError(field, message);
+            } else {
+                clearInputError(field);
+            }
+        };
+        events.forEach((evtName) => field.addEventListener(evtName, check));
+    }
+    function bindRealtimeValidationHandlers() {
+        bindFieldValidation('regName', (value) => validateFullName(value) ? '' : 'Full Name must include first and surname.');
+        bindFieldValidation('regId', (value) => {
+            const normalized = normalizeSpaces(value || '');
+            if (!normalized) return '';
+            return validateZimID(normalized) ? '' : 'National ID format must be 00-000000-A-00.';
+        });
+        bindFieldValidation('regPhone', (value) => validatePhone(value) ? '' : 'Phone must be +263 followed by 9 digits.');
+        bindFieldValidation('regAddress', (value) => validateAddress(value) ? '' : 'Address contains unsupported characters.');
+        bindFieldValidation('kinName', (value) => validateFullName(value) ? '' : 'Kin Full Name must include first and surname.');
+        bindFieldValidation('kinRelation', (value) => validateRelation(value) ? '' : 'Kin Relationship format is invalid.');
+        bindFieldValidation('kinPhone', (value) => validatePhone(value) ? '' : 'Kin Phone must be +263 followed by 9 digits.');
+        bindFieldValidation('aidNumber', (value) => validateAidMemberNumber(value) ? '' : 'Member Number format is invalid.');
+        bindFieldValidation('aidSuffix', (value) => {
+            const normalized = normalizeSpaces(value);
+            if (!normalized) return '';
+            return validateAidSuffix(normalized) ? '' : 'Suffix format is invalid.';
+        });
+        bindFieldValidation('identityIssuer', (value) => validateIssuer(value) ? '' : 'Issuer / Institution format is invalid.');
+        bindFieldValidation('identityDepartment', (value) => {
+            const normalized = normalizeSpaces(value);
+            if (!normalized) return '';
+            return validateDepartment(normalized) ? '' : 'Department format is invalid.';
+        });
+        bindFieldValidation('apptReason', (value) => {
+            const normalized = normalizeSpaces(value);
+            if (!normalized) return '';
+            if (!validateTextLen(normalized, 3, 1000)) return 'Reason must be between 3 and 1000 characters.';
+            return validateGeneralText(normalized, 3, 1000) ? '' : 'Reason contains unsupported characters.';
+        }, ['input', 'blur', 'change']);
+        bindFieldValidation('handoverNotes', (value) => {
+            if (!validateTextLen(value, 3, 2000)) return 'Handover notes must be 3 to 2000 characters.';
+            return validateGeneralText(value, 3, 2000) ? '' : 'Handover notes contain unsupported characters.';
+        }, ['input', 'blur', 'change']);
+        document.getElementById('registrationType')?.addEventListener('change', () => {
+            const typeField = document.getElementById('registrationType');
+            const typeValue = normalizeSpaces(typeField?.value);
+            if (!typeValue) {
+                setInputError(typeField, 'Registration Type is required.');
+                return;
+            }
+            clearInputError(typeField);
+        });
+        document.getElementById('identityCardNumber')?.addEventListener('input', () => {
+            const cardField = document.getElementById('identityCardNumber');
+            const identityType = normalizeSpaces(document.getElementById('identityType')?.value);
+            const cardValue = normalizeSpaces(cardField?.value);
+            if (!cardField || !identityType) {
+                clearInputError(cardField);
+                return;
+            }
+            if (identityType === 'Student ID' && !validateCardNumber(cardValue)) {
+                setInputError(cardField, 'Student Number / Card Number format is invalid.');
+                return;
+            }
+            if (identityType === 'Staff ID' && !validateStaffEcNumber(cardValue)) {
+                setInputError(cardField, 'EC Number must be exactly 4 digits.');
+                return;
+            }
+            clearInputError(cardField);
+        });
+    }
     const normalizeStatusKey = (status) => String(status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
     const isReceptionAppointmentLocked = (status) => {
         const key = normalizeStatusKey(status);
@@ -1234,7 +1513,7 @@
                 results.forEach(p => {
                     const item = document.createElement('div');
                     item.className = 'search-item d-flex justify-content-between align-items-center';
-                    item.innerHTML = `<div><strong>${p.full_name}</strong><br><small class="text-muted">${p.national_id}</small></div>`;
+                    item.innerHTML = `<div><strong>${p.full_name}</strong><br><small class="text-muted">${formatPrimaryIdentifier(p)}</small></div>`;
 
                     if(p.is_active > 0) {
                         item.innerHTML += `<span class="badge bg-success">In Queue</span>`;
@@ -1257,12 +1536,14 @@
         populatePatientSelects();
         cachedPatients.forEach(p => {
             const historyBtn = `<button class="btn btn-sm btn-outline-secondary" onclick='openHistory(${JSON.stringify(p)})'><i class="bi bi-clock-history me-1"></i>History</button>`;
+            const nameBtn = `<button class="btn btn-link p-0 fw-medium text-decoration-underline" onclick='openHistory(${JSON.stringify(p)})'>${p.full_name}</button>`;
             let actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-secondary py-2 px-3"><i class="bi bi-clock-history me-1"></i> No Active Queue</span></div>`;
             if(p.is_active > 0) actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> In Queue</span></div>`;
+            const identifier = formatPrimaryIdentifier(p);
 
             tbody.innerHTML += `<tr>
-                <td class="ps-4 fw-medium">${p.full_name}</td>
-                <td class="small">${p.national_id}</td>
+                <td class="ps-4">${nameBtn}</td>
+                <td class="small">${identifier}</td>
                 <td>${p.phone}</td>
                 <td>${actionBtn}</td>
             </tr>`;
@@ -1287,7 +1568,7 @@
                         <td>${v.pulse ?? '-'}</td>
                         <td>${v.bp ?? '-'}</td>
                         <td>${v.spo2 ?? '-'}</td>
-                        <td>${renderVitalsRiskBadge(v)}</td>
+                        <td>${renderVitalsRiskBadge(v)}${renderVitalsRiskTriggers(v, { className: 'small text-muted mt-1', prefix: 'Trigger' })}</td>
                     </tr>`).join('');
             } else {
                 vitalsBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No vitals found.</td></tr>';
@@ -1364,7 +1645,7 @@
                 <div class="meta">
                     <div><strong>${patient.full_name || 'Unknown Patient'}</strong></div>
                     <div>${patient.gender || '-'} | ${patient.dob || '-'}</div>
-                    <div>National ID: ${patient.national_id || '-'}</div>
+                    <div>Primary ID: ${formatPrimaryIdentifier(patient)}</div>
                 </div>
 
                 <h2>Vitals</h2>
@@ -1375,7 +1656,7 @@
 
                 <h2>Visits</h2>
                 <table>
-                    <thead><tr><th>Date</th><th>Status</th><th>Doctor</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Status</th><th>Nurse In Charge</th></tr></thead>
                     <tbody>${visitRows}</tbody>
                 </table>
 
@@ -1421,53 +1702,148 @@
         } else if (data) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No appointments found.</td></tr>';
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load appointments.', { type: 'error' });
-            }
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No appointments scheduled yet.</td></tr>';
+            showReceptionSoftNotice('appointments_load', 'No appointments available yet.');
         }
     }
 
     async function createAppointment() {
-        const patientId = document.getElementById('apptPatient').value;
-        const doctorIdRaw = document.getElementById('apptDoctor').value;
+        const patientField = document.getElementById('apptPatient');
+        const doctorField = document.getElementById('apptDoctor');
+        const dateField = document.getElementById('apptDate');
+        const reasonField = document.getElementById('apptReason');
+        [patientField, doctorField, dateField, reasonField].forEach(clearInputError);
+
+        const patientId = Number(patientField?.value || 0);
+        const doctorIdRaw = normalizeSpaces(doctorField?.value || '');
         const doctorId = doctorIdRaw ? Number(doctorIdRaw) : null;
-        const scheduledAt = document.getElementById('apptDate').value;
-        const reason = document.getElementById('apptReason').value.trim();
-        if (!patientId || !scheduledAt) return notify("Select patient and date/time.");
-        if (!Number.isInteger(Number(patientId)) || Number(patientId) <= 0) return notify("Selected patient is invalid.");
-        if (doctorIdRaw && (!Number.isInteger(doctorId) || doctorId <= 0)) return notify("Selected doctor is invalid.");
+        const scheduledAt = String(dateField?.value || '').trim();
+        const reason = normalizeSpaces(reasonField?.value || '');
+
+        if (!patientField || !dateField || !reasonField) {
+            notify("Appointment form is not available.");
+            return;
+        }
+        if (!Number.isInteger(patientId) || patientId <= 0) {
+            return failValidation(patientField, "Select a valid patient.");
+        }
+        if (!isKnownPatientId(patientId)) {
+            return failValidation(patientField, "Selected patient is not in the active directory list.");
+        }
+        if (doctorIdRaw && (!Number.isInteger(doctorId) || doctorId <= 0)) {
+            return failValidation(doctorField, "Selected Nurse In Charge is invalid.");
+        }
+        if (doctorIdRaw && !isKnownDoctorId(doctorId)) {
+            return failValidation(doctorField, "Selected Nurse In Charge is not available.");
+        }
+        if (!validateDateTimeLocal(scheduledAt)) {
+            return failValidation(dateField, "Appointment date/time is invalid.");
+        }
         const scheduledDate = new Date(scheduledAt);
-        if (Number.isNaN(scheduledDate.getTime())) return notify("Appointment date/time is invalid.");
-        if (scheduledDate < new Date()) return notify("Appointment date/time cannot be in the past.");
-        if (reason && reason.length < 3) return notify("Reason must be at least 3 characters when provided.");
-        if (reason.length > 1000) return notify("Reason is too long.");
+        const now = new Date();
+        if (scheduledDate < now) {
+            return failValidation(dateField, "Appointment date/time cannot be in the past.");
+        }
+        const maxFuture = new Date();
+        maxFuture.setFullYear(maxFuture.getFullYear() + 1);
+        if (scheduledDate > maxFuture) {
+            return failValidation(dateField, "Appointment date/time cannot be more than 12 months ahead.");
+        }
+        if (reason && !validateTextLen(reason, 3, 1000)) {
+            return failValidation(reasonField, "Reason must be between 3 and 1000 characters.");
+        }
+        if (reason && !validateGeneralText(reason, 3, 1000)) {
+            return failValidation(reasonField, "Reason contains unsupported characters.");
+        }
         const data = { patient_id: patientId, doctor_id: doctorId, scheduled_at: scheduledAt, reason };
         if (await Api.post('/reception/create_appointment', data)) {
             notify("Appointment created.");
+            if (dateField) {
+                dateField.value = '';
+                clearInputError(dateField);
+            }
+            if (reasonField) {
+                reasonField.value = '';
+                clearInputError(reasonField);
+            }
             loadAppointments();
         }
     }
 
+    function formatVisitStatusBadge(statusRaw) {
+        const statusKey = String(statusRaw || '').trim().toLowerCase();
+        const map = {
+            waiting: { cls: 'warning', label: 'waiting' },
+            triaged: { cls: 'info', label: 'triaged' },
+            in_consultation: { cls: 'primary', label: 'in_consultation' },
+            pharmacy: { cls: 'secondary', label: 'pharmacy' },
+            completed: { cls: 'success', label: 'completed' },
+            cancelled: { cls: 'danger', label: 'cancelled' }
+        };
+        const meta = map[statusKey] || { cls: 'dark', label: statusKey || 'unknown' };
+        return `<span class="badge bg-${meta.cls}-subtle text-${meta.cls}">${meta.label.replace(/_/g, ' ')}</span>`;
+    }
+
+    async function loadVisits() {
+        const tbody = document.getElementById('visitsTable');
+        if (!tbody) return;
+        const data = await Api.get('/reception/visits?limit=500');
+        tbody.innerHTML = '';
+        if (Array.isArray(data) && data.length) {
+            data.forEach(v => {
+                const timestamp = v.created_at ? new Date(v.created_at).toLocaleString() : '-';
+                const patient = v.full_name || '-';
+                const primaryId = formatPrimaryIdentifier(v);
+                const doctor = v.doctor_name || '-';
+                const statusBadge = formatVisitStatusBadge(v.status);
+                const complaint = v.chief_complaint || '-';
+                tbody.innerHTML += `<tr>
+                    <td>${timestamp}</td>
+                    <td>${patient}</td>
+                    <td>${primaryId}</td>
+                    <td>${doctor}</td>
+                    <td>${statusBadge}</td>
+                    <td>${complaint}</td>
+                </tr>`;
+            });
+        } else if (Array.isArray(data)) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No visit encounters found.</td></tr>';
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No visit encounters available yet.</td></tr>';
+            showReceptionSoftNotice('visits_load', 'No visit encounters available yet.');
+        }
+    }
+
     async function updateAppointment(id, status) {
-        if (!Number.isInteger(Number(id)) || Number(id) <= 0) return notify("Appointment ID is invalid.");
-        if (!['confirmed', 'cancelled', 'scheduled', 'checked_in', 'completed'].includes(String(status || '').trim())) {
+        const appointmentId = Number(id);
+        const normalizedStatus = String(status || '').trim();
+        if (!Number.isInteger(appointmentId) || appointmentId <= 0) return notify("Appointment ID is invalid.");
+        if (!['confirmed', 'cancelled'].includes(normalizedStatus)) {
             return notify("Appointment status is invalid.");
         }
-        if (await Api.post('/reception/appointment_update', { appointment_id: id, status })) {
+        if (await Api.post('/reception/appointment_update', { appointment_id: appointmentId, status: normalizedStatus })) {
             loadAppointments();
         }
     }
 
     async function checkinAppointment(id, patientId, doctorId) {
-        if (!Number.isInteger(Number(id)) || Number(id) <= 0) return notify("Appointment ID is invalid.");
-        if (!Number.isInteger(Number(patientId)) || Number(patientId) <= 0) return notify("Patient ID is invalid.");
-        if (doctorId !== null && doctorId !== undefined && (!Number.isInteger(Number(doctorId)) || Number(doctorId) <= 0)) {
-            return notify("Doctor assignment is invalid.");
+        const appointmentId = Number(id);
+        const pid = Number(patientId);
+        const did = doctorId === null || doctorId === undefined || doctorId === '' ? null : Number(doctorId);
+        if (!Number.isInteger(appointmentId) || appointmentId <= 0) return notify("Appointment ID is invalid.");
+        if (!Number.isInteger(pid) || pid <= 0) return notify("Patient ID is invalid.");
+        if (!isKnownPatientId(pid)) return notify("Patient is not available in the current directory list.");
+        if (did !== null && (!Number.isInteger(did) || did <= 0)) {
+            return notify("Nurse In Charge assignment is invalid.");
         }
-        const res = await Api.post('/reception/checkin', { appointment_id: id, queue_patient_id: patientId, doctor_assigned: doctorId || null });
+        if (did !== null && !isKnownDoctorId(did)) {
+            return notify("Nurse In Charge assignment is not available.");
+        }
+        const res = await Api.post('/reception/checkin', { appointment_id: appointmentId, queue_patient_id: pid, doctor_assigned: did });
         if (res) {
             notify("Checked in and added to queue.");
             loadAppointments();
+            loadVisits();
         }
     }
 
@@ -1489,8 +1865,11 @@
                         </div>`;
                 tbody.innerHTML += `<tr>
                     <td>${q.full_name}</td>
-                    <td>${q.doctor_assigned || '-'}</td>
-                    <td><span class="badge bg-warning-subtle text-warning">${q.status}</span></td>
+                    <td>${q.doctor_name || q.doctor_assigned || '-'}</td>
+                    <td>
+                        <span class="badge bg-warning-subtle text-warning">${q.status}</span>
+                        ${String(q.visit_type || '').toLowerCase() === 'counselling_only' ? '<span class="badge bg-info-subtle text-info border ms-1">Counselling</span>' : ''}
+                    </td>
                     <td>${q.created_at ? new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
                     <td class="text-end">${actionHtml}</td>
                 </tr>`;
@@ -1498,50 +1877,121 @@
         } else if (data) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No active queue.</td></tr>';
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load queue list.', { type: 'error' });
-            }
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No active queue yet.</td></tr>';
+            showReceptionSoftNotice('queue_list', 'Queue list is empty for now.');
         }
     }
 
     async function queueAction(queueId, action) {
+        const numericQueueId = Number(queueId);
+        if (!Number.isInteger(numericQueueId) || numericQueueId <= 0) {
+            notify("Queue ID is invalid.");
+            return;
+        }
+        if (!['cancel', 'no_show', 'reassign', 'move_top'].includes(String(action || '').trim())) {
+            notify("Queue action is invalid.");
+            return;
+        }
         let doctorAssigned = null;
         if (action === 'reassign') {
-            doctorAssigned = prompt("Enter doctor name to reassign:");
-            if (!doctorAssigned) return;
+            const raw = await smartPrompt("Enter Nurse In Charge ID to reassign:", {
+                title: "Reassign Nurse In Charge",
+                placeholder: "Nurse In Charge ID",
+                confirmText: "Reassign",
+                required: true,
+                requiredMessage: "Nurse In Charge ID is required."
+            });
+            if (raw === null) return;
+            doctorAssigned = Number(String(raw).trim());
+            if (!Number.isInteger(doctorAssigned) || doctorAssigned <= 0) {
+                notify("Nurse In Charge ID must be a valid positive number.");
+                return;
+            }
+            if (!isKnownDoctorId(doctorAssigned)) {
+                notify("Nurse In Charge ID not found in available staff.");
+                return;
+            }
         }
-        const res = await Api.post('/reception/queue_update', { queue_id: queueId, action, doctor_assigned: doctorAssigned });
-        if (res) loadQueueList();
+        const res = await Api.post('/reception/queue_update', { queue_id: numericQueueId, action, doctor_assigned: doctorAssigned });
+        if (res) {
+            loadQueueList();
+            loadVisits();
+        }
     }
 
     async function createReferral() {
-        const patientId = document.getElementById('refPatient').value;
-        const title = document.getElementById('refTitle').value;
-        if (!patientId || !title) return notify("Select patient and title.");
+        const patientField = document.getElementById('refPatient');
+        const titleField = document.getElementById('refTitle');
+        if (!patientField || !titleField) {
+            notify("Referral form is not available on this dashboard.");
+            return;
+        }
+        clearInputError(patientField);
+        clearInputError(titleField);
+        const patientId = Number(patientField.value || 0);
+        const title = normalizeSpaces(titleField.value || '');
+        titleField.value = title;
+        if (!Number.isInteger(patientId) || patientId <= 0) return failValidation(patientField, "Select a valid patient.");
+        if (!isKnownPatientId(patientId)) return failValidation(patientField, "Selected patient was not found in the current directory.");
+        if (!validateReportName(title)) return failValidation(titleField, "Referral title must be 3-255 valid characters.");
         const res = await Api.post('/reception/create_referral', { patient_id: patientId, report_name: title });
         if (res) notify("Referral logged.");
     }
 
     async function createConsent() {
-        const patientId = document.getElementById('consentPatient').value;
-        const title = document.getElementById('consentTitle').value;
-        if (!patientId || !title) return notify("Select patient and title.");
+        const patientField = document.getElementById('consentPatient');
+        const titleField = document.getElementById('consentTitle');
+        if (!patientField || !titleField) {
+            notify("Consent form is not available on this dashboard.");
+            return;
+        }
+        clearInputError(patientField);
+        clearInputError(titleField);
+        const patientId = Number(patientField.value || 0);
+        const title = normalizeSpaces(titleField.value || '');
+        titleField.value = title;
+        if (!Number.isInteger(patientId) || patientId <= 0) return failValidation(patientField, "Select a valid patient.");
+        if (!isKnownPatientId(patientId)) return failValidation(patientField, "Selected patient was not found in the current directory.");
+        if (!validateReportName(title)) return failValidation(titleField, "Consent title must be 3-255 valid characters.");
         const res = await Api.post('/reception/create_consent', { patient_id: patientId, report_name: title });
         if (res) notify("Consent saved.");
     }
 
     async function uploadDocument() {
-        const patientId = document.getElementById('docPatient').value;
-        const name = document.getElementById('docName').value;
-        const file = document.getElementById('docFile').files[0];
-        if (!patientId || !name || !file) return notify("Select patient, name, and file.");
+        const patientField = document.getElementById('docPatient');
+        const nameField = document.getElementById('docName');
+        const fileField = document.getElementById('docFile');
+        if (!patientField || !nameField || !fileField) {
+            notify("Document upload form is not available on this dashboard.");
+            return;
+        }
+        [patientField, nameField, fileField].forEach(clearInputError);
+        const patientId = Number(patientField.value || 0);
+        const name = normalizeSpaces(nameField.value || '');
+        const file = fileField.files && fileField.files[0] ? fileField.files[0] : null;
+        nameField.value = name;
+        if (!Number.isInteger(patientId) || patientId <= 0) return failValidation(patientField, "Select a valid patient.");
+        if (!isKnownPatientId(patientId)) return failValidation(patientField, "Selected patient was not found in the current directory.");
+        if (!validateReportName(name)) return failValidation(nameField, "Document name must be 3-255 valid characters.");
+        if (!file) return failValidation(fileField, "Please choose a file to upload.");
+        if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+            return failValidation(fileField, "File size must be between 1 byte and 10MB.");
+        }
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (!ALLOWED_UPLOAD_EXTENSIONS.includes(ext)) {
+            return failValidation(fileField, "Unsupported file type.");
+        }
         const formData = new FormData();
-        formData.append('patient_id', patientId);
+        formData.append('patient_id', String(patientId));
         formData.append('report_name', name);
         formData.append('report_file', file);
         const response = await fetch(`${CONFIG.BASE_URL}/reception/upload_document`, { method: "POST", headers: { "Authorization": `Bearer ${Api.getToken()}` }, body: formData });
-        if (response.ok) notify("Document uploaded.");
-        else notify("Upload failed.");
+        if (response.ok) {
+            notify("Document uploaded.");
+            nameField.value = '';
+            fileField.value = '';
+            [nameField, fileField].forEach(clearInputError);
+        } else notify("Upload failed.");
     }
 
     async function loadSummary() {
@@ -1554,12 +2004,17 @@
             notify("Summary date cannot be in the future.");
             return;
         }
+        if (date && date < '2000-01-01') {
+            notify("Summary date cannot be earlier than 2000-01-01.");
+            return;
+        }
         const params = date ? `?date=${date}` : '';
         const data = await Api.get('/reception/summary' + params);
         if (!data) {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load summary.', { type: 'error' });
-            }
+            showReceptionSoftNotice('summary_load', 'Daily summary is not available yet.');
+            document.getElementById('summaryRegistered').innerText = '--';
+            document.getElementById('summaryAdmitted').innerText = '--';
+            document.getElementById('summaryCancelled').innerText = '--';
             return;
         }
         document.getElementById('summaryRegistered').innerText = data.registered ?? '--';
@@ -1569,15 +2024,29 @@
 
     async function createHandover() {
         const user = JSON.parse(localStorage.getItem("hms_user") || '{}');
-        const notes = document.getElementById('handoverNotes').value.trim();
-        if (!notes) return notify("Enter handover notes.");
-        if (notes.length < 3 || notes.length > 2000) return notify("Handover notes must be 3-2000 characters.");
-        const shiftStart = document.getElementById('handoverStart').value;
-        const shiftEnd = document.getElementById('handoverEnd').value;
+        const notesField = document.getElementById('handoverNotes');
+        const shiftStartField = document.getElementById('handoverStart');
+        const shiftEndField = document.getElementById('handoverEnd');
+        [notesField, shiftStartField, shiftEndField].forEach(clearInputError);
+        const notes = normalizeSpaces(notesField?.value || '');
+        if (notesField) notesField.value = notes;
+        if (!notesField || !shiftStartField || !shiftEndField) {
+            notify("Handover form is not available.");
+            return;
+        }
+        if (!notes) return failValidation(notesField, "Enter handover notes.");
+        if (!validateGeneralText(notes, 3, 2000)) return failValidation(notesField, "Handover notes must be 3-2000 valid characters.");
+        const shiftStart = String(shiftStartField.value || '').trim();
+        const shiftEnd = String(shiftEndField.value || '').trim();
         if (!user.id) return notify("Invalid user session. Please log in again.");
-        if (shiftStart && Number.isNaN(new Date(shiftStart).getTime())) return notify("Shift Start is invalid.");
-        if (shiftEnd && Number.isNaN(new Date(shiftEnd).getTime())) return notify("Shift End is invalid.");
-        if (shiftStart && shiftEnd && new Date(shiftEnd) < new Date(shiftStart)) return notify("Shift End cannot be before Shift Start.");
+        if (shiftStart && !validateDateTimeLocal(shiftStart)) return failValidation(shiftStartField, "Shift Start is invalid.");
+        if (shiftEnd && !validateDateTimeLocal(shiftEnd)) return failValidation(shiftEndField, "Shift End is invalid.");
+        if (shiftStart && shiftEnd && new Date(shiftEnd) < new Date(shiftStart)) return failValidation(shiftEndField, "Shift End cannot be before Shift Start.");
+        if (shiftStart && shiftEnd) {
+            const millis = new Date(shiftEnd).getTime() - new Date(shiftStart).getTime();
+            const maxShiftMillis = 36 * 60 * 60 * 1000;
+            if (millis > maxShiftMillis) return failValidation(shiftEndField, "Shift duration cannot exceed 36 hours.");
+        }
         const data = {
             user_id: user.id,
             shift_start: shiftStart,
@@ -1615,93 +2084,160 @@
             form.reportValidity();
             return;
         }
-        const patientNumberVal = document.getElementById('regPatientNumber').value.trim();
-        const idVal = document.getElementById('regId').value.trim();
-        const phoneVal = document.getElementById('regPhone').value.trim();
-        const dobInput = document.getElementById('regDob').value.trim();
+        clearValidationState(form);
+
+        const regNameField = document.getElementById('regName');
+        const regIdField = document.getElementById('regId');
+        const regDobField = document.getElementById('regDob');
+        const regGenderField = document.getElementById('regGender');
+        const regPhoneField = document.getElementById('regPhone');
+        const regAddressField = document.getElementById('regAddress');
+        const visitTypeField = document.getElementById('regVisitType');
+        const counsellingDoctorField = document.getElementById('regCounsellingDoctor');
+        const aidProviderField = document.getElementById('aidProvider');
+        const aidMemberNameField = document.getElementById('aidMemberName');
+        const aidNumberField = document.getElementById('aidNumber');
+        const aidSuffixField = document.getElementById('aidSuffix');
+        const aidPlanField = document.getElementById('aidPlan');
+        const aidDateJoinedField = document.getElementById('aidDateJoined');
+        const registrationTypeField = document.getElementById('registrationType');
+        const identityIssuerField = document.getElementById('identityIssuer');
+        const identityCardField = document.getElementById('identityCardNumber');
+        const identityEcField = document.getElementById('identityEcNumber');
+        const identityFacultyField = document.getElementById('identityFaculty');
+        const identityDepartmentField = document.getElementById('identityDepartment');
+        const identityProgrammeField = document.getElementById('identityProgramme');
+        const identityLevelField = document.getElementById('identityLevel');
+        const identitySemesterField = document.getElementById('identitySemester');
+        const identityStatusField = document.getElementById('identityStatus');
+        const identityExpiryField = document.getElementById('identityExpiryDate');
+        const kinNameField = document.getElementById('kinName');
+        const kinRelationField = document.getElementById('kinRelation');
+        const kinPhoneField = document.getElementById('kinPhone');
+        const allergiesField = document.getElementById('regAllergies');
+
+        const patientNumberVal = normalizeSpaces(document.getElementById('regPatientNumber')?.value || '');
+        const nameVal = normalizeSpaces(regNameField?.value || '');
+        const idVal = normalizeSpaces(regIdField?.value || '');
+        const phoneVal = normalizeSpaces(regPhoneField?.value || '');
+        const addressVal = normalizeSpaces(regAddressField?.value || '');
+        const visitTypeVal = normalizeSpaces(visitTypeField?.value || 'general').toLowerCase();
+        const counsellingDoctorRaw = normalizeSpaces(counsellingDoctorField?.value || '');
+        const counsellingDoctorId = counsellingDoctorRaw ? Number(counsellingDoctorRaw) : null;
+        const dobInput = String(regDobField?.value || '').trim();
         const dobIso = parseBritishDateToISO(dobInput);
         const dobVal = dobIso ? new Date(`${dobIso}T00:00:00`) : null;
         const hasAid = true;
         const hasIdentity = true;
-        const nameVal = document.getElementById('regName').value.trim();
-        const kinNameVal = document.getElementById('kinName').value.trim();
-        const aidProviderVal = document.getElementById('aidProvider').value.trim();
-        const aidMemberNumberVal = document.getElementById('aidNumber').value.trim();
-        const registrationTypeVal = document.getElementById('registrationType').value.trim();
+        const kinNameVal = normalizeSpaces(kinNameField?.value || '');
+        const aidProviderVal = normalizeSpaces(aidProviderField?.value || '');
+        const aidMemberNumberVal = normalizeSpaces(aidNumberField?.value || '');
+        const registrationTypeVal = normalizeSpaces(registrationTypeField?.value || '');
         const identityTypeVal = registrationTypeVal === 'Student' ? 'Student ID' : registrationTypeVal === 'Staff' ? 'Staff ID' : '';
-        const identityIssuerVal = document.getElementById('identityIssuer').value.trim();
-        const identityCardNumberVal = document.getElementById('identityCardNumber').value.trim();
-        const identityEcNumberRawVal = document.getElementById('identityEcNumber').value.trim();
+        const identityIssuerVal = normalizeSpaces(identityIssuerField?.value || '');
+        const identityCardNumberVal = normalizeSpaces(identityCardField?.value || '');
+        const identityEcNumberRawVal = normalizeSpaces(identityEcField?.value || '');
         const identityEcNumberVal = (identityTypeVal === 'Student ID' || identityTypeVal === 'Staff ID') ? identityCardNumberVal : identityEcNumberRawVal;
-        const identityFacultyVal = document.getElementById('identityFaculty').value.trim();
-        const identityDepartmentVal = document.getElementById('identityDepartment').value.trim();
-        const identityProgrammeVal = document.getElementById('identityProgramme').value.trim();
-        const identityLevelVal = document.getElementById('identityLevel').value.trim();
-        const identitySemesterVal = document.getElementById('identitySemester').value.trim();
-        const identityStatusVal = document.getElementById('identityStatus').value.trim();
-        const addressVal = document.getElementById('regAddress').value.trim();
-        const kinRelationVal = document.getElementById('kinRelation').value.trim();
-        const kinPhoneVal = document.getElementById('kinPhone').value.trim();
-        const allergiesVal = document.getElementById('regAllergies').value.trim();
-        const aidDateJoinedInput = document.getElementById('aidDateJoined').value.trim();
+        const identityFacultyVal = normalizeSpaces(identityFacultyField?.value || '');
+        const identityDepartmentVal = normalizeSpaces(identityDepartmentField?.value || '');
+        const identityProgrammeVal = normalizeSpaces(identityProgrammeField?.value || '');
+        const identityLevelVal = normalizeSpaces(identityLevelField?.value || '');
+        const identitySemesterVal = normalizeSpaces(identitySemesterField?.value || '');
+        const identityStatusVal = normalizeSpaces(identityStatusField?.value || '');
+        const kinRelationVal = normalizeSpaces(kinRelationField?.value || '');
+        const kinPhoneVal = normalizeSpaces(kinPhoneField?.value || '');
+        const allergiesVal = normalizeSpaces(allergiesField?.value || '');
+        const aidDateJoinedInput = String(aidDateJoinedField?.value || '').trim();
         const aidDateJoinedIso = aidDateJoinedInput ? parseBritishDateToISO(aidDateJoinedInput) : '';
-        const identityExpiryInput = document.getElementById('identityExpiryDate').value.trim();
+        const identityExpiryInput = String(identityExpiryField?.value || '').trim();
         const identityExpiryIso = identityExpiryInput ? parseBritishDateToISO(identityExpiryInput) : '';
         const aidMemberNameVal = nameVal;
-        const aidSuffixVal = document.getElementById('aidSuffix').value.trim();
-        const aidPlanVal = document.getElementById('aidPlan').value.trim();
-        document.getElementById('aidMemberName').value = aidMemberNameVal;
+        const aidSuffixVal = normalizeSpaces(aidSuffixField?.value || '');
+        const aidPlanVal = normalizeSpaces(aidPlanField?.value || '');
 
-        if(!validateFullName(nameVal)) return notify("Full Name must include first and surname (e.g., Al Ali).");
-        if(!validateTextLen(nameVal, 3, 150)) return notify("Full Name length is invalid.");
-        if(!validateFullName(kinNameVal)) return notify("Kin Full Name must include first and surname (e.g., Al Ali).");
-        if(!validateTextLen(kinNameVal, 3, 150)) return notify("Kin Full Name length is invalid.");
-        if(!validateZimID(idVal)) return notify("National ID must be in format: 00-000000-X-00 to 00-00000000-X-00 (middle digits: 6 to 8).");
-        if(!validatePhone(phoneVal)) return notify("Phone must be: +263xxxxxxxxx");
-        if(!validateTextLen(addressVal, 3, 255)) return notify("Address is required.");
-        if(!validateTextLen(kinRelationVal, 2, 80)) return notify("Kin Relationship is required.");
-        if(!validatePhone(kinPhoneVal)) return notify("Kin Phone must be: +263xxxxxxxxx");
-        if(!validateTextLen(allergiesVal, 1, 1000)) return notify("Allergies & Medical Notes is required.");
-        if(!dobInput || !dobIso || !dobVal || Number.isNaN(dobVal.getTime())) return notify("Date of Birth is required in format: dd/mm/yyyy.");
-        if(dobVal > new Date()) return notify("Date of Birth cannot be in the future");
-        if(hasAid && !aidProviderVal) return notify("Medical Aid Provider is required when Medical Aid Coverage is enabled.");
-        if(hasAid && !ALLOWED_MEDICAL_AID_PROVIDERS.includes(aidProviderVal)) return notify("Select a valid Medical Aid Provider.");
-        if(hasAid && !aidMemberNumberVal) return notify("Member Number is required when Medical Aid Coverage is enabled.");
-        if(hasAid && !aidPlanVal) return notify("Plan / Cover Type is required when Medical Aid Coverage is enabled.");
-        if(hasAid && !ALLOWED_MEDICAL_AID_PLANS.includes(aidPlanVal)) return notify("Select a valid Plan / Cover Type.");
-        if(hasAid && !validateTextLen(aidProviderVal, 2, 120)) return notify("Medical Aid Provider length is invalid.");
-        if(hasAid && !validateTextLen(aidMemberNumberVal, 2, 60)) return notify("Member Number length is invalid.");
-        if(hasAid && !validateTextLen(aidMemberNameVal, 3, 150)) return notify("Member Name is required and must match Full Name.");
-        if(hasAid && aidSuffixVal && !validateTextLen(aidSuffixVal, 1, 30)) return notify("Suffix length is invalid.");
-        if(hasAid && aidPlanVal && !validateTextLen(aidPlanVal, 2, 120)) return notify("Plan / Cover Type length is invalid.");
-        if(hasAid && aidDateJoinedInput && !aidDateJoinedIso) return notify("Date Joined must be in format: dd/mm/yyyy.");
-        if(hasIdentity && !registrationTypeVal) return notify("Registration Type is required when Identity / Student / Staff Card is enabled.");
-        if(hasIdentity && !['Student', 'Staff'].includes(registrationTypeVal)) return notify("Registration Type must be Student or Staff.");
-        if(hasIdentity && !identityTypeVal) return notify("Derived ID Type is invalid. Re-select Registration Type.");
-        if(hasIdentity && !validateTextLen(identityIssuerVal, 2, 150)) return notify("Issuer / Institution is required when Identity / Student / Staff Card is enabled.");
-        if(hasIdentity && identityTypeVal === 'Student ID' && !validateCardNumber(identityCardNumberVal)) return notify("Student Number / Card Number format is invalid.");
-        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateStaffEcNumber(identityCardNumberVal)) return notify("EC Number must be exactly 4 digits.");
-        if(hasIdentity && identityTypeVal === 'Student ID' && !identityFacultyVal) return notify("Faculty is required for Student ID.");
-        if(hasIdentity && identityTypeVal === 'Student ID' && !UNIVERSITY_FACULTIES.includes(identityFacultyVal)) return notify("Select a valid Faculty.");
-        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateTextLen(identityDepartmentVal, 2, 120)) return notify("Department is required for Staff ID.");
-        if(hasIdentity && identityTypeVal === 'Student ID' && identityProgrammeVal) {
-            const facultyProgrammes = FACULTY_PROGRAMMES[identityFacultyVal] || [];
-            if (facultyProgrammes.length && !facultyProgrammes.includes(identityProgrammeVal)) {
-                return notify("Select a valid Programme for the selected Faculty.");
+        if (regNameField) regNameField.value = nameVal;
+        if (regIdField) regIdField.value = idVal;
+        if (regPhoneField) regPhoneField.value = phoneVal;
+        if (regAddressField) regAddressField.value = addressVal;
+        if (kinNameField) kinNameField.value = kinNameVal;
+        if (kinRelationField) kinRelationField.value = kinRelationVal;
+        if (kinPhoneField) kinPhoneField.value = kinPhoneVal;
+        if (allergiesField) allergiesField.value = allergiesVal;
+        if (aidNumberField) aidNumberField.value = aidMemberNumberVal;
+        if (aidSuffixField) aidSuffixField.value = aidSuffixVal;
+        if (identityIssuerField) identityIssuerField.value = identityIssuerVal;
+        if (identityCardField) identityCardField.value = identityCardNumberVal;
+        if (identityEcField) identityEcField.value = identityEcNumberVal;
+        if (identityDepartmentField) identityDepartmentField.value = identityDepartmentVal;
+        if (identityProgrammeField) identityProgrammeField.value = identityProgrammeVal;
+        if (aidMemberNameField) aidMemberNameField.value = aidMemberNameVal;
+
+        if(!validateFullName(nameVal)) return failValidation(regNameField, "Full Name must include first and surname (e.g., Al Ali).");
+        if(!validateTextLen(nameVal, 3, 150)) return failValidation(regNameField, "Full Name length is invalid.");
+        if(idVal && !validateZimID(idVal)) return failValidation(regIdField, "National ID must be in format: 00-000000-X-00 to 00-00000000-X-00 (middle digits: 6 to 8).");
+        if(!dobInput || !dobIso || !dobVal || Number.isNaN(dobVal.getTime())) return failValidation(regDobField, "Date of Birth is required in format: dd/mm/yyyy.");
+        const nowDate = new Date();
+        if(dobVal > nowDate) return failValidation(regDobField, "Date of Birth cannot be in the future.");
+        const ageYears = nowDate.getFullYear() - dobVal.getFullYear();
+        if (ageYears > 130) return failValidation(regDobField, "Date of Birth indicates an invalid age.");
+        if(!['male', 'female'].includes(normalizeSpaces(regGenderField?.value || ''))) return failValidation(regGenderField, "Gender selection is invalid.");
+        if(!validatePhone(phoneVal)) return failValidation(regPhoneField, "Phone must be: +263xxxxxxxxx");
+        if(!validateAddress(addressVal)) return failValidation(regAddressField, "Address is required and must use valid characters.");
+        if(!['general', 'counselling_only'].includes(visitTypeVal)) return failValidation(visitTypeField, "Visit Type is invalid.");
+        if (visitTypeVal === 'counselling_only') {
+            if (counsellingDoctorId === null || !Number.isInteger(counsellingDoctorId) || counsellingDoctorId <= 0) {
+                return failValidation(counsellingDoctorField, "Assign a valid Nurse In Charge for counselling.");
+            }
+            if (!isKnownDoctorId(counsellingDoctorId)) {
+                return failValidation(counsellingDoctorField, "Assigned Nurse In Charge is not available.");
             }
         }
-        if(hasIdentity && identityTypeVal === 'Student ID' && !validateEcNumber(identityEcNumberVal)) return notify("Student Number format is invalid.");
-        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateStaffEcNumber(identityEcNumberVal)) return notify("EC Number must be exactly 4 digits.");
-        if(hasIdentity && identityProgrammeVal && !validateTextLen(identityProgrammeVal, 2, 120)) return notify("Programme length is invalid.");
-        if(hasIdentity && identityLevelVal && !['1', '2', '3', '4', '5', '6', '7'].includes(identityLevelVal)) return notify("Select a valid Level (1 to 7).");
-        if(hasIdentity && identitySemesterVal && !['1', '2'].includes(identitySemesterVal)) return notify("Select a valid Semester (1 or 2).");
-        if(hasIdentity && identityTypeVal === 'Student ID' && !['Block Release', 'Conventional'].includes(identityStatusVal)) {
-            return notify("Student status must be Block Release or Conventional.");
+        if(!validateFullName(kinNameVal)) return failValidation(kinNameField, "Kin Full Name must include first and surname (e.g., Al Ali).");
+        if(!validateTextLen(kinNameVal, 3, 150)) return failValidation(kinNameField, "Kin Full Name length is invalid.");
+        if(!validateRelation(kinRelationVal)) return failValidation(kinRelationField, "Kin Relationship format is invalid.");
+        if(!validatePhone(kinPhoneVal)) return failValidation(kinPhoneField, "Kin Phone must be: +263xxxxxxxxx");
+        if(!validateGeneralText(allergiesVal, 1, 1000)) return failValidation(allergiesField, "Allergies & Medical Notes are required and must use valid characters.");
+
+        if(hasAid && !aidProviderVal) return failValidation(aidProviderField, "Medical Aid Provider is required when Medical Aid Coverage is enabled.");
+        if(hasAid && !ALLOWED_MEDICAL_AID_PROVIDERS.includes(aidProviderVal)) return failValidation(aidProviderField, "Select a valid Medical Aid Provider.");
+        if(hasAid && !aidMemberNumberVal) return failValidation(aidNumberField, "Member Number is required when Medical Aid Coverage is enabled.");
+        if(hasAid && !validateAidMemberNumber(aidMemberNumberVal)) return failValidation(aidNumberField, "Member Number format is invalid.");
+        if(hasAid && !aidPlanVal) return failValidation(aidPlanField, "Plan / Cover Type is required when Medical Aid Coverage is enabled.");
+        if(hasAid && !ALLOWED_MEDICAL_AID_PLANS.includes(aidPlanVal)) return failValidation(aidPlanField, "Select a valid Plan / Cover Type.");
+        if(hasAid && !validateTextLen(aidMemberNameVal, 3, 150)) return failValidation(aidMemberNameField, "Member Name is required and must match Full Name.");
+        if(hasAid && normalizeSpaces(aidMemberNameField?.value || '') !== nameVal) return failValidation(aidMemberNameField, "Member Name must match Full Name.");
+        if(hasAid && aidSuffixVal && !validateAidSuffix(aidSuffixVal)) return failValidation(aidSuffixField, "Suffix format is invalid.");
+        if(hasAid && aidDateJoinedInput && !aidDateJoinedIso) return failValidation(aidDateJoinedField, "Date Joined must be in format: dd/mm/yyyy.");
+        if (hasAid && aidDateJoinedIso) {
+            if (aidDateJoinedIso > getTodayIsoDate()) return failValidation(aidDateJoinedField, "Date Joined cannot be in the future.");
+            if (dobIso && aidDateJoinedIso < dobIso) return failValidation(aidDateJoinedField, "Date Joined cannot be before Date of Birth.");
         }
-        if(hasIdentity && identityTypeVal === 'Staff ID' && !['Fulltime', 'Parttime'].includes(identityStatusVal)) {
-            return notify("Staff status must be Fulltime or Parttime.");
+
+        if(hasIdentity && !registrationTypeVal) return failValidation(registrationTypeField, "Registration Type is required when Identity / Student / Staff Card is enabled.");
+        if(hasIdentity && !['Student', 'Staff'].includes(registrationTypeVal)) return failValidation(registrationTypeField, "Registration Type must be Student or Staff.");
+        if(hasIdentity && !identityTypeVal) return failValidation(registrationTypeField, "Derived ID Type is invalid. Re-select Registration Type.");
+        if(hasIdentity && !validateIssuer(identityIssuerVal)) return failValidation(identityIssuerField, "Issuer / Institution is required and format must be valid.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !validateCardNumber(identityCardNumberVal)) return failValidation(identityCardField, "Student Number / Card Number format is invalid.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateStaffEcNumber(identityCardNumberVal)) return failValidation(identityCardField, "EC Number must be exactly 4 digits.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !identityFacultyVal) return failValidation(identityFacultyField, "Faculty is required for Student ID.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !UNIVERSITY_FACULTIES.includes(identityFacultyVal)) return failValidation(identityFacultyField, "Select a valid Faculty.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !identityProgrammeVal) return failValidation(identityProgrammeField, "Programme is required for Student ID.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !LEVEL_OPTIONS.includes(identityLevelVal)) return failValidation(identityLevelField, "Select a valid Level (1 to 7).");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !SEMESTER_OPTIONS.includes(identitySemesterVal)) return failValidation(identitySemesterField, "Select a valid Semester (1 or 2).");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !STUDENT_STATUSES.includes(identityStatusVal)) return failValidation(identityStatusField, "Student status must be Block Release or Conventional.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateDepartment(identityDepartmentVal)) return failValidation(identityDepartmentField, "Department is required for Staff ID.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !STAFF_STATUSES.includes(identityStatusVal)) return failValidation(identityStatusField, "Staff status must be Fulltime or Parttime.");
+        if(hasIdentity && identityTypeVal === 'Student ID' && !validateEcNumber(identityEcNumberVal)) return failValidation(identityCardField, "Student Number format is invalid.");
+        if(hasIdentity && identityTypeVal === 'Staff ID' && !validateStaffEcNumber(identityEcNumberVal)) return failValidation(identityCardField, "EC Number must be exactly 4 digits.");
+        if(hasIdentity && identityProgrammeVal && !validateTextLen(identityProgrammeVal, 2, 120)) return failValidation(identityProgrammeField, "Programme length is invalid.");
+        if(hasIdentity && identityTypeVal === 'Student ID') {
+            const facultyProgrammes = FACULTY_PROGRAMMES[identityFacultyVal] || [];
+            if (facultyProgrammes.length && !facultyProgrammes.includes(identityProgrammeVal)) {
+                return failValidation(identityProgrammeField, "Select a valid Programme for the selected Faculty.");
+            }
         }
-        if(hasIdentity && identityExpiryInput && !identityExpiryIso) return notify("Expiry Date must be in format: dd/mm/yyyy.");
+        if(hasIdentity && identityExpiryInput && !identityExpiryIso) return failValidation(identityExpiryField, "Expiry Date must be in format: dd/mm/yyyy.");
+        if (hasIdentity && identityExpiryIso && dobIso && identityExpiryIso < dobIso) return failValidation(identityExpiryField, "Expiry Date cannot be before Date of Birth.");
 
         const patientPayload = {
             full_name: nameVal,
@@ -1747,6 +2283,8 @@
             national_id: patientPayload.national_id,
             dob: patientPayload.dob,
             gender: patientPayload.gender,
+            visit_type: visitTypeVal,
+            doctor_assigned: visitTypeVal === 'counselling_only' ? counsellingDoctorId : null,
             phone: patientPayload.phone,
             address: patientPayload.address,
             has_medical_aid: hasAid ? 1 : 0,
@@ -1767,14 +2305,20 @@
 
         const res = await Api.post('/reception/register', data);
         if(res) {
-            notify("Registration successful. Patient added to Nurse Aid triage queue.");
+            const successMsg = visitTypeVal === 'counselling_only'
+                ? "Registration successful. Counselling case assigned to Nurse In Charge."
+                : "Registration successful. Patient added to Nurse Aid triage queue.";
+            notify(successMsg);
             document.getElementById('registrationForm').reset();
+            clearValidationState(form);
             enforceMedicalAidAlwaysOn();
             enforceIdentityAlwaysOn();
             enforceIdentityIssuerDefault();
+            syncVisitTypeAssignment();
             syncAidMemberNameFromFullName();
             loadDirectory();
             loadDashboardStats();
+            loadVisits();
             showSection('directory');
         }
     }
@@ -1793,10 +2337,17 @@
                     <td><span class="badge bg-primary">${row.status}</span></td>
                 </tr>`;
             });
-        } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load dashboard stats.', { type: 'error' });
+            if (!stats.flow || !stats.flow.length) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No active patient flow yet.</td></tr>';
             }
+        } else {
+            document.getElementById('statToday').innerText = '0';
+            document.getElementById('statPending').innerText = '0';
+            const tbody = document.getElementById('flowTable');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No dashboard activity yet.</td></tr>';
+            }
+            showReceptionSoftNotice('dashboard_stats', 'No dashboard activity yet.');
         }
         loadReceptionAnalytics();
     }
@@ -1867,12 +2418,13 @@
 
     async function loadDoctors() {
         const users = await Api.get('/users');
-        cachedDoctors = (users || []).filter(u => u.role === 'doctor');
+        cachedDoctors = (users || []).filter(u => ['doctor', 'nurse_in_charge'].includes(String(u.role || '').toLowerCase()));
         populateDoctorSelects();
+        syncVisitTypeAssignment();
     }
 
     function populatePatientSelects() {
-        const patientOptions = cachedPatients.map(p => `<option value="${p.id}">${p.full_name} (${p.national_id || 'N/A'})</option>`).join('');
+        const patientOptions = cachedPatients.map(p => `<option value="${p.id}">${p.full_name} (${formatPrimaryIdentifier(p)})</option>`).join('');
         const ids = ['apptPatient'];
         ids.forEach(id => {
             const el = document.getElementById(id);
@@ -1882,8 +2434,10 @@
 
     function populateDoctorSelects() {
         const doctorOptions = cachedDoctors.map(d => `<option value="${d.id}">${d.full_name}</option>`).join('');
-        const el = document.getElementById('apptDoctor');
-        if (el) el.innerHTML = '<option value="">Any available</option>' + doctorOptions;
+        const apptSelect = document.getElementById('apptDoctor');
+        if (apptSelect) apptSelect.innerHTML = '<option value="">Any available Nurse In Charge</option>' + doctorOptions;
+        const counsellingSelect = document.getElementById('regCounsellingDoctor');
+        if (counsellingSelect) counsellingSelect.innerHTML = '<option value="">Select Nurse In Charge...</option>' + doctorOptions;
     }
 
     async function loadMyShifts() {

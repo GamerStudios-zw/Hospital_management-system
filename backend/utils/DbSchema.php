@@ -127,14 +127,28 @@ class DbSchema {
         }
         $studentsIdx = $db->query("SHOW INDEX FROM patient_students")->fetchAll(PDO::FETCH_ASSOC);
         $studentsHasStudentNumberIdx = false;
+        $studentsHasStudentNumberUnique = false;
         foreach ($studentsIdx as $idx) {
             if (($idx['Key_name'] ?? '') === 'idx_patient_students_student_number') {
                 $studentsHasStudentNumberIdx = true;
-                break;
+            }
+            if (($idx['Key_name'] ?? '') === 'uq_patient_students_student_number' && (int)($idx['Non_unique'] ?? 1) === 0) {
+                $studentsHasStudentNumberUnique = true;
             }
         }
         if (!$studentsHasStudentNumberIdx) {
             $db->exec("ALTER TABLE patient_students ADD INDEX idx_patient_students_student_number (student_number)");
+        }
+        if (!$studentsHasStudentNumberUnique) {
+            $dupStudentNumber = $db->query("SELECT student_number
+                                            FROM patient_students
+                                            WHERE student_number IS NOT NULL AND TRIM(student_number) <> ''
+                                            GROUP BY student_number
+                                            HAVING COUNT(*) > 1
+                                            LIMIT 1")->fetchColumn();
+            if (!$dupStudentNumber) {
+                $db->exec("ALTER TABLE patient_students ADD UNIQUE KEY uq_patient_students_student_number (student_number)");
+            }
         }
         if ($studentsHasPatient) {
             $studentsFk = $db->query("SELECT CONSTRAINT_NAME
@@ -218,6 +232,60 @@ class DbSchema {
         if (!isset($existing['medical_aid_date_joined'])) {
             $db->exec("ALTER TABLE patients ADD COLUMN medical_aid_date_joined DATE NULL");
         }
+
+        $nationalIdCol = null;
+        foreach ($cols as $col) {
+            if (($col['Field'] ?? '') === 'national_id') {
+                $nationalIdCol = $col;
+                break;
+            }
+        }
+        if ($nationalIdCol) {
+            $nationalType = strtoupper((string)($nationalIdCol['Type'] ?? 'VARCHAR(50)'));
+            if ($nationalType === '') $nationalType = 'VARCHAR(50)';
+            if (strtoupper((string)($nationalIdCol['Null'] ?? 'YES')) !== 'YES') {
+                $db->exec("ALTER TABLE patients MODIFY COLUMN national_id {$nationalType} NULL");
+            }
+        }
+
+        if (isset($existing['national_id'])) {
+            $idxRows = $db->query("SHOW INDEX FROM patients")->fetchAll(PDO::FETCH_ASSOC);
+            $indexMeta = [];
+            foreach ($idxRows as $idx) {
+                $keyName = (string)($idx['Key_name'] ?? '');
+                if ($keyName === '') continue;
+                if (!isset($indexMeta[$keyName])) {
+                    $indexMeta[$keyName] = [
+                        'unique' => ((int)($idx['Non_unique'] ?? 1) === 0),
+                        'columns' => []
+                    ];
+                }
+                $seq = (int)($idx['Seq_in_index'] ?? 0);
+                if ($seq <= 0) $seq = count($indexMeta[$keyName]['columns']) + 1;
+                $indexMeta[$keyName]['columns'][$seq] = (string)($idx['Column_name'] ?? '');
+            }
+
+            $hasNationalIdIndex = false;
+            foreach ($indexMeta as $keyName => $meta) {
+                $columnsBySeq = $meta['columns'] ?? [];
+                if (empty($columnsBySeq)) continue;
+                ksort($columnsBySeq);
+                $columns = array_values($columnsBySeq);
+                $isSingleNationalId = (count($columns) === 1 && $columns[0] === 'national_id');
+
+                if ($isSingleNationalId && !empty($meta['unique']) && $keyName !== 'PRIMARY') {
+                    $db->exec("ALTER TABLE patients DROP INDEX `$keyName`");
+                    continue;
+                }
+                if ($isSingleNationalId && empty($meta['unique'])) {
+                    $hasNationalIdIndex = true;
+                }
+            }
+
+            if (!$hasNationalIdIndex) {
+                $db->exec("ALTER TABLE patients ADD INDEX idx_patients_national_id (national_id)");
+            }
+        }
     }
 
     public static function ensureVisitEncounters($db) {
@@ -264,6 +332,73 @@ class DbSchema {
         if (!$hasVisitIdx) {
             $db->exec("ALTER TABLE patient_queue ADD INDEX idx_patient_queue_visit (visit_id)");
         }
+    }
+
+    public static function ensureCounsellingWorkflow($db) {
+        if (!$db) return;
+        self::ensureVisitEncounters($db);
+
+        $visitsExists = $db->query("SHOW TABLES LIKE 'visits'")->fetchColumn();
+        if ($visitsExists) {
+            $visitCols = $db->query("SHOW COLUMNS FROM visits")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $visitExisting = [];
+            foreach ($visitCols as $col) {
+                $visitExisting[$col['Field'] ?? ''] = true;
+            }
+            $visitAlter = [];
+            if (!isset($visitExisting['clinical_notes'])) $visitAlter[] = "ADD COLUMN clinical_notes TEXT NULL";
+            if (!isset($visitExisting['outcome'])) $visitAlter[] = "ADD COLUMN outcome VARCHAR(40) NULL";
+            if (!isset($visitExisting['completed_at'])) $visitAlter[] = "ADD COLUMN completed_at DATETIME NULL";
+            if (!empty($visitAlter)) {
+                $db->exec("ALTER TABLE visits " . implode(", ", $visitAlter));
+            }
+        }
+
+        $queueExists = $db->query("SHOW TABLES LIKE 'patient_queue'")->fetchColumn();
+        if ($queueExists) {
+            $queueCols = $db->query("SHOW COLUMNS FROM patient_queue")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $queueHasVisitType = false;
+            foreach ($queueCols as $col) {
+                if (($col['Field'] ?? '') === 'visit_type') {
+                    $queueHasVisitType = true;
+                    break;
+                }
+            }
+            if (!$queueHasVisitType) {
+                $db->exec("ALTER TABLE patient_queue ADD COLUMN visit_type VARCHAR(40) NOT NULL DEFAULT 'general' AFTER status");
+            }
+
+            $queueIdx = $db->query("SHOW INDEX FROM patient_queue")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $hasVisitTypeIdx = false;
+            foreach ($queueIdx as $idx) {
+                if (($idx['Key_name'] ?? '') === 'idx_patient_queue_visit_type') {
+                    $hasVisitTypeIdx = true;
+                    break;
+                }
+            }
+            if (!$hasVisitTypeIdx) {
+                $db->exec("ALTER TABLE patient_queue ADD INDEX idx_patient_queue_visit_type (visit_type, status)");
+            }
+        }
+
+        $db->exec("CREATE TABLE IF NOT EXISTS counselling_sessions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            queue_id INT NULL,
+            visit_id INT NULL,
+            counsellor_id INT NULL,
+            notes TEXT NOT NULL,
+            outcome VARCHAR(40) NOT NULL,
+            safety_plan TEXT NULL,
+            follow_up_at DATETIME NULL,
+            escalation_reason TEXT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_counselling_patient (patient_id),
+            INDEX idx_counselling_queue (queue_id),
+            INDEX idx_counselling_visit (visit_id),
+            INDEX idx_counselling_outcome (outcome),
+            INDEX idx_counselling_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
     public static function ensureNurseModules($db) {
@@ -651,7 +786,189 @@ class DbSchema {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
+    public static function ensureReferralRegistry($db) {
+        if (!$db) return;
+        $db->exec("CREATE TABLE IF NOT EXISTS referrals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            referred_by INT NULL,
+            referral_type VARCHAR(120) NOT NULL,
+            external_provider_name VARCHAR(180) NULL,
+            destination VARCHAR(180) NULL,
+            reason TEXT NULL,
+            urgency VARCHAR(20) NOT NULL DEFAULT 'normal',
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            referral_date DATETIME NULL,
+            notes TEXT NULL,
+            attachment_path VARCHAR(255) NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_referral_patient (patient_id),
+            INDEX idx_referral_status (status),
+            INDEX idx_referral_date (referral_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $cols = $db->query("SHOW COLUMNS FROM referrals")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $hasExternalProvider = false;
+        foreach ($cols as $col) {
+            if (($col['Field'] ?? '') === 'external_provider_name') {
+                $hasExternalProvider = true;
+                break;
+            }
+        }
+        if (!$hasExternalProvider) {
+            $db->exec("ALTER TABLE referrals ADD COLUMN external_provider_name VARCHAR(180) NULL AFTER referral_type");
+        }
+    }
+
+    public static function ensureNurseInChargeRole($db, $migrateFromDoctor = true) {
+        if (!$db) return;
+        self::ensureUserRole($db, 'nurse_in_charge');
+        if (!$migrateFromDoctor) return;
+
+        // Clinic profile no longer uses in-house doctor accounts.
+        $db->exec("UPDATE users SET role = 'nurse_in_charge' WHERE role = 'doctor'");
+
+        $hasShiftsTable = (bool)$db->query("SHOW TABLES LIKE 'staff_shifts'")->fetchColumn();
+        if ($hasShiftsTable) {
+            $db->exec("UPDATE staff_shifts SET role = 'nurse_in_charge' WHERE role = 'doctor'");
+        }
+    }
+
+    public static function ensurePrescriptionWorkflow($db) {
+        if (!$db) return;
+
+        $db->exec("CREATE TABLE IF NOT EXISTS prescriptions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NULL,
+            visit_id INT NULL,
+            queue_id INT NULL,
+            medicine_id INT NULL,
+            medication_name VARCHAR(150) NULL,
+            quantity INT NOT NULL DEFAULT 1,
+            dosage VARCHAR(100) NOT NULL DEFAULT 'As directed',
+            frequency VARCHAR(50) NULL,
+            duration VARCHAR(50) NULL,
+            notes TEXT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_prescriptions_patient_status (patient_id, status),
+            INDEX idx_prescriptions_visit (visit_id),
+            INDEX idx_prescriptions_queue (queue_id),
+            INDEX idx_prescriptions_medicine (medicine_id),
+            INDEX idx_prescriptions_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $cols = $db->query("SHOW COLUMNS FROM prescriptions")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $existing = [];
+        foreach ($cols as $col) {
+            $existing[$col['Field'] ?? ''] = $col;
+        }
+
+        if (!isset($existing['patient_id'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN patient_id INT NULL AFTER id");
+        if (!isset($existing['visit_id'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN visit_id INT NULL AFTER patient_id");
+        if (!isset($existing['queue_id'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN queue_id INT NULL AFTER visit_id");
+        if (!isset($existing['medicine_id'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN medicine_id INT NULL AFTER queue_id");
+        if (!isset($existing['medication_name'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN medication_name VARCHAR(150) NULL AFTER medicine_id");
+        if (!isset($existing['quantity'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN quantity INT NOT NULL DEFAULT 1 AFTER medication_name");
+        if (!isset($existing['dosage'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN dosage VARCHAR(100) NOT NULL DEFAULT 'As directed' AFTER quantity");
+        if (!isset($existing['notes'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN notes TEXT NULL AFTER duration");
+        if (!isset($existing['status'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'pending' AFTER notes");
+        if (!isset($existing['created_at'])) $db->exec("ALTER TABLE prescriptions ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER status");
+
+        $cols = $db->query("SHOW COLUMNS FROM prescriptions")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $existing = [];
+        foreach ($cols as $col) {
+            $existing[$col['Field'] ?? ''] = $col;
+        }
+
+        if (isset($existing['visit_id']) && strtoupper((string)($existing['visit_id']['Null'] ?? 'YES')) !== 'YES') {
+            $db->exec("ALTER TABLE prescriptions MODIFY COLUMN visit_id INT NULL");
+        }
+        if (isset($existing['medication_name']) && strtoupper((string)($existing['medication_name']['Null'] ?? 'YES')) !== 'YES') {
+            $db->exec("ALTER TABLE prescriptions MODIFY COLUMN medication_name VARCHAR(150) NULL");
+        }
+        if (isset($existing['dosage'])) {
+            $dosageNull = strtoupper((string)($existing['dosage']['Null'] ?? 'YES'));
+            $dosageType = (string)($existing['dosage']['Type'] ?? 'VARCHAR(100)');
+            if ($dosageType === '') $dosageType = 'VARCHAR(100)';
+            if ($dosageNull === 'YES') {
+                $db->exec("ALTER TABLE prescriptions MODIFY COLUMN dosage $dosageType NOT NULL");
+            }
+        }
+        if (isset($existing['status'])) {
+            $statusType = strtolower((string)($existing['status']['Type'] ?? ''));
+            $statusNull = strtoupper((string)($existing['status']['Null'] ?? 'YES'));
+            $statusDefault = strtolower((string)($existing['status']['Default'] ?? ''));
+            if (strpos($statusType, 'enum(') === 0 || strpos($statusType, 'varchar') !== 0 || $statusNull === 'YES' || $statusDefault === '') {
+                $db->exec("ALTER TABLE prescriptions MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'pending'");
+            }
+        }
+
+        $db->exec("UPDATE prescriptions
+                   SET status = CASE
+                       WHEN status IS NULL OR TRIM(status) = '' THEN 'pending'
+                       WHEN LOWER(TRIM(status)) IN ('pending', 'new', 'requested') THEN 'pending'
+                       WHEN LOWER(TRIM(status)) IN ('external', 'manual', 'outside') THEN 'external'
+                       WHEN LOWER(TRIM(status)) IN ('dispensed', 'completed', 'done') THEN 'dispensed'
+                       WHEN LOWER(TRIM(status)) IN ('cancelled', 'canceled') THEN 'cancelled'
+                       ELSE LOWER(TRIM(status))
+                   END");
+
+        $db->exec("UPDATE prescriptions
+                   SET dosage = 'As directed'
+                   WHERE dosage IS NULL OR TRIM(dosage) = ''");
+
+        $visitsExists = $db->query("SHOW TABLES LIKE 'visits'")->fetchColumn();
+        if ($visitsExists && isset($existing['patient_id']) && isset($existing['visit_id'])) {
+            $db->exec("UPDATE prescriptions pr
+                       INNER JOIN visits v ON v.id = pr.visit_id
+                       SET pr.patient_id = v.patient_id
+                       WHERE (pr.patient_id IS NULL OR pr.patient_id = 0) AND pr.visit_id IS NOT NULL");
+        }
+
+        if (isset($existing['medication_name']) && isset($existing['notes'])) {
+            $db->exec("UPDATE prescriptions
+                       SET medication_name = TRIM(notes)
+                       WHERE (medication_name IS NULL OR TRIM(medication_name) = '')
+                         AND notes IS NOT NULL
+                         AND TRIM(notes) <> ''");
+        }
+        $medicinesExists = $db->query("SHOW TABLES LIKE 'medicines'")->fetchColumn();
+        if ($medicinesExists && isset($existing['medication_name']) && isset($existing['medicine_id'])) {
+            $db->exec("UPDATE prescriptions pr
+                       INNER JOIN medicines m ON m.id = pr.medicine_id
+                       SET pr.medication_name = m.name
+                       WHERE (pr.medication_name IS NULL OR TRIM(pr.medication_name) = '')");
+        }
+
+        $idxRows = $db->query("SHOW INDEX FROM prescriptions")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $indexNames = [];
+        foreach ($idxRows as $idx) {
+            $keyName = (string)($idx['Key_name'] ?? '');
+            if ($keyName !== '') $indexNames[$keyName] = true;
+        }
+        if (!isset($indexNames['idx_prescriptions_patient_status']) && isset($existing['patient_id']) && isset($existing['status'])) {
+            $db->exec("ALTER TABLE prescriptions ADD INDEX idx_prescriptions_patient_status (patient_id, status)");
+        }
+        if (!isset($indexNames['idx_prescriptions_visit']) && isset($existing['visit_id'])) {
+            $db->exec("ALTER TABLE prescriptions ADD INDEX idx_prescriptions_visit (visit_id)");
+        }
+        if (!isset($indexNames['idx_prescriptions_queue']) && isset($existing['queue_id'])) {
+            $db->exec("ALTER TABLE prescriptions ADD INDEX idx_prescriptions_queue (queue_id)");
+        }
+        if (!isset($indexNames['idx_prescriptions_medicine']) && isset($existing['medicine_id'])) {
+            $db->exec("ALTER TABLE prescriptions ADD INDEX idx_prescriptions_medicine (medicine_id)");
+        }
+        if (!isset($indexNames['idx_prescriptions_created']) && isset($existing['created_at'])) {
+            $db->exec("ALTER TABLE prescriptions ADD INDEX idx_prescriptions_created (created_at)");
+        }
+    }
+
     public static function ensurePharmacyModules($db) {
+        if (!$db) return;
+        self::ensureVisitEncounters($db);
+        self::ensurePrescriptionWorkflow($db);
+
         $db->exec("CREATE TABLE IF NOT EXISTS drug_interactions (
             id INT AUTO_INCREMENT PRIMARY KEY,
             drug_a VARCHAR(120) NOT NULL,

@@ -27,7 +27,7 @@ try {
         email VARCHAR(100) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         full_name VARCHAR(100) NOT NULL,
-        role ENUM('admin','doctor','nurse','receptionist','pharmacist','senior_pharmacist','it_support') NOT NULL,
+        role ENUM('admin','doctor','nurse_in_charge','nurse','receptionist','pharmacist','senior_pharmacist','it_support') NOT NULL,
         phone VARCHAR(20),
         is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -43,7 +43,7 @@ try {
     // 5. Define Users
     $users = [
         ['admin',  'admin@hms.com',     'System Administrator', 'admin'],
-        ['doc1',   'doctor@hms.com',    'Dr. Sarah Moyo',       'doctor'],
+        ['doc1',   'doctor@hms.com',    'Nurse In Charge Sarah Moyo', 'nurse_in_charge'],
         ['nurse1', 'nurse@hms.com',     'Sister Betty',         'nurse'],
         ['rec1',   'reception@hms.com', 'John Frontdesk',       'receptionist'],
         ['pharm1', 'pharmacy@hms.com',  'Mike Meds',            'pharmacist'],

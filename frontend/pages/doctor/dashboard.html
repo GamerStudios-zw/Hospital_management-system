@@ -19,6 +19,10 @@
             --doc-muted: #64748b;
             --doc-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
         }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             font-family: var(--app-font);
             color: var(--doc-text);
@@ -27,6 +31,8 @@
                 radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
                 var(--doc-bg);
         }
+        .container-fluid.p-0 { height: 100vh; }
+        .container-fluid.p-0 > .row.g-0 { height: 100vh; }
         .sidebar {
             min-height: 100vh;
             background: linear-gradient(180deg, #1e3a8a 0%, #0f172a 100%);
@@ -61,7 +67,19 @@
             text-shadow: 0 1px 0 rgba(2, 6, 23, 0.45);
         }
         .tab-section { display: none; }
-        .tab-section.active { display: block; }
+        .tab-section.active {
+            display: block;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        main.col-md-10 {
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
         .vitals-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; font-weight: 600; }
         .doctor-queue-risk-red > td { background: #fee2e2 !important; }
         .doctor-queue-risk-orange > td { background: #ffedd5 !important; }
@@ -624,7 +642,6 @@
                         <div class="col-md-3">
                             <label class="form-label fw-bold small">Dosage</label>
                             <input type="text" id="consultDosage" class="form-control form-control-sm" placeholder="e.g., 500mg bd x5 | Injection IM stat">
-                            <small class="text-muted">Injection shorthand is normalized; route + schedule are mandatory (e.g., <code>inj IV q8h x3</code>). In-stock injections are routed to Nurse In Charge for administration.</small>
                         </div>
                         <div class="col-md-2 d-flex align-items-end"><button type="button" class="btn btn-secondary btn-sm w-100" onclick="addMedicationToList()">Add</button></div>
                     </div>
@@ -1546,11 +1563,35 @@
         consultModal.show();
     }
 
+    function isInjectionMedicineCategory(category) {
+        const value = String(category || '').trim().toLowerCase();
+        return value === 'injection' || value === 'injectable' || value === 'injectables';
+    }
+
+    function buildConsultMedicineOption(med) {
+        const id = String(med?.id ?? '').trim();
+        const name = String(med?.name ?? 'Unnamed medicine').trim() || 'Unnamed medicine';
+        const stock = Number.isFinite(Number(med?.stock_quantity)) ? Number(med.stock_quantity) : 0;
+        return `<option value="${escapeHtml(id)}">${escapeHtml(`${name} (${stock})`)}</option>`;
+    }
+
     async function loadMedicines() {
         const meds = await Api.get('/doctor/medicines');
         const select = document.getElementById('consultMed');
-        select.innerHTML = '<option value="">-- Select --</option>';
-        if(meds) meds.forEach(m => select.innerHTML += `<option value="${m.id}">${m.name} (${m.stock_quantity})</option>`);
+        if (!select) return;
+
+        const all = Array.isArray(meds) ? meds : [];
+        const injections = all.filter((m) => isInjectionMedicineCategory(m?.category));
+        const others = all.filter((m) => !isInjectionMedicineCategory(m?.category));
+
+        const sections = ['<option value="">-- Select --</option>'];
+        if (injections.length) {
+            sections.push(`<optgroup label="Injections">${injections.map(buildConsultMedicineOption).join('')}</optgroup>`);
+        }
+        if (others.length) {
+            sections.push(`<optgroup label="Other Medications">${others.map(buildConsultMedicineOption).join('')}</optgroup>`);
+        }
+        select.innerHTML = sections.join('');
     }
 
     function toggleManualMed() {

@@ -1,36 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Hospital Management System | Digital Healthcare Platform</title>
-    <meta name="description" content="A secure, Hospital Management System for government and private hospitals.">
-    <meta name="keywords" content="hospital management, healthcare, digital health, patient records">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hospital Management System | Connected Care Platform</title>
+    <meta name="description" content="A unified Hospital Management System for patient intake, triage, consultations, pharmacy, and secure operations.">
+    <meta name="keywords" content="hospital management system, patient care, reception, nurse in charge dashboard, pharmacy, healthcare platform">
 
-    <!-- Favicons -->
     <link href="assets/img/favicon.png" rel="icon">
     <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
 
-    <!-- Fonts -->
-    <!-- Vendor CSS Files -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="assets/css/fonts.css" rel="stylesheet">
     <link href="assets/css/theme.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
         :root {
-            --primary-color: #294a70;
-            --secondary-color: #0f233a;
-            --text-color: #212529;
-            --light-bg: #f8f9fa;
+            --bg: #eef4ff;
+            --bg-ink: #0e223c;
+            --surface: #ffffff;
+            --surface-soft: #f7faff;
+            --line: #d7e4f6;
+            --text: #12243e;
+            --muted: #4e657f;
+            --brand: #0f6cbf;
+            --brand-deep: #0a467d;
+            --accent-amber: #ff9f1c;
+            --accent-mint: #1ea97d;
+            --accent-coral: #df5b68;
+            --shadow-lg: 0 28px 70px -36px rgba(16, 36, 62, 0.45);
+            --shadow-sm: 0 12px 28px -18px rgba(16, 36, 62, 0.35);
         }
 
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
@@ -39,831 +45,771 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            color: var(--text-color);
-            background-color: #fff;
-            padding-top: 70px;
+            margin: 0;
+            font-family: "Manrope", "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% 12%, rgba(30, 169, 125, 0.16), transparent 28%),
+                radial-gradient(circle at 88% 10%, rgba(15, 108, 191, 0.16), transparent 30%),
+                radial-gradient(circle at 76% 82%, rgba(255, 159, 28, 0.2), transparent 24%),
+                var(--bg);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Header & Navigation */
-        .header {
-            background: #294a70;
-            padding: 0;
-            transition: all 0.5s;
-            z-index: 997;
-            box-shadow: 0px 2px 20px rgba(1, 41, 112, 0.1);
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: "Sora", "Manrope", sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .bg-orb {
             position: fixed;
-            width: 100%;
+            border-radius: 50%;
+            filter: blur(42px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.42;
+        }
+
+        .bg-orb.one {
+            width: 18rem;
+            height: 18rem;
+            top: 6rem;
+            left: -5rem;
+            background: rgba(15, 108, 191, 0.35);
+            animation: drift 12s ease-in-out infinite;
+        }
+
+        .bg-orb.two {
+            width: 22rem;
+            height: 22rem;
+            bottom: -8rem;
+            right: -5rem;
+            background: rgba(255, 159, 28, 0.34);
+            animation: drift 14s ease-in-out infinite reverse;
+        }
+
+        .bg-orb.three {
+            width: 14rem;
+            height: 14rem;
+            top: 55%;
+            left: 46%;
+            background: rgba(30, 169, 125, 0.3);
+            animation: drift 10s ease-in-out infinite;
+        }
+
+        .site-nav {
+            position: sticky;
             top: 0;
-            bottom: auto;
-            border-bottom: 3px solid #e44a3c;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            background: rgba(248, 252, 255, 0.72);
+            border-bottom: 1px solid transparent;
+            transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
 
-        .header.header-scrolled {
-            box-shadow: 0px 2px 20px rgba(1, 41, 112, 0.1);
-            padding: 12px 0;
+        .site-nav.scrolled {
+            background: rgba(248, 252, 255, 0.92);
+            border-bottom-color: var(--line);
+            box-shadow: 0 12px 24px -20px rgba(10, 35, 63, 0.7);
         }
 
-        .topbar {
-            background: var(--primary-color);
-            padding: 12px 0;
-            font-size: 14px;
-            color: white;
-        }
-
-        .topbar a {
-            color: white;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-
-        .topbar a:hover {
-            text-decoration: underline;
-        }
-
-        .logo {
-            color: white;
-            font-weight: 700;
-            font-size: 28px;
-            text-decoration: none;
-            display: flex;
+        .brand-badge {
+            width: 2.65rem;
+            height: 2.65rem;
+            border-radius: 0.9rem;
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: #fff;
+            background: linear-gradient(145deg, var(--brand), #3f90d4);
+            box-shadow: var(--shadow-sm);
         }
 
-        .logo i {
-            font-size: 32px;
+        .brand-text strong {
+            display: block;
+            font-size: 0.96rem;
+            line-height: 1.05;
         }
 
-        .navmenu {
-            padding: 0;
+        .brand-text span {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
 
-        .navmenu ul {
-            display: flex;
-            list-style: none;
-            align-items: center;
-            gap: 0;
-            margin: 0;
-        }
-        
-        .navmenu li {
-            margin: 0;
-            display: flex;
-            align-items: center;
-        }
-
-        .navmenu a {
-            color: white;
-            padding: 12px 18px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 16px;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            line-height: 1.2;
-        }
-
-        .navmenu a:hover,
-        .navmenu .active {
-            color: var(--primary-color);
-        }
-
-        .cta-btn {
-            background: var(--primary-color);
-            color: white !important;
-            padding: 8px 20px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: 0.3s;
-            white-space: nowrap;
-            margin-left: 15px;
-            line-height: 1;
-            height: fit-content;
-        }
-
-        .cta-btn:hover {
-            background: var(--secondary-color);
-            transform: translateY(-2px);
-        }
-
-        /* Hero Section */
-        .hero {
-            width: 100%;
-            min-height: 500px;
+        .nav-link {
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.95rem;
             position: relative;
-            padding: 80px 0;
-            background: url('assets/img/hero-bg.jpg') center/cover;
-            background-attachment: fixed;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
+            padding: 0.4rem 0.7rem !important;
         }
-        
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(41, 74, 112, 0.5);
+
+        .nav-link:hover,
+        .nav-link:focus {
+            color: var(--brand);
+        }
+
+        .btn-surface,
+        .btn-brand {
+            border: 0;
+            border-radius: 0.85rem;
+            padding: 0.72rem 1.1rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .btn-surface {
+            background: #fff;
+            color: var(--text);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--line);
+        }
+
+        .btn-brand {
+            background: linear-gradient(140deg, var(--brand), var(--brand-deep));
+            color: #fff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-brand:hover,
+        .btn-surface:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px -22px rgba(10, 35, 63, 0.65);
+        }
+
+        main {
+            position: relative;
             z-index: 1;
         }
-        
-        .hero .container {
-            position: relative;
-            z-index: 2;
+
+        .hero {
+            padding: 5.2rem 0 3.5rem;
         }
-        
-        .hero h1,
-        .hero p,
-        .hero a {
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 1.3rem;
+            align-items: stretch;
+        }
+
+        .hero-card,
+        .status-card,
+        .feature-card,
+        .flow-card,
+        .trust-card,
+        .cta-card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 1.45rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .hero-card {
+            padding: 2rem;
+            overflow: hidden;
             position: relative;
-            z-index: 2;
+        }
+
+        .hero-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 100%;
+            height: 0.28rem;
+            background: linear-gradient(90deg, var(--brand) 0 52%, var(--accent-amber) 52% 76%, var(--accent-mint) 76% 100%);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: #edf5ff;
+            color: var(--brand-deep);
+            border: 1px solid #cadef7;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.32rem 0.72rem;
+            margin-bottom: 1rem;
         }
 
         .hero h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            line-height: 1.2;
-            color: white;
+            font-size: clamp(2rem, 4.2vw, 3.4rem);
+            line-height: 1.03;
+            margin: 0 0 1rem;
+            max-width: 17ch;
         }
 
         .hero p {
-            font-size: 18px;
-            margin-bottom: 25px;
-            line-height: 1.6;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            color: white;
+            color: var(--muted);
+            font-size: 1.02rem;
+            line-height: 1.7;
+            max-width: 58ch;
+            margin-bottom: 1.35rem;
         }
 
-        /* About Section */
-        .about {
-            padding: 60px 0;
-            background: white;
+        .hero-highlights {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-top: 1.2rem;
         }
 
-        .about h3 {
-            font-size: 36px;
+        .hero-chip {
+            background: var(--surface-soft);
+            border: 1px solid var(--line);
+            border-radius: 0.9rem;
+            padding: 0.65rem 0.72rem;
             font-weight: 700;
-            margin-bottom: 30px;
+            font-size: 0.86rem;
+            color: #1b3655;
         }
 
-        .about p {
-            line-height: 1.8;
-            margin-bottom: 15px;
+        .status-card {
+            padding: 1.15rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
         }
 
-        .about ul {
+        .status-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            border-radius: 1rem;
+            background: linear-gradient(145deg, #f6fbff, #e8f3ff);
+            border: 1px solid #d3e4f8;
+        }
+
+        .status-dot {
+            width: 0.62rem;
+            height: 0.62rem;
+            border-radius: 50%;
+            background: var(--accent-mint);
+            box-shadow: 0 0 0 0 rgba(30, 169, 125, 0.5);
+            animation: pulse 1.8s infinite;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+
+        .metric {
+            background: var(--surface-soft);
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            padding: 0.78rem;
+        }
+
+        .metric strong {
+            display: block;
+            font-size: 1.4rem;
+            line-height: 1;
+            margin-bottom: 0.35rem;
+            color: #0e2d51;
+        }
+
+        .metric span {
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        section {
+            padding: 2rem 0;
+        }
+
+        .section-heading {
+            margin-bottom: 1rem;
+        }
+
+        .section-heading h2 {
+            font-size: clamp(1.35rem, 2.5vw, 2rem);
+            margin: 0;
+        }
+
+        .section-heading p {
+            color: var(--muted);
+            max-width: 58ch;
+            margin: 0.55rem 0 0;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.9rem;
+        }
+
+        .feature-card {
+            padding: 1rem;
+            transition: transform 0.24s ease, box-shadow 0.24s ease;
+            min-height: 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 24px 48px -34px rgba(15, 36, 62, 0.62);
+        }
+
+        .feature-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            margin-bottom: 0.6rem;
+            color: #fff;
+            background: linear-gradient(140deg, var(--brand), #65a8df);
+        }
+
+        .feature-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .feature-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .flow-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .flow-card {
+            padding: 1rem;
+            position: relative;
+        }
+
+        .flow-no {
+            width: 1.85rem;
+            height: 1.85rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.74rem;
+            font-weight: 800;
+            background: #e5f2ff;
+            color: var(--brand-deep);
+            border: 1px solid #cde2f8;
+            margin-bottom: 0.6rem;
+        }
+
+        .flow-card h3 {
+            font-size: 0.96rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .flow-card p {
+            font-size: 0.86rem;
+            line-height: 1.55;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .trust-wrap {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 0.9rem;
+        }
+
+        .trust-card {
+            padding: 1.15rem;
+        }
+
+        .check-list {
             list-style: none;
             padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 0.5rem;
         }
 
-        .about ul li {
-            padding-bottom: 10px;
+        .check-list li {
             display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .about ul li i {
-            color: var(--primary-color);
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-
-        .about ul h5 {
-            font-size: 18px;
+            align-items: flex-start;
+            gap: 0.55rem;
+            color: #23405f;
             font-weight: 600;
-            margin-bottom: 5px;
+            font-size: 0.92rem;
         }
 
-        /* Stats Section */
-        .stats {
-            background: var(--light-bg);
-            padding: 50px 0;
+        .check-list i {
+            color: var(--accent-mint);
+            margin-top: 0.1rem;
         }
 
-        .stats .stats-item {
+        .cta-card {
+            padding: 1.6rem;
             text-align: center;
-            padding: 30px;
+            background: linear-gradient(160deg, #ffffff 0%, #f0f8ff 100%);
+            border-color: #cee2f6;
         }
 
-        .stats i {
-            font-size: 48px;
-            color: var(--primary-color);
-            margin-bottom: 15px;
+        .cta-card h2 {
+            font-size: clamp(1.4rem, 2.4vw, 2.05rem);
+            margin-bottom: 0.65rem;
         }
 
-        .stats span {
-            font-size: 48px;
-            font-weight: 700;
-            color: var(--primary-color);
-            display: block;
+        .cta-card p {
+            color: var(--muted);
+            margin-bottom: 1rem;
         }
 
-        .stats p {
-            font-size: 16px;
-            font-weight: 600;
-            margin-top: 10px;
+        .footer {
+            margin-top: 1.5rem;
+            border-top: 1px solid #d4e2f4;
+            padding: 1.3rem 0 2rem;
+            color: #4f6680;
+            font-size: 0.85rem;
+            position: relative;
+            z-index: 1;
         }
 
-        /* Services Section */
-        .services {
-            padding: 60px 0;
-            background: white;
+        [data-reveal] {
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity 0.55s ease, transform 0.55s ease;
         }
 
-        .section-title {
-            text-align: center;
-            margin-bottom: 40px;
+        [data-reveal].in-view {
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        .section-title h2 {
-            font-size: 36px;
-            font-weight: 700;
-            margin-bottom: 15px;
+        [data-reveal][data-delay="1"] { transition-delay: 0.08s; }
+        [data-reveal][data-delay="2"] { transition-delay: 0.14s; }
+        [data-reveal][data-delay="3"] { transition-delay: 0.2s; }
+        [data-reveal][data-delay="4"] { transition-delay: 0.26s; }
+
+        @keyframes drift {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-16px); }
         }
 
-        .section-title p {
-            color: #666;
-            font-size: 16px;
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(30, 169, 125, 0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(30, 169, 125, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(30, 169, 125, 0); }
         }
 
-        .service-item {
-            padding: 30px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            text-align: center;
-            height: 100%;
+        @media (max-width: 992px) {
+            .hero-grid,
+            .trust-wrap {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .flow-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .hero {
+                padding-top: 4.3rem;
+            }
         }
 
-        .service-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        }
+        @media (max-width: 576px) {
+            .hero-card,
+            .status-card,
+            .feature-card,
+            .flow-card,
+            .trust-card,
+            .cta-card {
+                border-radius: 1.1rem;
+            }
 
-        .service-item .icon {
-            font-size: 48px;
-            color: var(--primary-color);
-            margin-bottom: 20px;
-        }
+            .hero-card,
+            .status-card {
+                padding: 1rem;
+            }
 
-        .service-item h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
+            .feature-grid,
+            .flow-grid,
+            .hero-highlights,
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
 
-        .service-item p {
-            font-size: 14px;
-            color: #666;
-        }
+            .btn-brand,
+            .btn-surface {
+                width: 100%;
+                justify-content: center;
+            }
 
-        /* Departments Section */
-        .departments {
-            padding: 60px 0;
-            background: var(--light-bg);
-        }
-
-        .departments .nav-tabs {
-            border: 0;
-        }
-
-        .departments .nav-link {
-            color: var(--text-color);
-            border: 0;
-            padding: 15px 0;
-            border-left: 3px solid transparent;
-            border-radius: 0;
-            transition: 0.3s;
-        }
-
-        .departments .nav-link.active {
-            background: transparent;
-            border-left-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        .departments h3 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 15px;
-        }
-
-        /* Doctors Section */
-        .doctors {
-            padding: 60px 0;
-            background: white;
-        }
-
-        .team-member {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .team-member:hover {
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-        }
-
-        .team-member .pic {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            overflow: hidden;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-
-        .team-member .pic img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .team-member h4 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .team-member span {
-            color: var(--primary-color);
-            font-weight: 500;
-        }
-
-        .team-member .social {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .team-member .social a {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #f0f0f0;
-            color: var(--primary-color);
-            text-decoration: none;
-            transition: 0.3s;
-        }
-
-        .team-member .social a:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        /* Contact Section */
-        .contact-section {
-            padding: 60px 0;
-            background: white;
-        }
-
-        .form-control {
-            border: 1px solid #ddd;
-            padding: 10px 15px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(11, 94, 215, 0.25);
-        }
-
-        .form-label {
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .btn-primary {
-            background: var(--primary-color);
-            border: 0;
-            padding: 10px 30px;
-            font-weight: 600;
-            transition: 0.3s;
-        }
-
-        .btn-primary:hover {
-            background: var(--secondary-color);
-        }
-
-        /* Footer */
-        footer {
-            background: var(--secondary-color);
-            color: white;
-            padding: 40px 0 20px;
-        }
-
-        footer h5, footer h6 {
-            font-weight: 700;
-            margin-bottom: 20px;
-        }
-
-        footer p {
-            line-height: 1.8;
-            font-size: 14px;
-        }
-
-        footer a {
-            color: white;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-
-        footer a:hover {
-            text-decoration: underline;
-        }
-
-        .social-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-size: 18px;
-        }
-
-        .social-icon:hover {
-            background: var(--primary-color);
-            transform: translateY(-3px);
-        }
-
-        footer hr {
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
             .hero h1 {
-                font-size: 32px;
-            }
-
-            .hero p {
-                font-size: 16px;
-            }
-
-            .navmenu ul {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .mobile-nav-toggle {
-                display: block;
-                cursor: pointer;
+                font-size: 1.75rem;
             }
         }
     </style>
 </head>
+<body class="index-page">
+    <div class="bg-orb one"></div>
+    <div class="bg-orb two"></div>
+    <div class="bg-orb three"></div>
 
-<body class="index-page admin-theme">
-
-    <header class="header">
-
-        <div class="branding d-flex align-items-center sticky-top" style="background: #294a70;">
-            <div class="container position-relative d-flex align-items-center justify-content-between">
-                <a href="index.html" class="logo d-flex align-items-center me-auto">
-                    <i class="bi bi-hospital"></i>
-                    <h1 class="sitename">HMS</h1>
+    <header class="site-nav" id="siteNav">
+        <nav class="navbar navbar-expand-lg py-2">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+                    <span class="brand-badge"><i class="bi bi-hospital"></i></span>
+                    <span class="brand-text">
+                        <strong>HMS Platform</strong>
+                        <span>Connected Care</span>
+                    </span>
                 </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-                <nav id="navmenu" class="navmenu">
-                    <ul>
-                        <li><a href="#hero" class="active">Home</a></li>
-                        <li><a href="#about">About</a></li>
-                        <li><a href="#services">Services</a></li>
-                        <li><a href="#departments">Departments</a></li>
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav ms-auto me-3 mb-2 mb-lg-0 gap-lg-1">
+                        <li class="nav-item"><a class="nav-link" href="#overview">Overview</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#modules">Modules</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#flow">Care Flow</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#security">Security</a></li>
                     </ul>
-                </nav>
-
-                <div class="d-flex align-items-center gap-2">
-                    <a class="cta-btn d-none d-sm-block" href="pages/auth/login.html">Staff Login</a>
-                    <a class="btn btn-outline-light btn-sm d-none d-md-inline-flex align-items-center" href="pages/template/launchpad.html" style="border-width: 2px;">
-                        New UI
-                    </a>
+                    <div class="d-flex flex-column flex-sm-row gap-2">
+                        <a class="btn-brand" href="pages/auth/login.html"><i class="bi bi-box-arrow-in-right"></i> Staff Login</a>
+                    </div>
                 </div>
-
             </div>
-        </div>
-
+        </nav>
     </header>
 
-    <main class="main">
-
-        <!-- Hero Section -->
-        <section id="hero" class="hero">
-            <div class="container position-relative">
-                <div class="text-center">
-                    <h1>Hospital Management System</h1>
-                    <p>Digitizing patient care, clinical workflows, pharmacy operations, and inventory management for healthcare institutions.</p>
-                    <div class="d-flex justify-content-center gap-3 flex-wrap">
-                        <a href="pages/auth/login.html" class="btn btn-outline-light btn-lg">Access System</a>
-                        <a href="pages/template/launchpad.html" class="btn btn-light btn-lg">Open New Template</a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- About Section -->
-        <section id="about" class="about">
+    <main>
+        <section class="hero" id="overview">
             <div class="container">
-                <h3 class="text-center mb-5">About Our System</h3>
-                <div class="row align-items-center">
-                    <div class="col-lg-6 mb-4 mb-lg-0">
-                        <img src="assets/img/about.jpg" class="img-fluid rounded" alt="Hospital Management" onerror="this.style.display='none'">
-                    </div>
-                    <div class="col-lg-6">
+                <div class="hero-grid">
+                    <article class="hero-card" data-reveal>
+                        <span class="eyebrow"><i class="bi bi-stars"></i> Hospital command center</span>
+                        <h1>One platform for reception, triage, consultation, and pharmacy execution.</h1>
                         <p>
-                            The Hospital Management System is a comprehensive digital healthcare platform designed for government and private hospitals. It streamlines operations across all departments while maintaining data integrity and security.
+                            HMS unifies patient movement from front desk to treatment completion with role-based workspaces, live status tracking, and reliable data validation at every step.
                         </p>
-                        <ul>
-                            <li>
-                                <i class="fas fa-check"></i>
-                                <div>
-                                    <h5>Comprehensive Patient Management</h5>
-                                    <p>Digital registration, electronic patient records, biometric verification, and complete medical history tracking.</p>
-                                </div>
-                            </li>
-                            <li>
-                                <i class="fas fa-check"></i>
-                                <div>
-                                    <h5>Clinical Operations Excellence</h5>
-                                    <p>Integrated nurse vital capture, doctor consultations, digital prescriptions, and real-time patient monitoring.</p>
-                                </div>
-                            </li>
-                            <li>
-                                <i class="fas fa-check"></i>
-                                <div>
-                                    <h5>Pharmacy & Inventory Control</h5>
-                                    <p>Medicine dispensing, stock monitoring, procurement tracking, and automated low-stock alerts.</p>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+                            <a class="btn-brand" href="pages/auth/login.html"><i class="bi bi-shield-lock"></i> Enter Secure Portal</a>
+                            <a class="btn-surface" href="#modules"><i class="bi bi-arrow-down-right"></i> Explore Modules</a>
+                        </div>
+                        <div class="hero-highlights">
+                            <div class="hero-chip">Role-based dashboards</div>
+                            <div class="hero-chip">Realtime queue movement</div>
+                            <div class="hero-chip">Audit-ready workflows</div>
+                        </div>
+                    </article>
+
+                    <aside class="status-card" data-reveal data-delay="1">
+                        <div class="status-top">
+                            <div>
+                                <div class="small text-uppercase fw-bold text-secondary">System heartbeat</div>
+                                <div class="fw-bold">Operational</div>
+                            </div>
+                            <span class="status-dot" aria-hidden="true"></span>
+                        </div>
+                        <div class="metric-grid">
+                            <div class="metric">
+                                <strong data-count="6">0</strong>
+                                <span>Care modules in sync</span>
+                            </div>
+                            <div class="metric">
+                                <strong data-count="100">0</strong>
+                                <span>Validation coverage</span>
+                            </div>
+                            <div class="metric">
+                                <strong data-count="24">0</strong>
+                                <span>Hour operational design</span>
+                            </div>
+                            <div class="metric">
+                                <strong data-count="1">0</strong>
+                                <span>Unified source of truth</span>
+                            </div>
+                        </div>
+                        <div class="small text-secondary px-1">
+                            Built for reception, nurse aid, nurse, nurse in charge, pharmacy, admin, and IT support operations.
+                        </div>
+                    </aside>
                 </div>
             </div>
         </section>
 
-        <!-- Stats Section -->
-        <section id="stats" class="stats">
+        <section id="modules">
             <div class="container">
-                <div class="row">
-                    <div class="col-lg-3 col-md-6 d-flex flex-column align-items-center">
-                        <i class="fas fa-user-md"></i>
-                        <div class="stats-item">
-                            <span>24/7</span>
-                            <p>System Availability</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-3 col-md-6 d-flex flex-column align-items-center">
-                        <i class="fas fa-hospital"></i>
-                        <div class="stats-item">
-                            <span>Role-Based</span>
-                            <p>Access Control</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-3 col-md-6 d-flex flex-column align-items-center">
-                        <i class="fas fa-shield-alt"></i>
-                        <div class="stats-item">
-                            <span>Secure</span>
-                            <p>Data Protection</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-3 col-md-6 d-flex flex-column align-items-center">
-                        <i class="fas fa-check-circle"></i>
-                        <div class="stats-item">
-                            <span>Compliant</span>
-                            <p>Healthcare Standards</p>
-                        </div>
-                    </div>
+                <div class="section-heading" data-reveal>
+                    <h2>Operational Backbone</h2>
+                    <p>Purpose-built modules that coordinate patient experience and staff execution in one clean flow.</p>
+                </div>
+                <div class="feature-grid">
+                    <article class="feature-card" data-reveal data-delay="1">
+                        <span class="feature-icon"><i class="bi bi-person-vcard"></i></span>
+                        <h3>Reception Intake</h3>
+                        <p>Validated registration, medical aid capture, appointment confirmation, and controlled check-in states.</p>
+                    </article>
+                    <article class="feature-card" data-reveal data-delay="2">
+                        <span class="feature-icon"><i class="bi bi-activity"></i></span>
+                        <h3>Nurse Aid Triage</h3>
+                        <p>Vitals capture with risk marking and direct queue routing for routine or urgent review.</p>
+                    </article>
+                    <article class="feature-card" data-reveal data-delay="3">
+                        <span class="feature-icon"><i class="bi bi-heart-pulse"></i></span>
+                        <h3>Nurse Operations</h3>
+                        <p>Bed management, admission support, discharge controls, and pharmacy preparation requests.</p>
+                    </article>
+                    <article class="feature-card" data-reveal data-delay="1">
+                        <span class="feature-icon"><i class="bi bi-stethoscope"></i></span>
+                        <h3>Nurse In Charge Workspace</h3>
+                        <p>Consultation workflows, clinical note capture, prescriptions, referrals, and final outcomes.</p>
+                    </article>
+                    <article class="feature-card" data-reveal data-delay="2">
+                        <span class="feature-icon"><i class="bi bi-capsule-pill"></i></span>
+                        <h3>Pharmacy Control</h3>
+                        <p>Dispensing verification, stock handling, supplier tracking, and claims processing support.</p>
+                    </article>
+                    <article class="feature-card" data-reveal data-delay="3">
+                        <span class="feature-icon"><i class="bi bi-shield-check"></i></span>
+                        <h3>Admin + IT Oversight</h3>
+                        <p>User governance, shift visibility, maintenance controls, audit logs, and support ticketing.</p>
+                    </article>
                 </div>
             </div>
         </section>
 
-        <!-- Services Section -->
-        <section id="services" class="services">
-            <div class="container section-title">
-                <h2>Key Services</h2>
-                <p>Comprehensive solutions tailored for modern healthcare delivery</p>
-            </div>
-
+        <section id="flow">
             <div class="container">
-                <div class="row gy-4">
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="service-item">
-                            <div class="icon">
-                                <i class="fas fa-user-check"></i>
-                            </div>
-                            <h3>Patient Registration</h3>
-                            <p>Fast, secure patient registration with biometric verification and complete medical history documentation.</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="service-item">
-                            <div class="icon">
-                                <i class="fas fa-heartbeat"></i>
-                            </div>
-                            <h3>Clinical Care</h3>
-                            <p>Integrated tools for doctors and nurses including vital signs capture, consultations, and electronic prescriptions.</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="service-item">
-                            <div class="icon">
-                                <i class="fas fa-pills"></i>
-                            </div>
-                            <h3>Pharmacy Management</h3>
-                            <p>Medicine dispensing, inventory tracking, stock monitoring, and automated reorder alerts.</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="service-item">
-                            <div class="icon">
-                                <i class="fas fa-boxes"></i>
-                            </div>
-                            <h3>Inventory Control</h3>
-                            <p>Complete inventory management with real-time stock levels, procurement tracking, and usage analytics.</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="service-item">
-                            <div class="icon">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
-                            <h3>Queue Management</h3>
-                            <p>Efficient patient queue management to reduce wait times and improve patient satisfaction.</p>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="service-item">
-                            <div class="icon">
-                                <i class="fas fa-file-alt"></i>
-                            </div>
-                            <h3>Reports & Analytics</h3>
-                            <p>Comprehensive reporting tools for operations, financials, and clinical analytics.</p>
-                        </div>
-                    </div>
-
+                <div class="section-heading" data-reveal>
+                    <h2>How Care Moves Through HMS</h2>
+                    <p>A simple operating sequence that keeps each role focused while preserving data integrity.</p>
+                </div>
+                <div class="flow-grid">
+                    <article class="flow-card" data-reveal data-delay="1">
+                        <span class="flow-no">01</span>
+                        <h3>Capture</h3>
+                        <p>Patient profile, identity, and coverage are validated at intake before queue placement.</p>
+                    </article>
+                    <article class="flow-card" data-reveal data-delay="2">
+                        <span class="flow-no">02</span>
+                        <h3>Triage</h3>
+                        <p>Vitals and notes determine urgency routing to nurse in charge stream without manual ambiguity.</p>
+                    </article>
+                    <article class="flow-card" data-reveal data-delay="3">
+                        <span class="flow-no">03</span>
+                        <h3>Treat</h3>
+                        <p>Consultation and prescriptions are recorded with smart prompts and status-safe actions.</p>
+                    </article>
+                    <article class="flow-card" data-reveal data-delay="4">
+                        <span class="flow-no">04</span>
+                        <h3>Dispense + Close</h3>
+                        <p>Pharmacy verifies fulfillment, then dashboards update live for end-to-end traceability.</p>
+                    </article>
                 </div>
             </div>
         </section>
 
-        <!-- Departments Section -->
-        <section id="departments" class="departments">
-            <div class="container section-title">
-                <h2>Hospital Departments</h2>
-                <p>Specialized modules for every department</p>
-            </div>
-
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-3">
-                        <ul class="nav nav-tabs flex-column">
-                            <li class="nav-item">
-                                <a class="nav-link active show" data-bs-toggle="tab" href="#dept-1">Reception</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#dept-2">Nursing</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#dept-3">Medical</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#dept-4">Pharmacy</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#dept-5">Inventory</a>
-                            </li>
-                        </ul>
+        <section id="security">
+            <div class="container trust-wrap">
+                <article class="trust-card" data-reveal>
+                    <div class="section-heading">
+                        <h2>Security and Compliance by Design</h2>
+                        <p>Critical safeguards are built into workflow behavior, not added as afterthoughts.</p>
                     </div>
-                    <div class="col-lg-9 mt-4 mt-lg-0">
-                        <div class="tab-content">
-                            <div class="tab-pane active show" id="dept-1">
-                                <h3>Reception Department</h3>
-                                <p class="fst-italic">First point of contact for patients</p>
-                                <p>The reception module handles patient registration, appointment scheduling, queue management, and vital initial screening. Staff can quickly register new patients, verify information, and route them to appropriate departments.</p>
-                            </div>
-                            <div class="tab-pane" id="dept-2">
-                                <h3>Nursing Department</h3>
-                                <p class="fst-italic">Patient care and vital monitoring</p>
-                                <p>Nurses have access to patient records, can record vital signs, manage admissions, monitor patient progress, and coordinate care with doctors. The system supports shift roster management and ward monitoring.</p>
-                            </div>
-                            <div class="tab-pane" id="dept-3">
-                                <h3>Medical (Doctor) Department</h3>
-                                <p class="fst-italic">Clinical consultation and treatment</p>
-                                <p>Doctors can view patient history, conduct consultations, write digital prescriptions, order tests, and maintain treatment records. The system provides comprehensive patient information for informed clinical decisions.</p>
-                            </div>
-                            <div class="tab-pane" id="dept-4">
-                                <h3>Pharmacy Department</h3>
-                                <p class="fst-italic">Medicine dispensing and inventory</p>
-                                <p>The pharmacy module manages medicine stock, processes prescriptions, tracks dispensing, monitors inventory levels, and generates reorder requests. Integration with doctor prescriptions ensures accurate dispensing.</p>
-                            </div>
-                            <div class="tab-pane" id="dept-5">
-                                <h3>Inventory Department</h3>
-                                <p class="fst-italic">Hospital-wide resource management</p>
-                                <p>Comprehensive inventory management for all hospital supplies beyond pharmacy. Track equipment, consumables, and other resources with automated alerts for low stock and reorder management.</p>
-                            </div>
-                        </div>
+                    <ul class="check-list">
+                        <li><i class="bi bi-check-circle-fill"></i> Strict role-based authorization on backend routes</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Heavy field validation on client and server inputs</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Appointment state locks prevent unsafe edits</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Session timeout handling with controlled logout flow</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Consistent audit-oriented actions across dashboards</li>
+                    </ul>
+                </article>
+                <article class="cta-card" data-reveal data-delay="2">
+                    <h2>Ready to Run Your Hospital in One Flow?</h2>
+                    <p>Launch the staff portal and continue with the latest reception, clinical, and pharmacy improvements.</p>
+                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+                        <a class="btn-brand" href="pages/auth/login.html"><i class="bi bi-box-arrow-in-right"></i> Staff Login</a>
                     </div>
-                </div>
+                </article>
             </div>
         </section>
-
     </main>
 
-    <footer class="pt-5">
-        <div class="container">
-            <div class="row g-4">
-
-                <div class="col-md-4">
-                    <h5 class="fw-bold">Hospital Management System</h5>
-                    <p class="small">
-                        A secure digital healthcare platform designed for government and private hospitals.
-                    </p>
-                </div>
-
-                <div class="col-md-2">
-                    <h6 class="fw-semibold">Platform</h6>
-                    <ul class="list-unstyled small">
-                        <li><a href="#services">Services</a></li>
-                        <li><a href="#departments">Departments</a></li>
-                        <li><a href="pages/auth/login.html">Staff Login</a></li>
-                        <li><a href="pages/template/launchpad.html">New UI Template</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-md-3">
-                    <h6 class="fw-semibold">Compliance</h6>
-                    <ul class="list-unstyled small">
-                        <li>Data Protection Ready</li>
-                        <li>Audit Logging Supported</li>
-                        <li>Role-Based Access Control</li>
-                        <li>Healthcare Security Focused</li>
-                    </ul>
-                </div>
-
-                <div class="col-md-3">
-                    <h6 class="fw-semibold">Connect with us</h6>
-                    <div class="d-flex gap-3">
-                        <a href="#" class="social-icon"><i class="bi bi-linkedin"></i></a>
-                        <a href="#" class="social-icon"><i class="bi bi-twitter-x"></i></a>
-                        <a href="#" class="social-icon"><i class="bi bi-facebook"></i></a>
-                        <a href="#" class="social-icon"><i class="bi bi-instagram"></i></a>
-                    </div>
-                </div>
-
-            </div>
-
-            <hr class="border-light my-4">
-
-            <div class="text-center small">
-                &copy; 2026 Hospital Management System. All rights reserved.
-            </div>
+    <footer class="footer">
+        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+            <div>Hospital Management System</div>
+            <div class="text-center text-md-end">2026 HMS. Secure, connected, role-driven care operations.</div>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
     <script>
-        // Add active class to current nav link on scroll
-        window.addEventListener('scroll', function() {
-            const header = document.querySelector('.header');
-            if (window.scrollY > 100) {
-                header.classList.add('header-scrolled');
+        (function () {
+            const nav = document.getElementById("siteNav");
+            const onScroll = () => {
+                if (!nav) return;
+                nav.classList.toggle("scrolled", window.scrollY > 24);
+            };
+            window.addEventListener("scroll", onScroll, { passive: true });
+            onScroll();
+
+            const revealEls = document.querySelectorAll("[data-reveal]");
+            if ("IntersectionObserver" in window) {
+                const io = new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add("in-view");
+                            io.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.15 });
+                revealEls.forEach((el) => io.observe(el));
             } else {
-                header.classList.remove('header-scrolled');
+                revealEls.forEach((el) => el.classList.add("in-view"));
             }
-        });
+
+            const counters = document.querySelectorAll("[data-count]");
+            const animateCounter = (el) => {
+                const end = Number(el.getAttribute("data-count"));
+                if (!Number.isFinite(end)) return;
+                const duration = 1050;
+                const start = performance.now();
+                const tick = (now) => {
+                    const progress = Math.min((now - start) / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const value = Math.round(end * eased);
+                    el.textContent = end >= 100 ? value + "%" : value;
+                    if (progress < 1) requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+            };
+
+            counters.forEach((el) => animateCounter(el));
+        })();
     </script>
-
 </body>
-
 </html>

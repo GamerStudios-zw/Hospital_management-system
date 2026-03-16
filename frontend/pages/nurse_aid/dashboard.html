@@ -9,7 +9,10 @@
     <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
+        html, body { height: 100%; overflow: hidden; }
         body { font-family: var(--app-font); background: #f1f5f9; color: #1e293b; }
+        .container-fluid.p-0 { height: 100vh; }
+        .container-fluid.p-0 > .row.g-0 { height: 100vh; }
         .sidebar { min-height: 100vh; background: #0f172a; color: white; }
         .sidebar .nav-link {
             color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer;
@@ -17,7 +20,19 @@
         }
         .sidebar .nav-link.active { background: #10b981; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
         .tab-section { display: none; }
-        .tab-section.active { display: block; }
+        .tab-section.active {
+            display: block;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        main.col-md-10 {
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
         .stat-widget { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; }
         .chart-compact { height: 170px; }
         .chart-compact canvas { height: 170px !important; max-height: 170px; }
@@ -171,7 +186,7 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4">Time</th>
+                                    <th class="ps-4">Patient ID</th>
                                     <th>Patient</th>
                                     <th>Temp</th>
                                     <th>Pulse</th>
@@ -282,9 +297,53 @@
                 </div>
                 <div class="modal-footer border-0 p-4">
                     <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Doctor</button>
+                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Nurse In Charge</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="nurseAidHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Patient History: <span id="nurseAidHistoryPatientName" class="text-success"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="nurseAidHistoryPatientMeta" class="small text-muted mb-3"></div>
+
+                <h6 class="fw-bold mb-2">Vitals</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Time</th><th>Temp</th><th>Pulse</th><th>BP</th><th>SpO2</th><th>Risk</th></tr>
+                        </thead>
+                        <tbody id="nurseAidHistoryVitalsBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold mb-2">Visits</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Time</th><th>Status</th><th>Assigned</th></tr>
+                        </thead>
+                        <tbody id="nurseAidHistoryVisitsBody"></tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold mb-2">Prescriptions</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Time</th><th>Medicine</th><th>Qty</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="nurseAidHistoryMedsBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -299,6 +358,8 @@
     let activePatientId = null;
     let isSavingVitals = false;
     const vitalsModal = new bootstrap.Modal(document.getElementById('vitalsModal'));
+    const nurseAidHistoryModal = new bootstrap.Modal(document.getElementById('nurseAidHistoryModal'));
+    let nurseAidHistorySnapshot = null;
     let triageChart = null;
     let vitalsMode = 'triage';
     let reminderIntervalId = null;
@@ -644,12 +705,17 @@
                 const badgeClass = status.toLowerCase().includes('urgent') ? 'bg-danger'
                     : (status.toLowerCase().includes('triage') ? 'bg-info text-dark' : 'bg-warning text-dark');
                 const isUrgent = status.toLowerCase().includes('urgent');
-                const risk = classifyVitalsRisk(q);
-                const riskBadge = renderVitalsRiskBadge(q);
-                const riskTriggers = renderVitalsRiskTriggers(q, { className: 'small text-muted mt-1', prefix: 'Trigger' });
-                const rowClass = nurseAidRowRiskClass(risk.level);
-                const criticalAlert = risk.level === 'red'
-                    ? '<div class="small text-danger fw-semibold mt-1"><span class="critical-alert-dot"></span>Immediate Doctor Review</div>'
+                const hasCurrentVitals = Boolean(q.last_vitals_at);
+                const risk = hasCurrentVitals ? classifyVitalsRisk(q) : { level: 'green', rank: 0 };
+                const riskBadge = hasCurrentVitals
+                    ? renderVitalsRiskBadge(q)
+                    : '<span class="badge bg-secondary-subtle text-secondary">Pending Vitals</span>';
+                const riskTriggers = hasCurrentVitals
+                    ? renderVitalsRiskTriggers(q, { className: 'small text-muted mt-1', prefix: 'Trigger' })
+                    : '';
+                const rowClass = hasCurrentVitals ? nurseAidRowRiskClass(risk.level) : '';
+                const criticalAlert = hasCurrentVitals && risk.level === 'red'
+                    ? '<div class="small text-danger fw-semibold mt-1"><span class="critical-alert-dot"></span>Immediate Nurse In Charge Review</div>'
                     : '';
                 const actionBtn = isUrgent
                     ? `<span class="badge bg-light text-muted border">Awaiting doctor</span>`
@@ -696,9 +762,11 @@
             return;
         }
         document.getElementById('modalPatientName').innerText = q.full_name;
+        const form = document.getElementById('vitalsForm');
+        if (form) form.reset();
         const saveBtn = document.getElementById('saveVitalsBtn');
         if (saveBtn) {
-            saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Doctor';
+            saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse In Charge';
         }
         if (vitalsMode === 'triage') {
             Api.post('/nurse_aid/start_triage', { queue_id: activeQueueId });
@@ -731,7 +799,7 @@
         if (!temperature || !pulse || !bp || !weight || !spo2 || !notes) {
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Doctor';
+                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse In Charge';
             }
             isSavingVitals = false;
             return notify("All vitals fields and notes are required");
@@ -739,7 +807,7 @@
         if (!bpOk || temperatureNum < 30 || temperatureNum > 45 || pulseNum < 20 || pulseNum > 250 || weightNum < 1 || weightNum > 500 || spo2Num < 50 || spo2Num > 100 || notes.length < 3) {
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Doctor';
+                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse In Charge';
             }
             isSavingVitals = false;
             return notify("Invalid vitals. Check ranges and BP format (e.g., 120/80).", "warning");
@@ -772,7 +840,7 @@
             isSavingVitals = false;
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.textContent = 'Finalize & Route to Doctor';
+                saveBtn.textContent = 'Finalize & Route to Nurse In Charge';
             }
         }
     }
@@ -799,13 +867,27 @@
         const tbody = document.getElementById('historyTableBody');
         if (!tbody) return;
         tbody.innerHTML = '';
-        if (Array.isArray(data.recent) && data.recent.length) {
-            data.recent.forEach(r => {
-                const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+        const recentRows = Array.isArray(data.recent) ? data.recent : [];
+        const uniqueRows = [];
+        const seen = new Set();
+        recentRows.forEach((r) => {
+            const pid = Number(r.patient_id || 0);
+            const key = pid > 0 ? `id:${pid}` : `name:${String(r.patient_name || '').trim().toLowerCase()}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            uniqueRows.push(r);
+        });
+        if (uniqueRows.length) {
+            uniqueRows.forEach(r => {
+                const patientId = Number(r.patient_id || 0);
+                const patientName = r.patient_name || 'Unknown';
+                const patientCell = patientId > 0
+                    ? `<button class="btn btn-link p-0 fw-semibold text-decoration-underline" onclick="openNurseAidHistory(${patientId})">${patientName}</button>`
+                    : `<span class="fw-semibold">${patientName}</span>`;
                 tbody.innerHTML += `
                     <tr>
-                        <td class="ps-4 small text-muted">${timeStr}</td>
-                        <td class="fw-semibold">${r.patient_name || 'Unknown'}</td>
+                        <td class="ps-4 small text-muted">${patientId > 0 ? patientId : '-'}</td>
+                        <td>${patientCell}</td>
                         <td>${r.temperature ?? '-'}</td>
                         <td>${r.pulse ?? '-'}</td>
                         <td>${r.bp ?? '-'}</td>
@@ -817,6 +899,68 @@
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No history found.</td></tr>';
         }
         applyNurseAidPatientSearch();
+    }
+
+    async function openNurseAidHistory(patientId) {
+        const pid = Number(patientId || 0);
+        if (!Number.isFinite(pid) || pid <= 0) {
+            notify('Patient history is unavailable for this row.', 'warning');
+            return;
+        }
+        const data = await Api.get(`/nurse_aid/history?patient_id=${pid}`);
+        if (!data || !data.patient) return;
+        nurseAidHistorySnapshot = data;
+
+        const patient = data.patient || {};
+        document.getElementById('nurseAidHistoryPatientName').innerText = patient.full_name || `Patient #${pid}`;
+        document.getElementById('nurseAidHistoryPatientMeta').innerText =
+            `${patient.gender || '-'} | ${patient.dob || '-'} | National ID: ${patient.national_id || '-'}`;
+
+        const vitalsBody = document.getElementById('nurseAidHistoryVitalsBody');
+        const visitsBody = document.getElementById('nurseAidHistoryVisitsBody');
+        const medsBody = document.getElementById('nurseAidHistoryMedsBody');
+
+        if (vitalsBody) {
+            const vitals = Array.isArray(data.vitals) ? data.vitals : [];
+            vitalsBody.innerHTML = vitals.length
+                ? vitals.map(v => `
+                    <tr>
+                        <td class="small">${v.created_at ? new Date(v.created_at).toLocaleString() : '-'}</td>
+                        <td>${v.temperature ?? '-'}</td>
+                        <td>${v.pulse ?? '-'}</td>
+                        <td>${v.bp ?? '-'}</td>
+                        <td>${v.spo2 ?? '-'}</td>
+                        <td>${renderVitalsRiskBadge(v)}${renderVitalsRiskTriggers(v, { className: 'small text-muted mt-1', prefix: 'Trigger' })}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="6" class="text-center text-muted">No vitals found.</td></tr>';
+        }
+
+        if (visitsBody) {
+            const visits = Array.isArray(data.visits) ? data.visits : [];
+            visitsBody.innerHTML = visits.length
+                ? visits.map(v => `
+                    <tr>
+                        <td class="small">${v.created_at ? new Date(v.created_at).toLocaleString() : '-'}</td>
+                        <td>${v.status || '-'}</td>
+                        <td>${v.doctor_assigned || '-'}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="3" class="text-center text-muted">No visits found.</td></tr>';
+        }
+
+        if (medsBody) {
+            const meds = Array.isArray(data.prescriptions) ? data.prescriptions : [];
+            medsBody.innerHTML = meds.length
+                ? meds.map(m => `
+                    <tr>
+                        <td class="small">${m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
+                        <td>${m.medicine_name || m.notes || 'External'}</td>
+                        <td>${m.quantity ?? '-'}</td>
+                        <td>${m.status || '-'}</td>
+                    </tr>`).join('')
+                : '<tr><td colspan="4" class="text-center text-muted">No prescriptions found.</td></tr>';
+        }
+
+        nurseAidHistoryModal.show();
     }
 
 
@@ -938,10 +1082,10 @@
             const names = overdue.slice(0, 4).map(r => r.full_name).join(', ');
             const more = overdue.length > 4 ? ` +${overdue.length - 4} more` : '';
             const msg = `Vitals overdue (4h) for: ${names}${more}`;
-            if (typeof showNotification === "function") {
-                showNotification(msg);
+            if (typeof window.notifyStaffPopup === 'function') {
+                window.notifyStaffPopup(msg, 'warning');
             } else {
-                notify(msg);
+                notify(msg, { type: 'warning', timeoutMs: 5000 });
             }
             localStorage.setItem('nurseAidVitalsReminderAt', String(now));
         }, 5 * 60 * 1000);

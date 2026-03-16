@@ -19,6 +19,10 @@
             --it-muted: #64748b;
             --it-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
         }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             font-family: var(--app-font);
             color: var(--it-text);
@@ -40,6 +44,16 @@
         .main {
             margin-left: 260px;
             padding: 24px;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .tab-section {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
         }
         .sidebar .nav-link {
             color: #c9d8e8;
@@ -400,17 +414,27 @@
             const rows = await Api.get('/it/tickets');
             const tbody = document.getElementById('ticketsTable');
             if (!tbody) return;
+            const normalize = (v) => String(v || '').trim().toLowerCase();
+            const statusBadge = (statusRaw) => {
+                const status = normalize(statusRaw);
+                if (status === 'closed') return 'status-pill bg-success-subtle text-success';
+                if (status === 'in_progress') return 'status-pill bg-info-subtle text-info';
+                return 'status-pill bg-warning-subtle text-warning';
+            };
             tbody.innerHTML = rows && rows.length ? rows.map(t => `
                 <tr>
                     <td>#${t.id}</td>
                     <td>${t.title}</td>
                     <td><span class="status-pill bg-light border">${t.priority}</span></td>
-                    <td><span class="status-pill bg-success-subtle text-success">${t.status}</span></td>
+                    <td><span class="${statusBadge(t.status)}">${t.status}</span></td>
                     <td class="small">${new Date(t.created_at).toLocaleString()}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="updateTicket(${t.id}, 'in_progress')">In Progress</button>
-                        <button class="btn btn-sm btn-outline-success" onclick="updateTicket(${t.id}, 'closed')">Close</button>
-                    </td>
+                    <td class="text-end">${normalize(t.status) === 'closed'
+                        ? '<span class="badge bg-success-subtle text-success border border-success">Locked</span>'
+                        : `
+                            <button class="btn btn-sm btn-outline-secondary" onclick="updateTicket(${t.id}, 'in_progress')">In Progress</button>
+                            <button class="btn btn-sm btn-outline-success" onclick="updateTicket(${t.id}, 'closed')">Close</button>
+                        `
+                    }</td>
                 </tr>`).join('') : '<tr><td colspan="6" class="text-center text-muted">No tickets</td></tr>';
         }
 

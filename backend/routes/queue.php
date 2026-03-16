@@ -29,8 +29,8 @@ switch ($action) {
 
     case 'update':
         if ($method === 'PUT') {
-            // Nurse or Doctor updates status
-            RoleMiddleware::allow(['admin', 'nurse', 'doctor'], $user);
+            // Nurse or Nurse In Charge updates status
+            RoleMiddleware::allow(['admin', 'nurse', 'doctor', 'nurse_in_charge'], $user);
             $controller->updateStatus();
         }
         break;

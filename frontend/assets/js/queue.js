@@ -85,8 +85,8 @@ function renderActions(visit) {
         }
     }
 
-    // DOCTOR ACTIONS
-    if (userRole === 'doctor' || userRole === 'admin') {
+    // NURSE IN CHARGE ACTIONS
+    if (userRole === 'doctor' || userRole === 'nurse_in_charge' || userRole === 'admin') {
         if (visit.status === 'triaged') {
             return `<button class="btn btn-sm btn-primary" onclick="startConsultation(${visit.id})">
                         Call Patient
@@ -137,7 +137,15 @@ async function addToQueue(event) {
  * 4. Update Status (e.g., Nurse marks as Triaged)
  */
 async function updateStatus(visitId, newStatus) {
-    if(!confirm("Are you sure you want to update this patient's status?")) return;
+    if (typeof window.smartConfirm === 'function') {
+        const confirmed = await window.smartConfirm("Are you sure you want to update this patient's status?", {
+            title: "Update Patient Status",
+            confirmText: "Update"
+        });
+        if (!confirmed) return;
+    } else if (!confirm("Are you sure you want to update this patient's status?")) {
+        return;
+    }
 
     const payload = {
         visit_id: visitId,

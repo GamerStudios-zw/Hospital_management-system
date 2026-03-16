@@ -60,6 +60,37 @@ Fonts are self-hosted under:
   ```
 - For production, wire `/health` to your monitoring system (UptimeRobot, Prometheus, Zabbix, etc.).
 
+## Email Reminders (Pending/Standby Work)
+- Manual trigger via admin API:
+  - `POST /backend/index.php/admin/send_reminders`
+  - Optional JSON flags: `dry_run`, `force`, `include_internal`
+- CLI trigger:
+  ```bash
+  php backend/send_reminders.php
+  php backend/send_reminders.php --dry-run
+  php backend/send_reminders.php --force --emails="a@gmail.com,b@gmail.com"
+  ```
+- PowerShell helper:
+  ```powershell
+  powershell -File scripts\send_reminders.ps1
+  powershell -File scripts\send_reminders.ps1 -DryRun
+  powershell -File scripts\send_reminders.ps1 -Force -Emails "a@gmail.com,b@gmail.com"
+  ```
+- Recommended automation (Windows Task Scheduler):
+  - Program/script: `php`
+  - Arguments: `C:\xampp\htdocs\Hospital_Management_System\backend\send_reminders.php`
+  - Schedule: every 1-4 hours (or daily, based on your workflow)
+
+Note: account creation now expects staff emails to be explicitly entered.
+To actually deliver emails (including Gmail), configure SMTP environment variables for PHP/Apache:
+- `HMS_SMTP_HOST` (e.g., `smtp.gmail.com`)
+- `HMS_SMTP_PORT` (e.g., `587`)
+- `HMS_SMTP_USER` (SMTP username/email)
+- `HMS_SMTP_PASS` (SMTP app password)
+- `HMS_SMTP_SECURE` (`tls` or `ssl`)
+- `HMS_SMTP_FROM` (sender email)
+- `HMS_SMTP_FROM_NAME` (sender display name)
+
 ## Automated Tests (Basic)
 - Run the basic suite:
   ```powershell

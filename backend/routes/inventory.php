@@ -12,6 +12,57 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['senior_pharmacist'], $user);
+$normalizeCategory = function ($category): string {
+    $value = trim((string)$category);
+    if ($value === '') return 'General';
+    $allowed = ['General', 'Tablet', 'Capsule', 'Syrup', 'Injection', 'Consumable'];
+    foreach ($allowed as $item) {
+        if (strcasecmp($item, $value) === 0) return $item;
+    }
+    return 'General';
+};
+$extractMedicationMeta = function ($data, string $category) {
+    $spec = trim((string)($data->meta_spec ?? ''));
+    $route = strtoupper(trim((string)($data->meta_route ?? '')));
+    $description = trim((string)($data->description ?? ''));
+
+    if (in_array($category, ['Tablet', 'Capsule', 'Syrup'], true) && $spec === '') {
+        $fieldLabel = $category === 'Syrup' ? 'Concentration' : 'Strength';
+        http_response_code(400);
+        echo json_encode(["message" => $fieldLabel . " is required for {$category} category."]);
+        exit;
+    }
+
+    if (strcasecmp($category, 'Injection') === 0) {
+        if ($spec === '') {
+            http_response_code(400);
+            echo json_encode(["message" => "Concentration is required for Injection category."]);
+            exit;
+        }
+        $allowedRoutes = ['IV', 'IM', 'SC', 'ID'];
+        if (!in_array($route, $allowedRoutes, true)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Route is required for Injection category (IV/IM/SC/ID)."]);
+            exit;
+        }
+    } else {
+        $route = '';
+    }
+
+    if ($description === '') {
+        $parts = [];
+        if ($spec !== '') {
+            $specLabel = strcasecmp($category, 'Injection') === 0 || strcasecmp($category, 'Syrup') === 0
+                ? 'Concentration'
+                : (in_array($category, ['Tablet', 'Capsule'], true) ? 'Strength' : 'Specification');
+            $parts[] = $specLabel . ': ' . $spec;
+        }
+        if ($route !== '') $parts[] = 'Route: ' . $route;
+        $description = implode(' | ', $parts);
+    }
+
+    return [$spec, $route, $description !== '' ? $description : null];
+};
 
 switch ($action) {
     // 1. GET ALL STOCK
@@ -39,10 +90,12 @@ switch ($action) {
                 echo json_encode(["message" => "Name and Quantity are required"]);
                 exit;
             }
-            $sql = "INSERT INTO medicines (name, batch_number, stock_quantity, unit, expiry_date, price) VALUES (?, ?, ?, ?, ?, ?)";
+            $category = $normalizeCategory($data->category ?? 'General');
+            [, , $description] = $extractMedicationMeta($data, $category);
+            $sql = "INSERT INTO medicines (name, description, category, batch_number, stock_quantity, unit, expiry_date, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $db->prepare($sql);
             $price = isset($data->price) ? $data->price : 0;
-            if($stmt->execute([$data->name, $data->batch_number, $data->quantity, $data->unit, $data->expiry_date, $price])) {
+            if($stmt->execute([$data->name, $description, $category, $data->batch_number, $data->quantity, $data->unit, $data->expiry_date, $price])) {
                 echo json_encode(["message" => "Stock Added Successfully"]);
             } else {
                 http_response_code(500);
@@ -56,12 +109,13 @@ switch ($action) {
             $data = RequestValidator::json();
             if(!isset($data->id)) { http_response_code(400); exit; }
 
-            // UPDATED: Added price=? to the query
-            $sql = "UPDATE medicines SET name=?, batch_number=?, stock_quantity=?, unit=?, expiry_date=?, price=? WHERE id=?";
+            $category = $normalizeCategory($data->category ?? 'General');
+            [, , $description] = $extractMedicationMeta($data, $category);
+            $sql = "UPDATE medicines SET name=?, description=?, category=?, batch_number=?, stock_quantity=?, unit=?, expiry_date=?, price=? WHERE id=?";
             $stmt = $db->prepare($sql);
             $price = isset($data->price) ? $data->price : 0;
 
-            if($stmt->execute([$data->name, $data->batch_number, $data->quantity, $data->unit, $data->expiry_date, $price, $data->id])) {
+            if($stmt->execute([$data->name, $description, $category, $data->batch_number, $data->quantity, $data->unit, $data->expiry_date, $price, $data->id])) {
                 echo json_encode(["message" => "Stock Updated"]);
             } else {
                 http_response_code(500);

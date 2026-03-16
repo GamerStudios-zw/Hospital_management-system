@@ -67,6 +67,7 @@ $module = isset($segments[0]) ? $segments[0] : '';
 // 4.5 Maintenance Mode Gate
 try {
     $db = (new Database())->getConnection();
+    DbSchema::ensureNurseInChargeRole($db, true);
     DbSchema::ensureUserRole($db, 'it_support');
     if ($db) {
         $stmt = $db->prepare("SELECT maintenance_mode FROM system_settings WHERE id = 1 LIMIT 1");

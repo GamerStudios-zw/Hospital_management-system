@@ -43,6 +43,25 @@
             opacity: 0.75;
             cursor: not-allowed;
         }
+        body.admin-theme[data-page="login"] .form-card .nav-link-lite {
+            color: #4f6788;
+        }
+        body.admin-theme[data-page="login"] .form-card .nav-link-lite:hover,
+        body.admin-theme[data-page="login"] .form-card .nav-link-lite:focus {
+            color: #1d4f9b;
+        }
+        body.admin-theme[data-page="login"] .form-card .nav-link-lite.active::after,
+        body.admin-theme[data-page="login"] .form-card .nav-link-lite:hover::after {
+            background: linear-gradient(90deg, #1d4f9b, #17a166);
+        }
+        body.admin-theme[data-page="login"] .form-card .brand-copy span {
+            color: #5f7799;
+        }
+        body.admin-theme[data-page="login"] .form-card .eyebrow {
+            color: #36557d;
+            border-color: #c8d9ef;
+            background: #edf4ff;
+        }
     </style>
 </head>
 
@@ -69,7 +88,6 @@
 
                         <span class="eyebrow"><i class="bi bi-shield-lock"></i> Authenticated access</span>
                         <h1 class="section-heading mt-3 mb-2">Sign in to continue.</h1>
-                        <p class="muted-copy">Doctors, nurses, reception staff, pharmacists, IT support, and administrators are routed to their dashboard after login.</p>
 
                         <form id="loginForm" class="mt-4">
                             <div class="mb-3">
@@ -126,6 +144,10 @@
             const reason = sessionStorage.getItem("hms_logout_reason");
             if (!reason) return;
             sessionStorage.removeItem("hms_logout_reason");
+            if (reason === "manual_logout") {
+                setAlert("alert-success", "You have been logged out successfully.");
+                return;
+            }
             if (reason === "session_expired") {
                 setAlert("alert-error", "Session timed out. Please sign in again.");
                 return;
@@ -193,40 +215,40 @@
 
                 setAlert("alert-success", "Login successful. Redirecting...");
 
-                setTimeout(() => {
-                    switch (normalizedRole) {
-                        case "admin":
-                            window.location.href = "../admin/dashboard.html";
-                            break;
-                        case "doctor":
-                            window.location.href = "../doctor/dashboard.html";
-                            break;
-                        case "nurse":
-                            window.location.href = "../nurse/dashboard.html";
-                            break;
-                        case "nurse_aid":
-                            window.location.href = "../nurse_aid/dashboard.html";
-                            break;
-                        case "receptionist":
-                            window.location.href = "../reception/dashboard.html";
-                            break;
-                        case "pharmacist":
-                        case "senior_pharmacist":
-                            window.location.href = "../pharmacy/dashboard.html";
-                            break;
-                        case "it_support":
-                            window.location.href = "../it/itdashboard.html";
-                            break;
-                        default:
-                            if (typeof showNotification === "function") {
-                                showNotification("Unknown Role: " + rawRole);
-                            } else {
-                                notify("Unknown Role: " + rawRole);
-                            }
-                            setButtonLoading(false);
-                            break;
+                const dashboardPathMap = {
+                    admin: "../admin/dashboard.html",
+                    nurse_in_charge: "../doctor/dashboard.html",
+                    doctor: "../doctor/dashboard.html",
+                    nurse: "../nurse/dashboard.html",
+                    nurse_aid: "../nurse_aid/dashboard.html",
+                    receptionist: "../reception/dashboard.html",
+                    pharmacist: "../pharmacy/dashboard.html",
+                    senior_pharmacist: "../pharmacy/dashboard.html",
+                    it_support: "../it/itdashboard.html"
+                };
+                const destination = dashboardPathMap[normalizedRole] || "";
+                if (!destination) {
+                    if (typeof showNotification === "function") {
+                        showNotification("Unknown Role: " + rawRole);
+                    } else {
+                        notify("Unknown Role: " + rawRole);
                     }
-                }, 900);
+                    setButtonLoading(false);
+                    return;
+                }
+
+                const roleLabel = normalizedRole.replace(/_/g, " ");
+                if (typeof showSessionIntro === "function") {
+                    await showSessionIntro("login", {
+                        name: userPayload.full_name || userPayload.username || "",
+                        subtitle: `Signed in as ${roleLabel}. Loading dashboard...`,
+                        minDurationMs: 1250
+                    });
+                } else {
+                    await new Promise((resolve) => setTimeout(resolve, 900));
+                }
+
+                window.location.href = destination;
             } catch (error) {
                 console.error("Login Error:", error);
                 setAlert("alert-error", error.message);

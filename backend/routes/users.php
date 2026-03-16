@@ -10,6 +10,7 @@ require_once __DIR__ . '/../utils/UsernameStrategy.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $database = new Database();
 $db = $database->getConnection();
+DbSchema::ensureNurseInChargeRole($db, true);
 DbSchema::ensureUserRole($db, 'it_support');
 
 switch ($method) {
@@ -103,22 +104,35 @@ switch ($method) {
         }
 
         // --- C. CREATE USER (Original Logic) ---
-        if (!isset($data->full_name) || !isset($data->password) || !isset($data->role)) {
+        if (!isset($data->full_name) || !isset($data->password) || !isset($data->role) || !isset($data->email)) {
             http_response_code(400);
             echo json_encode(["message" => "Incomplete data"]);
             exit();
         }
+        $role = strtolower(trim((string)$data->role));
+        $allowedRoles = ['admin', 'doctor', 'nurse_in_charge', 'nurse', 'nurse_aid', 'receptionist', 'pharmacist', 'senior_pharmacist', 'it_support'];
+        if (!in_array($role, $allowedRoles, true)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Invalid role selected."]);
+            exit();
+        }
+        $data->role = $role;
+        $data->email = strtolower(trim((string)($data->email ?? '')));
+        if ($data->email === '' || !filter_var($data->email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(["message" => "A valid email is required."]);
+            exit();
+        }
 
-        // Build account identity in format: firstname@hospitalname and firstname@hospitalname.gov
+        // Build username from full name, but keep user-provided email.
         $data->username = UsernameStrategy::buildFromFullName($db, $data->full_name ?? '');
-        $data->email = UsernameStrategy::buildEmailFromFullName($db, $data->full_name ?? '', 'gov');
 
         $check = $db->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
         $check->execute([$data->username, $data->email]);
         if ($check->rowCount() > 0) {
             http_response_code(409);
             echo json_encode([
-                "message" => "Generated username/email already exists.",
+                "message" => "Username or email already exists.",
                 "username" => $data->username,
                 "email" => $data->email
             ]);
@@ -144,14 +158,19 @@ switch ($method) {
                     'new_values' => [
                         'username' => $data->username,
                         'full_name' => $data->full_name,
-                        'role' => $data->role
+                        'role' => $data->role,
+                        'email' => $data->email
                     ],
-                    'safe_fields' => ['username', 'full_name', 'role']
+                    'safe_fields' => ['username', 'full_name', 'role', 'email']
                 ]);
             } catch (Exception $e) {
                 // ignore logging errors
             }
-            echo json_encode(["message" => "User created successfully"]);
+            echo json_encode([
+                "message" => "User created successfully",
+                "username" => $data->username,
+                "email" => $data->email
+            ]);
         }
         break;
 

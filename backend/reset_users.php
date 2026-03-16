@@ -14,7 +14,7 @@ try {
     // List of users to fix
     $users = [
         // Username,  Email,               Role
-        ['doc1',     'doc@test.com',      'doctor'],
+        ['doc1',     'doc@test.com',      'nurse_in_charge'],
         ['nurse1',   'nurse@test.com',    'nurse'],
         ['rec1',     'rec@test.com',      'receptionist'],
         ['pharm1',   'pharm@test.com',    'pharmacist']

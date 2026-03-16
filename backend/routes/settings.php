@@ -73,6 +73,11 @@ switch ($action) {
             echo json_encode(["message" => "Hospital name and contact email are required."]);
             break;
         }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Enter a valid contact email address."]);
+            break;
+        }
 
         $stmt = $db->prepare("INSERT INTO system_settings (id, hospital_name, contact_email, maintenance_mode)
             VALUES (1, ?, ?, ?)

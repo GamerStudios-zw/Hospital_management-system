@@ -5,7 +5,7 @@
 
 const CONFIG = {
     // Ensure this path matches your actual backend folder structure
-    BASE_URL: "http://localhost/Hospital_Management_System/backend/index.php"
+    BASE_URL: `${window.location.origin}/Hospital_Management_System/backend/index.php`
 };
 const notify = window.notify || function(message, options = {}) {
     if (window.showBanner) return window.showBanner(message, options);
@@ -82,7 +82,17 @@ const Api = {
  * Clears session and redirects to home
  */
 async function logout() {
-    if(!confirm("Are you sure you want to log out?")) return;
+    if (typeof window.smartConfirm === 'function') {
+        const confirmed = await window.smartConfirm("Are you sure you want to log out?", {
+            title: "Logout",
+            confirmText: "Logout",
+            cancelText: "Stay",
+            danger: true
+        });
+        if (!confirmed) return;
+    } else if(!confirm("Are you sure you want to log out?")) {
+        return;
+    }
 
     try {
         // Attempt to notify backend; Api.post will attach Authorization header from localStorage
@@ -120,7 +130,7 @@ function protectPage(allowedRoles) {
     if (!allowedRoles.includes(user.role)) {
         notify("⛔ Access Denied: You do not have permission.");
         // Redirect back to their correct dashboard based on their actual role
-        if(user.role === 'doctor') window.location.href = "../doctor/dashboard.html";
+        if(user.role === 'doctor' || user.role === 'nurse_in_charge') window.location.href = "../doctor/dashboard.html";
         else if(user.role === 'nurse') window.location.href = "../nurse/dashboard.html";
         else if(user.role === 'admin') window.location.href = "../admin/dashboard.html";
         else window.location.href = "../auth/login.html";

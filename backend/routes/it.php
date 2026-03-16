@@ -280,11 +280,47 @@ switch ($action) {
                 echo json_encode(["message" => "Ticket ID required"]);
                 exit;
             }
+            $ticketId = (int)$data->id;
+            if ($ticketId <= 0) {
+                http_response_code(400);
+                echo json_encode(["message" => "Valid ticket ID required"]);
+                exit;
+            }
+
+            $currentStmt = $db->prepare("SELECT id, status FROM it_tickets WHERE id = ? LIMIT 1");
+            $currentStmt->execute([$ticketId]);
+            $current = $currentStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$current) {
+                http_response_code(404);
+                echo json_encode(["message" => "Ticket not found"]);
+                exit;
+            }
+
+            $currentStatus = strtolower(trim((string)($current['status'] ?? '')));
+            if ($currentStatus === 'closed') {
+                $requestedStatus = isset($data->status) ? strtolower(trim((string)$data->status)) : null;
+                // Idempotent close is allowed, but any other change is blocked.
+                if ($requestedStatus === 'closed' && !isset($data->priority) && !isset($data->assigned_to)) {
+                    if (ob_get_length()) { @ob_clean(); }
+                    echo json_encode(["message" => "Ticket already closed"]);
+                    exit;
+                }
+                http_response_code(409);
+                echo json_encode(["message" => "Closed tickets cannot be modified."]);
+                exit;
+            }
+
             $fields = [];
             $params = [];
             if (isset($data->status)) {
+                $status = strtolower(trim((string)$data->status));
+                if (!in_array($status, ['open', 'in_progress', 'closed', 'pending'], true)) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "Invalid ticket status"]);
+                    exit;
+                }
                 $fields[] = "status = ?";
-                $params[] = $data->status;
+                $params[] = $status;
             }
             if (isset($data->priority)) {
                 $fields[] = "priority = ?";
@@ -299,7 +335,7 @@ switch ($action) {
                 echo json_encode(["message" => "No updates provided"]);
                 exit;
             }
-            $params[] = $data->id;
+            $params[] = $ticketId;
             $sql = "UPDATE it_tickets SET " . implode(', ', $fields) . " WHERE id = ?";
             $stmt = $db->prepare($sql);
             $stmt->execute($params);

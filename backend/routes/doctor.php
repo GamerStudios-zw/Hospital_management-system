@@ -122,6 +122,18 @@ $insertPrescriptionRecord = function (
     $quantity = isset($payload->quantity) && is_numeric($payload->quantity) ? (int)$payload->quantity : 1;
     if ($quantity <= 0) $quantity = 1;
 
+    $resolvedMedicineName = '';
+    $medicineCategory = '';
+    if ($medicineId) {
+        $medStmt = $db->prepare("SELECT name, category FROM medicines WHERE id = ? LIMIT 1");
+        $medStmt->execute([$medicineId]);
+        $medRow = $medStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($medRow) {
+            $resolvedMedicineName = trim((string)($medRow['name'] ?? ''));
+            $medicineCategory = strtolower(trim((string)($medRow['category'] ?? '')));
+        }
+    }
+
     $isInjection = false;
     $dosage = trim((string)($payload->dosage ?? ''));
     if ($dosage === '') {
@@ -159,18 +171,17 @@ $insertPrescriptionRecord = function (
             }
         }
     }
+    if (in_array($medicineCategory, ['injection', 'injectable', 'injectables'], true)) {
+        // Route from stock category as source of truth even when dosage text omits "Injection".
+        $isInjection = true;
+    }
 
     $manualName = trim((string)($payload->manual_name ?? ''));
     $uiMedicineName = trim((string)($payload->medicine_name ?? ''));
     $medicationName = $manualName !== '' ? $manualName : $uiMedicineName;
 
-    if ($medicationName === '' && $medicineId) {
-        $medStmt = $db->prepare("SELECT name FROM medicines WHERE id = ? LIMIT 1");
-        $medStmt->execute([$medicineId]);
-        $resolvedName = $medStmt->fetchColumn();
-        if ($resolvedName !== false && $resolvedName !== null) {
-            $medicationName = trim((string)$resolvedName);
-        }
+    if ($medicationName === '' && $resolvedMedicineName !== '') {
+        $medicationName = $resolvedMedicineName;
     }
     if ($medicationName === '') {
         $medicationName = $medicineId ? ('Medicine #' . $medicineId) : 'External medication';
@@ -891,7 +902,13 @@ switch ($action) {
 
     // 6. HELPER DATA
     case 'medicines':
-        echo json_encode($db->query("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity > 0 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC));
+        echo json_encode($db->query("SELECT id,
+                                            name,
+                                            stock_quantity,
+                                            COALESCE(NULLIF(TRIM(category), ''), 'General') AS category
+                                     FROM medicines
+                                     WHERE stock_quantity > 0
+                                     ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC));
         break;
 
     case 'patients':

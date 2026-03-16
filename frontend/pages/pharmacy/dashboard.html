@@ -23,6 +23,10 @@
             --ph-radius: 16px;
             --ph-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
         }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             font-family: var(--app-font);
             color: var(--ph-text);
@@ -30,6 +34,12 @@
                 radial-gradient(circle at 10% -5%, #d8edf8 0%, transparent 40%),
                 radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
                 var(--ph-bg);
+        }
+        .no-print.container-fluid {
+            height: 100vh;
+        }
+        .no-print > .row.g-0 {
+            height: 100vh;
         }
         .sidebar {
             min-height: 100vh;
@@ -66,11 +76,19 @@
         }
         .pharmacy-main {
             padding: 24px;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         .tab-section { display: none; }
         .tab-section.active {
             display: block;
             animation: sectionFade 0.2s ease;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
         }
         @keyframes sectionFade {
             from { opacity: 0; transform: translateY(4px); }
@@ -114,6 +132,19 @@
         }
         .table-responsive {
             border-radius: 12px;
+        }
+        .table-scroll-y {
+            max-height: 320px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .table-scroll-y.table-scroll-tall {
+            max-height: 380px;
+        }
+        .table-scroll-y thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
         .table > :not(caption) > * > * {
             border-bottom-color: #e6edf5;
@@ -336,6 +367,7 @@
                             <input class="form-check-input" type="checkbox" id="thermalModeToggle">
                             <label class="form-check-label small" for="thermalModeToggle">Thermal Mode</label>
                         </div>
+                        <button class="btn btn-outline-primary fw-bold" onclick="openInjectionAddModal()"><i class="bi bi-plus-circle me-1"></i> Add Injection Stock</button>
                         <button class="btn btn-info text-white fw-bold" onclick="loadPending()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
                     </div>
                 </div>
@@ -369,7 +401,7 @@
                         </div>
                         <button class="btn btn-outline-dark btn-sm" onclick="loadNurseRequests()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
                     </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive table-scroll-y">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
                                 <tr>
@@ -388,10 +420,10 @@
                     </div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <div class="table-responsive">
+                    <div class="table-responsive table-scroll-y table-scroll-tall">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
-                                <tr><th class="ps-4">Patient</th><th>Medication</th><th>Dosage</th><th>Doctor</th><th class="text-end pe-4">Actions</th></tr>
+                                <tr><th class="ps-4">Patient</th><th>Medication</th><th>Dosage</th><th>Nurse In Charge</th><th class="text-end pe-4">Actions</th></tr>
                             </thead>
                             <tbody id="pendingTable"></tbody>
                         </table>
@@ -430,7 +462,7 @@
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
-                                <tr><th class="ps-4">Drug Name</th><th>Batch</th><th>Stock</th><th>Expiry</th><th class="text-end pe-4">Actions</th></tr>
+                                <tr><th class="ps-4">Drug Name</th><th>Category</th><th>Batch</th><th>Stock</th><th>Expiry</th><th class="text-end pe-4">Actions</th></tr>
                             </thead>
                             <tbody id="inventoryTableBody"></tbody>
                         </table>
@@ -952,13 +984,40 @@
             <div class="modal-body p-4">
                 <form id="addStockForm">
                     <div class="mb-3"><label class="form-label fw-bold">Drug Name</label><input type="text" class="form-control" id="drugName" required></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Category</label>
+                        <select class="form-select" id="drugCategory" onchange="onDrugCategoryChange()">
+                            <option value="General">General</option>
+                            <option value="Tablet">Tablet</option>
+                            <option value="Capsule">Capsule</option>
+                            <option value="Syrup">Syrup</option>
+                            <option value="Injection">Injection</option>
+                            <option value="Consumable">Consumable</option>
+                        </select>
+                    </div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6"><label class="form-label fw-bold">Batch No</label><input type="text" class="form-control" id="batchNo"></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Price ($)</label><input type="number" class="form-control" id="price" step="0.01"></div>
                     </div>
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6"><label class="form-label fw-bold">Quantity</label><input type="number" class="form-control" id="quantity" required></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Unit</label><input type="text" class="form-control" id="unit" placeholder="Boxes/Tablets"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold" id="quantityLabel">Quantity</label><input type="number" class="form-control" id="quantity" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold" id="unitLabel">Unit</label><input type="text" class="form-control" id="unit" placeholder="Boxes/Tablets"></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" id="drugSpecLabel">Specification</label>
+                            <input type="text" class="form-control" id="drugSpec" placeholder="Optional details">
+                        </div>
+                        <div class="col-md-6 d-none" id="drugRouteWrap">
+                            <label class="form-label fw-bold">Route</label>
+                            <select class="form-select" id="drugRoute">
+                                <option value="">Select route</option>
+                                <option value="IV">IV</option>
+                                <option value="IM">IM</option>
+                                <option value="SC">SC</option>
+                                <option value="ID">ID</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3"><label class="form-label fw-bold">Expiry Date</label><input type="date" class="form-control" id="expiryDate" required></div>
                 </form>
@@ -982,13 +1041,40 @@
                 <form id="editStockForm">
                     <input type="hidden" id="editId">
                     <div class="mb-3"><label class="form-label fw-bold">Drug Name</label><input type="text" class="form-control" id="editName" required></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Category</label>
+                        <select class="form-select" id="editCategory" onchange="onEditCategoryChange()">
+                            <option value="General">General</option>
+                            <option value="Tablet">Tablet</option>
+                            <option value="Capsule">Capsule</option>
+                            <option value="Syrup">Syrup</option>
+                            <option value="Injection">Injection</option>
+                            <option value="Consumable">Consumable</option>
+                        </select>
+                    </div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6"><label class="form-label fw-bold">Batch No</label><input type="text" class="form-control" id="editBatch"></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Price ($)</label><input type="number" class="form-control" id="editPrice" step="0.01"></div>
                     </div>
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6"><label class="form-label fw-bold">Quantity</label><input type="number" class="form-control" id="editQuantity" required></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Unit</label><input type="text" class="form-control" id="editUnit" placeholder="Boxes/Tablets"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold" id="editQuantityLabel">Quantity</label><input type="number" class="form-control" id="editQuantity" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold" id="editUnitLabel">Unit</label><input type="text" class="form-control" id="editUnit" placeholder="Boxes/Tablets"></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" id="editSpecLabel">Specification</label>
+                            <input type="text" class="form-control" id="editSpec" placeholder="Optional details">
+                        </div>
+                        <div class="col-md-6 d-none" id="editRouteWrap">
+                            <label class="form-label fw-bold">Route</label>
+                            <select class="form-select" id="editRoute">
+                                <option value="">Select route</option>
+                                <option value="IV">IV</option>
+                                <option value="IM">IM</option>
+                                <option value="SC">SC</option>
+                                <option value="ID">ID</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3"><label class="form-label fw-bold">Expiry Date</label><input type="date" class="form-control" id="editExpiryDate"></div>
                 </form>
@@ -1006,7 +1092,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     protectPage(['pharmacist', 'admin', 'senior_pharmacist']);
-    let activePrescriptionId = null;
+    let activePrescriptionIds = [];
     let activePrintData = null;
     const dispenseModal = new bootstrap.Modal(document.getElementById('dispenseModal'));
     const editStockModal = new bootstrap.Modal(document.getElementById('editStockModal'));
@@ -1015,10 +1101,14 @@
     let pharmacyStatusChart = null;
     let pharmacyVolumeChart = null;
     let lastNurseRequestCount = null;
+    let pendingSoftNoticeShown = false;
+    let nurseRequestSoftNoticeShown = false;
+    const pendingItemById = new Map();
     let cachedPatients = [];
     let cachedMeds = [];
     let poItems = [];
     let thermalModeEnabled = false;
+    let addStockMode = 'general';
     const patientIdByLabel = new Map();
     const medIdByLabel = new Map();
     const supplierIdByLabel = new Map();
@@ -1029,6 +1119,137 @@
         return role === 'senior_pharmacist';
     };
     const restrictedSeniorTabs = ['inventory', 'refills', 'suppliers', 'adjustments'];
+    const STOCK_CATEGORY_PROFILES = {
+        general: {
+            quantityLabel: 'Quantity',
+            unitLabel: 'Unit',
+            unitPlaceholder: 'Boxes/Tablets',
+            specLabel: 'Specification',
+            specPlaceholder: 'Optional details',
+            specRequired: false,
+            showRoute: false,
+            defaultUnit: 'Boxes'
+        },
+        tablet: {
+            quantityLabel: 'Quantity (tablets/blisters)',
+            unitLabel: 'Unit',
+            unitPlaceholder: 'Tablets/Blisters/Packs',
+            specLabel: 'Strength',
+            specPlaceholder: 'e.g., 500mg',
+            specRequired: true,
+            showRoute: false,
+            defaultUnit: 'Tablets'
+        },
+        capsule: {
+            quantityLabel: 'Quantity (capsules/packs)',
+            unitLabel: 'Unit',
+            unitPlaceholder: 'Capsules/Packs',
+            specLabel: 'Strength',
+            specPlaceholder: 'e.g., 250mg',
+            specRequired: true,
+            showRoute: false,
+            defaultUnit: 'Capsules'
+        },
+        syrup: {
+            quantityLabel: 'Quantity (bottles)',
+            unitLabel: 'Unit',
+            unitPlaceholder: 'Bottles/mL',
+            specLabel: 'Concentration',
+            specPlaceholder: 'e.g., 125mg/5mL',
+            specRequired: true,
+            showRoute: false,
+            defaultUnit: 'Bottles'
+        },
+        injection: {
+            quantityLabel: 'Quantity (vials/ampoules)',
+            unitLabel: 'Unit',
+            unitPlaceholder: 'Vials/Ampoules',
+            specLabel: 'Concentration',
+            specPlaceholder: 'e.g., 500mg/2mL',
+            specRequired: true,
+            showRoute: true,
+            defaultUnit: 'Vials'
+        },
+        consumable: {
+            quantityLabel: 'Quantity',
+            unitLabel: 'Unit',
+            unitPlaceholder: 'Pieces/Boxes/Packs',
+            specLabel: 'Specification',
+            specPlaceholder: 'e.g., sterile, latex-free',
+            specRequired: false,
+            showRoute: false,
+            defaultUnit: 'Pieces'
+        }
+    };
+
+    function getStockCategoryKey(category) {
+        return String(category || 'General').trim().toLowerCase() || 'general';
+    }
+
+    function getStockCategoryProfile(category) {
+        const key = getStockCategoryKey(category);
+        return STOCK_CATEGORY_PROFILES[key] || STOCK_CATEGORY_PROFILES.general;
+    }
+
+    function parseMedicineDescriptionMeta(description) {
+        const text = String(description || '').trim();
+        if (!text) return { spec: '', route: '' };
+        const specMatch = text.match(/(?:strength|concentration|specification)\s*:\s*([^|]+)/i);
+        const routeMatch = text.match(/route\s*:\s*(IV|IM|SC|ID)/i);
+        return {
+            spec: specMatch ? String(specMatch[1]).trim() : '',
+            route: routeMatch ? String(routeMatch[1]).trim().toUpperCase() : ''
+        };
+    }
+
+    function buildMedicineDescription(category, spec, route) {
+        const profile = getStockCategoryProfile(category);
+        const parts = [];
+        const specValue = String(spec || '').trim();
+        const routeValue = String(route || '').trim().toUpperCase();
+        if (specValue) parts.push(`${profile.specLabel}: ${specValue}`);
+        if (routeValue) parts.push(`Route: ${routeValue}`);
+        return parts.join(' | ');
+    }
+
+    function applyStockCategoryProfile(formMode) {
+        const isEdit = formMode === 'edit';
+        const categoryEl = document.getElementById(isEdit ? 'editCategory' : 'drugCategory');
+        const quantityLabelEl = document.getElementById(isEdit ? 'editQuantityLabel' : 'quantityLabel');
+        const unitLabelEl = document.getElementById(isEdit ? 'editUnitLabel' : 'unitLabel');
+        const unitEl = document.getElementById(isEdit ? 'editUnit' : 'unit');
+        const specLabelEl = document.getElementById(isEdit ? 'editSpecLabel' : 'drugSpecLabel');
+        const specEl = document.getElementById(isEdit ? 'editSpec' : 'drugSpec');
+        const routeWrapEl = document.getElementById(isEdit ? 'editRouteWrap' : 'drugRouteWrap');
+        const routeEl = document.getElementById(isEdit ? 'editRoute' : 'drugRoute');
+        if (!categoryEl) return;
+
+        const profile = getStockCategoryProfile(categoryEl.value);
+        if (quantityLabelEl) quantityLabelEl.textContent = profile.quantityLabel;
+        if (unitLabelEl) unitLabelEl.textContent = profile.unitLabel;
+        if (unitEl) {
+            unitEl.placeholder = profile.unitPlaceholder;
+            if (!String(unitEl.value || '').trim()) unitEl.value = profile.defaultUnit;
+        }
+        if (specLabelEl) specLabelEl.textContent = profile.specLabel;
+        if (specEl) {
+            specEl.placeholder = profile.specPlaceholder;
+            specEl.required = !!profile.specRequired;
+        }
+        if (routeWrapEl) routeWrapEl.classList.toggle('d-none', !profile.showRoute);
+        if (routeEl) {
+            routeEl.required = !!profile.showRoute;
+            if (!profile.showRoute) routeEl.value = '';
+        }
+    }
+
+    function onDrugCategoryChange() {
+        applyStockCategoryProfile('add');
+    }
+
+    function onEditCategoryChange() {
+        applyStockCategoryProfile('edit');
+    }
 
     function switchTab(id, el) {
         if (restrictedSeniorTabs.includes(id) && !isSeniorPharmacyRole()) {
@@ -1129,41 +1350,122 @@
     }
 
     async function loadPending() {
-        const list = await Api.get('/pharmacy/pending');
+        const listRaw = await Api.get('/pharmacy/pending');
+        const list = Array.isArray(listRaw) ? listRaw : null;
         const tbody = document.getElementById('pendingTable');
+        pendingItemById.clear();
         tbody.innerHTML = '';
-        if(list) {
-            list.forEach(item => {
-                const medName = item.med_name || `<span class="text-danger">${item.manual_name} (External)</span>`;
-                const doctorLabel = item.doctor_name || item.doctor_assigned || 'Any Available Doctor';
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="ps-4 fw-bold">${item.patient_name}</td>
-                        <td>${medName} <small class="text-muted">(Stock: ${item.stock_quantity || 0})</small></td>
-                        <td><span class="badge bg-light text-dark border">${item.dosage}</span></td>
-                        <td>${doctorLabel}</td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-outline-dark btn-sm me-1" onclick='preparePrint(${JSON.stringify(item)})'><i class="bi bi-printer"></i></button>
-                            ${item.controlled_requires_approval ? `<button class="btn btn-warning btn-sm me-1" onclick="requestControlled(${item.id})">Request Approval</button>` : ''}
-                            <button class="btn btn-info text-white btn-sm fw-bold" onclick='openDispenseModal(${JSON.stringify(item)})'>Dispense</button>
-                        </td>
-                    </tr>`;
-            });
+        if (list) {
+            pendingSoftNoticeShown = false;
+            if (list.length > 0) {
+                const groupedByPatient = new Map();
+                list.forEach((item) => {
+                    const prescriptionId = Number(item.id || 0);
+                    if (prescriptionId > 0) {
+                        pendingItemById.set(String(prescriptionId), item);
+                    }
+                    const patientKey = `${item.patient_id || ''}|${item.national_id || ''}|${item.patient_name || ''}`;
+                    if (!groupedByPatient.has(patientKey)) {
+                        groupedByPatient.set(patientKey, {
+                            patient_name: item.patient_name || 'Unknown',
+                            items: [],
+                            doctorLabels: new Set()
+                        });
+                    }
+                    const group = groupedByPatient.get(patientKey);
+                    group.items.push(item);
+                    group.doctorLabels.add(item.doctor_name || item.doctor_assigned || 'Any Available Nurse In Charge');
+                });
+
+                Array.from(groupedByPatient.values()).forEach((group) => {
+                    const medHtml = group.items.map((item, index) => {
+                        const medName = item.med_name || `<span class="text-danger">${item.manual_name || 'External medication'} (External)</span>`;
+                        const stockText = Number(item.stock_quantity || 0);
+                        const borderClass = index < group.items.length - 1 ? 'pb-2 mb-2 border-bottom' : '';
+                        return `<div class="${borderClass}">
+                            ${medName} <small class="text-muted">(Stock: ${stockText})</small>
+                        </div>`;
+                    }).join('');
+
+                    const dosageHtml = group.items.map((item, index) => {
+                        const borderClass = index < group.items.length - 1 ? 'pb-2 mb-2 border-bottom' : '';
+                        return `<div class="${borderClass}"><span class="badge bg-light text-dark border">${item.dosage || 'As directed'}</span></div>`;
+                    }).join('');
+
+                    const doctorHtml = Array.from(group.doctorLabels).map((label) => `<div>${label}</div>`).join('');
+
+                    const actionRowsHtml = group.items.map((item, index) => {
+                        const prescriptionId = Number(item.id || 0);
+                        const borderClass = index < group.items.length - 1 ? 'pb-2 mb-2 border-bottom' : '';
+                        const shortLabel = item.med_name || item.manual_name || `Rx ${prescriptionId}`;
+                        return `<div class="d-flex justify-content-end align-items-center gap-1 flex-wrap ${borderClass}">
+                            <span class="small text-muted me-auto">Rx #${prescriptionId}</span>
+                            <button class="btn btn-outline-dark btn-sm" onclick="openPendingItemPrint(${prescriptionId})" title="Print ${shortLabel}"><i class="bi bi-printer"></i></button>
+                            ${item.controlled_requires_approval ? `<button class="btn btn-warning btn-sm" onclick="requestControlled(${prescriptionId})">Request Approval</button>` : ''}
+                        </div>`;
+                    }).join('');
+                    const groupPrescriptionIds = group.items
+                        .map((item) => Number(item.id || 0))
+                        .filter((id) => id > 0);
+                    const hasMultiplePrescriptions = groupPrescriptionIds.length > 1;
+                    const groupDispenseHtml = groupPrescriptionIds.length > 0
+                        ? `<div class="d-flex justify-content-end mt-2">
+                            <button class="btn btn-info text-white btn-sm fw-bold" onclick="openPendingGroupDispense('${groupPrescriptionIds.join(',')}')">${hasMultiplePrescriptions ? 'Dispense All' : 'Dispense'}</button>
+                        </div>`
+                        : '';
+                    const actionsHtml = `${actionRowsHtml}${groupDispenseHtml}`;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="ps-4 fw-bold">${group.patient_name}</td>
+                            <td>${medHtml}</td>
+                            <td>${dosageHtml}</td>
+                            <td>${doctorHtml}</td>
+                            <td class="text-end pe-4">${actionsHtml}</td>
+                        </tr>`;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No pending prescriptions yet.</td></tr>';
+            }
             document.getElementById('statPending').innerText = list.length;
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load pending prescriptions.', { type: 'error' });
+            document.getElementById('statPending').innerText = '0';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No pending prescriptions yet.</td></tr>';
+            if (!pendingSoftNoticeShown && typeof showBanner === 'function') {
+                showBanner('No pending prescriptions to show yet. This is normal on a new setup.', { type: 'info', timeoutMs: 5000 });
+                pendingSoftNoticeShown = true;
             }
         }
         loadPharmacyAnalytics();
     }
 
+    function openPendingItemPrint(prescriptionId) {
+        const item = pendingItemById.get(String(Number(prescriptionId || 0)));
+        if (!item) return notify("Prescription not found in pending list.");
+        preparePrint(item);
+    }
+
+    function openPendingGroupDispense(prescriptionIdsCsv) {
+        const ids = String(prescriptionIdsCsv || '')
+            .split(',')
+            .map((raw) => Number(raw.trim()))
+            .filter((id, index, all) => id > 0 && all.indexOf(id) === index);
+        if (!ids.length) return notify("Prescription not found in pending list.");
+        const items = ids
+            .map((id) => pendingItemById.get(String(id)))
+            .filter(Boolean);
+        if (!items.length) return notify("Prescription not found in pending list.");
+        openDispenseModal(items);
+    }
+
     async function loadNurseRequests() {
-        const list = await Api.get('/pharmacy/nurse_requests');
+        const listRaw = await Api.get('/pharmacy/nurse_requests');
+        const list = Array.isArray(listRaw) ? listRaw : null;
         const tbody = document.getElementById('nurseRequestsTable');
         if (!tbody) return;
         tbody.innerHTML = '';
         if (list && list.length) {
+            nurseRequestSoftNoticeShown = false;
             if (lastNurseRequestCount !== null && list.length > lastNurseRequestCount) {
                 showNotification(`New nurse request(s): +${list.length - lastNurseRequestCount}`);
             }
@@ -1187,11 +1489,15 @@
                     </tr>`;
             });
         } else if (list) {
+            nurseRequestSoftNoticeShown = false;
             lastNurseRequestCount = 0;
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No nurse requests.</td></tr>';
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load nurse requests.', { type: 'error' });
+            lastNurseRequestCount = 0;
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No nurse requests yet.</td></tr>';
+            if (!nurseRequestSoftNoticeShown && typeof showBanner === 'function') {
+                showBanner('No nurse requests to show yet. This is normal on a new setup.', { type: 'info', timeoutMs: 5000 });
+                nurseRequestSoftNoticeShown = true;
             }
         }
     }
@@ -1227,6 +1533,7 @@
                 tbody.innerHTML += `
                     <tr>
                         <td class="ps-4 fw-bold">${item.name}</td>
+                        <td>${item.category || 'General'}</td>
                         <td>${item.batch_number || '-'}</td>
                         <td>${item.stock_quantity} ${item.unit || ''}</td>
                         <td>${item.expiry_date ? new Date(item.expiry_date).toLocaleDateString() : '-'} ${expiryBadge}</td>
@@ -1818,44 +2125,136 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
         printWindow.onload = () => { printWindow.print(); printWindow.close(); };
     }
 
-    function openDispenseModal(item) {
-        activePrescriptionId = item.id;
-        document.getElementById('modalPatient').innerText = item.patient_name;
-        document.getElementById('modalMed').innerText = `${item.med_name || item.manual_name} (Qty: ${item.quantity})`;
-        document.getElementById('modalDosage').innerText = item.dosage;
+    function openDispenseModal(itemOrItems) {
+        const items = Array.isArray(itemOrItems) ? itemOrItems.filter(Boolean) : [itemOrItems].filter(Boolean);
+        if (!items.length) return;
+        activePrescriptionIds = items
+            .map((item) => Number(item.id || 0))
+            .filter((id, index, all) => id > 0 && all.indexOf(id) === index);
+
+        const primary = items[0];
+        const medEl = document.getElementById('modalMed');
+        const dosageEl = document.getElementById('modalDosage');
+        const multi = activePrescriptionIds.length > 1;
+        document.getElementById('modalPatient').innerText = primary.patient_name || 'Unknown';
+        if (multi) {
+            medEl.innerText = items.map((item) => `Rx #${item.id}: ${item.med_name || item.manual_name || 'Medication'} (Qty: ${item.quantity || 0})`).join('\n');
+            dosageEl.innerText = items.map((item) => `Rx #${item.id}: ${item.dosage || 'As directed'}`).join('\n');
+            medEl.style.whiteSpace = 'pre-line';
+            dosageEl.style.whiteSpace = 'pre-line';
+        } else {
+            medEl.innerText = `${primary.med_name || primary.manual_name || 'Medication'} (Qty: ${primary.quantity || 0})`;
+            dosageEl.innerText = primary.dosage || 'As directed';
+            medEl.style.whiteSpace = '';
+            dosageEl.style.whiteSpace = '';
+        }
+        document.getElementById('checkVerify').checked = false;
         dispenseModal.show();
     }
 
     async function confirmDispense() {
         if(!document.getElementById('checkVerify').checked) return notify("Please verify the dosage.");
-        const res = await Api.post('/pharmacy/dispense', { prescription_id: activePrescriptionId });
-        if(res) { dispenseModal.hide(); loadPending(); }
+        if (!activePrescriptionIds.length) return notify("Prescription not found in pending list.");
+
+        let successCount = 0;
+        let firstFailure = '';
+        for (const prescriptionId of activePrescriptionIds) {
+            const res = await Api.post('/pharmacy/dispense', { prescription_id: prescriptionId });
+            const msg = String(res?.message || '');
+            if (/dispensed successfully/i.test(msg)) {
+                successCount += 1;
+                continue;
+            }
+            if (!firstFailure) {
+                firstFailure = msg || `Failed to dispense Rx #${prescriptionId}.`;
+            }
+        }
+
+        if (successCount > 0) {
+            dispenseModal.hide();
+            loadPending();
+        }
+        if (successCount === activePrescriptionIds.length) return;
+        if (successCount > 0) {
+            return notify(`Dispensed ${successCount} of ${activePrescriptionIds.length}. ${firstFailure}`);
+        }
+        notify(firstFailure || "Failed to dispense prescription.");
     }
 
-    function openAddModal() { new bootstrap.Modal(document.getElementById('addStockModal')).show(); }
+    function configureAddStockModal(mode) {
+        const normalizedMode = String(mode || 'general').toLowerCase();
+        addStockMode = normalizedMode === 'injection' ? 'injection' : 'general';
+        const title = document.querySelector('#addStockModal .modal-title');
+        const category = document.getElementById('drugCategory');
+        if (addStockMode === 'injection') {
+            if (title) title.textContent = 'Add Injection Stock';
+            if (category) {
+                category.value = 'Injection';
+                category.disabled = true;
+            }
+        } else {
+            if (title) title.textContent = 'Add New Stock';
+            if (category) {
+                category.disabled = false;
+                if (!category.value) category.value = 'General';
+            }
+        }
+        applyStockCategoryProfile('add');
+    }
+
+    function openAddModal() {
+        if (!isSeniorPharmacyRole()) return openInjectionAddModal();
+        configureAddStockModal('general');
+        new bootstrap.Modal(document.getElementById('addStockModal')).show();
+    }
+
+    function openInjectionAddModal() {
+        configureAddStockModal('injection');
+        new bootstrap.Modal(document.getElementById('addStockModal')).show();
+    }
 
     function openEditModal(item) {
         if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can edit inventory.");
+        const meta = parseMedicineDescriptionMeta(item.description || '');
         document.getElementById('editId').value = item.id;
         document.getElementById('editName').value = item.name || '';
+        document.getElementById('editCategory').value = item.category || 'General';
         document.getElementById('editBatch').value = item.batch_number || '';
         document.getElementById('editPrice').value = item.price || 0;
         document.getElementById('editQuantity').value = item.stock_quantity || 0;
         document.getElementById('editUnit').value = item.unit || '';
         document.getElementById('editExpiryDate').value = item.expiry_date ? item.expiry_date.substring(0, 10) : '';
+        document.getElementById('editSpec').value = meta.spec || '';
+        document.getElementById('editRoute').value = meta.route || '';
+        applyStockCategoryProfile('edit');
         editStockModal.show();
     }
 
     async function saveEditStock() {
         if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can edit inventory.");
+        const category = document.getElementById('editCategory').value || 'General';
+        const profile = getStockCategoryProfile(category);
+        const spec = String(document.getElementById('editSpec').value || '').trim();
+        const route = String(document.getElementById('editRoute').value || '').trim().toUpperCase();
+        if (profile.specRequired && !spec) {
+            return notify(`${profile.specLabel} is required for ${category}.`);
+        }
+        if (profile.showRoute && !route) {
+            return notify("Route is required for Injection category.");
+        }
+        const description = buildMedicineDescription(category, spec, route);
         const data = {
             id: document.getElementById('editId').value,
             name: document.getElementById('editName').value,
+            category,
             batch_number: document.getElementById('editBatch').value,
             price: document.getElementById('editPrice').value,
             quantity: document.getElementById('editQuantity').value,
             unit: document.getElementById('editUnit').value,
-            expiry_date: document.getElementById('editExpiryDate').value
+            expiry_date: document.getElementById('editExpiryDate').value,
+            meta_spec: spec,
+            meta_route: route,
+            description
         };
         const res = await Api.post('/inventory/update', data);
         if (res) {
@@ -1865,17 +2264,48 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function saveStock() {
-        if (!isSeniorPharmacyRole()) return notify("Only Senior Pharmacist can add inventory.");
+        const selectedCategory = document.getElementById('drugCategory').value || 'General';
+        const normalizedCategory = String(selectedCategory).trim() || 'General';
+        const profile = getStockCategoryProfile(normalizedCategory);
+        const spec = String(document.getElementById('drugSpec').value || '').trim();
+        const route = String(document.getElementById('drugRoute').value || '').trim().toUpperCase();
+        if (profile.specRequired && !spec) {
+            return notify(`${profile.specLabel} is required for ${normalizedCategory}.`);
+        }
+        if (profile.showRoute && !route) {
+            return notify("Route is required for Injection category.");
+        }
+        const isInjectionCategory = normalizedCategory.toLowerCase() === 'injection';
+        if (!isSeniorPharmacyRole() && !isInjectionCategory) {
+            return notify("Only Senior Pharmacist can add non-injection inventory.");
+        }
+        const description = buildMedicineDescription(normalizedCategory, spec, route);
         const data = {
             name: document.getElementById('drugName').value,
+            category: normalizedCategory,
             batch_number: document.getElementById('batchNo').value,
             price: document.getElementById('price').value,
             quantity: document.getElementById('quantity').value,
             unit: document.getElementById('unit').value,
-            expiry_date: document.getElementById('expiryDate').value
+            expiry_date: document.getElementById('expiryDate').value,
+            meta_spec: spec,
+            meta_route: route,
+            description
         };
-        const res = await Api.post('/inventory/add', data);
-        if(res) { bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide(); loadInventory(); }
+        const endpoint = isSeniorPharmacyRole() ? '/inventory/add' : '/pharmacy/injection_stock_add';
+        const res = await Api.post(endpoint, data);
+        if(res) {
+            const modalEl = document.getElementById('addStockModal');
+            bootstrap.Modal.getInstance(modalEl)?.hide();
+            document.getElementById('addStockForm')?.reset();
+            configureAddStockModal('general');
+            if (isSeniorPharmacyRole()) {
+                loadInventory();
+            }
+            if (!isSeniorPharmacyRole()) {
+                notify("Injection stock added.", "success");
+            }
+        }
     }
 
     function renderInventoryCharts(items) {
@@ -1995,8 +2425,23 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
         });
     }
 
+    function handlePharmacyRealtime(evt) {
+        const detail = evt && evt.detail ? evt.detail : {};
+        const eventName = String(detail.event || '').trim();
+        if (!eventName) return;
+
+        if (['doctor.complete', 'doctor.appointment_update', 'reception.checkin', 'pharmacy.request', 'pharmacy.dispense'].includes(eventName)) {
+            loadPending();
+        }
+        if (['pharmacy.request', 'pharmacy.request_update'].includes(eventName)) {
+            loadNurseRequests();
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         applyRoleBasedPharmacyAccess();
+        configureAddStockModal('general');
+        applyStockCategoryProfile('edit');
         loadPending();
         if (isSeniorPharmacyRole()) loadInventory();
         loadHistory();
@@ -2014,6 +2459,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
                 localStorage.setItem('hms_thermal_mode', thermalModeEnabled ? '1' : '0');
             });
         }
+        window.addEventListener('hms:realtime', handlePharmacyRealtime);
     });
 </script>
 </body>

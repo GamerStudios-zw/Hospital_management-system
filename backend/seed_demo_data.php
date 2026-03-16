@@ -28,13 +28,19 @@ try {
     DbSchema::ensureStaffShifts($db);
     DbSchema::ensureAppointments($db);
     DbSchema::ensureReceptionHandover($db);
+    DbSchema::ensureVisitEncounters($db);
+    DbSchema::ensureReceptionIdentityTables($db);
+    DbSchema::ensureReceptionPatientMedicalAidColumns($db);
     DbSchema::ensureNurseModules($db);
     DbSchema::ensureDoctorModules($db);
+    DbSchema::ensureReferralRegistry($db);
     DbSchema::ensurePharmacyModules($db);
     DbSchema::ensureITModules($db);
+    DbSchema::ensureUserRole($db, 'nurse_in_charge');
     DbSchema::ensureUserRole($db, 'nurse_aid');
     DbSchema::ensureUserRole($db, 'senior_pharmacist');
     DbSchema::ensureUserRole($db, 'it_support');
+    DbSchema::ensureNurseInChargeRole($db, true);
     ActivityLogger::ensureTables($db);
 
     $db->exec("CREATE TABLE IF NOT EXISTS patient_queue (id INT AUTO_INCREMENT PRIMARY KEY, patient_id INT NOT NULL, doctor_assigned INT NULL, status VARCHAR(50) NOT NULL DEFAULT 'Waiting', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -69,8 +75,8 @@ try {
 
     $pw = password_hash('Demo123!', PASSWORD_BCRYPT);
     $users = [
-        ['demo_doc1','demo.doc1@hms.local','Dr. Tariro Ncube','doctor'],
-        ['demo_doc2','demo.doc2@hms.local','Dr. Peter Moyo','doctor'],
+        ['demo_doc1','demo.doc1@hms.local','Nurse In Charge Tariro Ncube','nurse_in_charge'],
+        ['demo_doc2','demo.doc2@hms.local','Nurse In Charge Peter Moyo','nurse_in_charge'],
         ['demo_nurse1','demo.nurse1@hms.local','Nurse Betty Chari','nurse'],
         ['demo_na1','demo.na1@hms.local','Nurse Aid Kelvin Zulu','nurse_aid'],
         ['demo_rx1','demo.rx1@hms.local','Pharm. Lee Banda','pharmacist'],
@@ -166,7 +172,7 @@ try {
 
     if (tExists($db,'staff_shifts')) {
         $db->prepare("DELETE FROM staff_shifts WHERE user_id IN (?,?,?,?,?,?,?,?)")->execute(array_values($uid));
-        $sr=[[$uid['demo_doc1'],'doctor','Day','Ward A'],[$uid['demo_doc2'],'doctor','Evening','Ward B'],[$uid['demo_nurse1'],'nurse','Day','Ward A'],[$uid['demo_na1'],'nurse_aid','Day','Ward B'],[$uid['demo_rx1'],'pharmacist','Day','Pharmacy'],[$uid['demo_rec1'],'receptionist','Day','Front Desk']];
+        $sr=[[$uid['demo_doc1'],'nurse_in_charge','Day','Ward A'],[$uid['demo_doc2'],'nurse_in_charge','Evening','Ward B'],[$uid['demo_nurse1'],'nurse','Day','Ward A'],[$uid['demo_na1'],'nurse_aid','Day','Ward B'],[$uid['demo_rx1'],'pharmacist','Day','Pharmacy'],[$uid['demo_rec1'],'receptionist','Day','Front Desk']];
         foreach($sr as $r){ ins($db,'staff_shifts',['user_id'=>$r[0],'role'=>$r[1],'shift_start'=>dt('today 07:00'),'shift_end'=>dt('today 15:00'),'shift_type'=>$r[2],'ward_name'=>$r[3],'status'=>'Confirmed']); ins($db,'staff_shifts',['user_id'=>$r[0],'role'=>$r[1],'shift_start'=>dt('+1 days 07:00'),'shift_end'=>dt('+1 days 15:00'),'shift_type'=>$r[2],'ward_name'=>$r[3],'status'=>'Confirmed']); }
     }
 
@@ -209,7 +215,7 @@ try {
     foreach([
         ['demo_rec1','Checked-in appointment','Success','reception','appointments','web','INFO',200,null],
         ['demo_nurse1','Escalated patient vitals','Warn','nurse','patient_vitals','nurse','WARN',429,'[DEMO] warning signal'],
-        ['demo_doc1','Completed consultation','Success','doctor','patient_queue','doctor','INFO',200,null],
+        ['demo_doc1','Completed consultation','Success','nurse_in_charge','patient_queue','doctor','INFO',200,null],
         ['demo_rx1','Dispensed medication','Success','pharmacy','prescriptions','pharmacy','INFO',200,null],
         ['demo_it1','Ticket sync failure','Error','it_support','it_tickets','it','ERROR',500,'[DEMO] expected error sample']
     ] as $l){

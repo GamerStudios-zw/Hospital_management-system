@@ -62,8 +62,16 @@ switch ($action) {
     // 1. GET PENDING PRESCRIPTIONS (Matches loadPending() in dashboard)
     case 'pending':
         if ($method === 'GET') {
+            // Safety net: any injectable medicine still marked as "pending" must be routed to nurse administration.
+            $db->exec("UPDATE prescriptions p
+                       LEFT JOIN medicines med ON med.id = p.medicine_id
+                       SET p.status = 'nurse_admin_pending'
+                       WHERE LOWER(TRIM(p.status)) = 'pending'
+                         AND LOWER(TRIM(COALESCE(med.category, ''))) IN ('injection', 'injectable', 'injectables')");
+
             // Keep prescription visibility resilient even when queue transitions change.
             $query = "SELECT p.id,
+                             pat.id as patient_id,
                              p.quantity,
                              p.dosage,
                              p.created_at,
@@ -101,6 +109,10 @@ switch ($action) {
                       LEFT JOIN users d ON d.id = q.doctor_assigned
                       WHERE LOWER(TRIM(p.status)) IN ('pending', 'external')
                         AND (
+                            p.medicine_id IS NULL
+                            OR LOWER(TRIM(COALESCE(med.category, ''))) NOT IN ('injection', 'injectable', 'injectables')
+                        )
+                        AND (
                             q.id IS NULL
                             OR LOWER(TRIM(q.status)) IN (
                                 'completed',
@@ -135,6 +147,91 @@ switch ($action) {
                       ORDER BY r.created_at ASC";
             $stmt = $db->query($query);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
+        break;
+
+    // 1c. QUICK INJECTION STOCK ADD (Pharmacist/Senior/Admin)
+    case 'injection_stock_add':
+        if ($method === 'POST') {
+            $data = RequestValidator::json();
+            $name = trim((string)($data->name ?? ''));
+            $quantity = isset($data->quantity) && is_numeric($data->quantity) ? (int)$data->quantity : 0;
+            if ($name === '' || $quantity <= 0) {
+                http_response_code(400);
+                echo json_encode(["message" => "Injection name and quantity are required."]);
+                exit;
+            }
+
+            $batch = trim((string)($data->batch_number ?? ''));
+            $unit = trim((string)($data->unit ?? ''));
+            if ($unit === '') $unit = 'Vials';
+            $spec = trim((string)($data->meta_spec ?? ''));
+            $route = strtoupper(trim((string)($data->meta_route ?? '')));
+            $allowedRoutes = ['IV', 'IM', 'SC', 'ID'];
+            if ($spec === '') {
+                http_response_code(400);
+                echo json_encode(["message" => "Concentration is required for Injection category."]);
+                exit;
+            }
+            if (!in_array($route, $allowedRoutes, true)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Route is required for Injection category (IV/IM/SC/ID)."]);
+                exit;
+            }
+            $description = trim((string)($data->description ?? ''));
+            if ($description === '') {
+                $description = 'Concentration: ' . $spec . ' | Route: ' . $route;
+            }
+
+            $price = isset($data->price) && is_numeric($data->price) ? (float)$data->price : 0.0;
+            if ($price < 0) {
+                http_response_code(400);
+                echo json_encode(["message" => "Price cannot be negative."]);
+                exit;
+            }
+
+            $expiryRaw = trim((string)($data->expiry_date ?? ''));
+            $expiryDate = null;
+            if ($expiryRaw !== '') {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiryRaw)) {
+                    http_response_code(400);
+                    echo json_encode(["message" => "Expiry date must be in YYYY-MM-DD format."]);
+                    exit;
+                }
+                $expiryDate = $expiryRaw;
+            }
+
+            try {
+                $stmt = $db->prepare("INSERT INTO medicines (name, description, category, batch_number, stock_quantity, unit, expiry_date, price)
+                                      VALUES (?, ?, 'Injection', ?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    $name,
+                    $description,
+                    $batch !== '' ? $batch : null,
+                    $quantity,
+                    $unit,
+                    $expiryDate,
+                    $price
+                ]);
+
+                $newId = (int)$db->lastInsertId();
+                $audit('Added injection stock', 'medicine', $newId, 'Success', [
+                    'source' => 'pharmacy/injection_stock_add',
+                    'new_values' => [
+                        'name' => $name,
+                        'category' => 'Injection',
+                        'spec' => $spec,
+                        'route' => $route,
+                        'quantity' => $quantity,
+                        'unit' => $unit
+                    ]
+                ]);
+                Realtime::emit('inventory.add', ['medicine_id' => $newId, 'category' => 'Injection']);
+                echo json_encode(["message" => "Injection stock added successfully.", "medicine_id" => $newId]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to add injection stock: " . $e->getMessage()]);
+            }
         }
         break;
 
