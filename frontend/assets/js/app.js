@@ -45,14 +45,25 @@ const Api = {
             }
 
             // Safety check for non-JSON responses (prevents DOCTYPE/HTML errors)
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
+            const contentType = (response.headers.get("content-type") || "").toLowerCase();
+            if (!contentType.includes("application/json")) {
                 const text = await response.text();
-                console.error("Server error (Non-JSON received):", text);
+                if (!response.ok) {
+                    console.error("Server error (Non-JSON received):", text);
+                    notify("Request failed. Please retry.", { type: "error" });
+                    return null;
+                }
+                return {};
+            }
+
+            const payload = await response.json();
+            if (!response.ok || (payload && payload.success === false)) {
+                const message = payload && payload.message ? payload.message : "Request failed.";
+                notify(message, { type: "warning" });
                 return null;
             }
 
-            return await response.json();
+            return payload;
         } catch (error) {
             console.error("API Error:", error);
             return null;
@@ -265,15 +276,21 @@ async function submitChangePassword() {
 
 // Auto-refresh helper: calls known page loaders if present
 const AUTO_REFRESH_INTERVAL_MS = 10000;
+const AUTO_REFRESH_THROTTLE_MS = 750;
 let __autoRefreshTimers = [];
 let __broadcastChannel = null;
+let __refreshInFlight = new Set();
+let __refreshLastRunAt = 0;
+let __refreshDeferredTimer = null;
 
 function getRefreshCandidates() {
     return [
         "loadUsers",
         "loadAllShifts",
         "loadQueue",
+        "loadQueueList",
         "loadDirectory",
+        "loadDashboardStats",
         "loadStaffTable",
         "loadLogs",
         "loadSettings",
@@ -315,31 +332,51 @@ function getRefreshCandidates() {
     ];
 }
 
-function triggerAutoRefresh() {
+function runAutoRefreshCycle() {
     const candidates = getRefreshCandidates();
     candidates.forEach((name) => {
         const fn = window[name];
-        if (typeof fn === "function") {
-            try { fn(); } catch (e) { /* ignore */ }
+        if (typeof fn !== "function" || __refreshInFlight.has(name)) return;
+        try {
+            const out = fn();
+            if (out && typeof out.then === "function" && typeof out.finally === "function") {
+                __refreshInFlight.add(name);
+                out.finally(() => {
+                    __refreshInFlight.delete(name);
+                });
+            }
+        } catch (e) {
+            // ignore loader errors; keep refresh loop alive
         }
     });
 }
 
+function triggerAutoRefresh(forceNow = false) {
+    const now = Date.now();
+    const elapsed = now - __refreshLastRunAt;
+    if (forceNow || elapsed >= AUTO_REFRESH_THROTTLE_MS) {
+        if (__refreshDeferredTimer) {
+            clearTimeout(__refreshDeferredTimer);
+            __refreshDeferredTimer = null;
+        }
+        __refreshLastRunAt = now;
+        runAutoRefreshCycle();
+        return;
+    }
+    if (__refreshDeferredTimer) return;
+    __refreshDeferredTimer = setTimeout(() => {
+        __refreshDeferredTimer = null;
+        __refreshLastRunAt = Date.now();
+        runAutoRefreshCycle();
+    }, AUTO_REFRESH_THROTTLE_MS - elapsed);
+}
+
 function setupAutoRefresh() {
-    const candidates = getRefreshCandidates();
-
-    const start = () => {
-        if (__autoRefreshTimers.length) return;
-        candidates.forEach((name) => {
-            const fn = window[name];
-            if (typeof fn === "function") {
-                __autoRefreshTimers.push(setInterval(fn, AUTO_REFRESH_INTERVAL_MS));
-            }
-        });
+    if (__autoRefreshTimers.length) return;
+    __autoRefreshTimers.push(setInterval(() => {
         triggerAutoRefresh();
-    };
-
-    start();
+    }, AUTO_REFRESH_INTERVAL_MS));
+    triggerAutoRefresh(true);
 }
 
 function setupRealtime() {

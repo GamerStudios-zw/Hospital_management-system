@@ -1,5 +1,3 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [string]$BaseUrl = "http://localhost/Hospital_Management_System/backend/index.php",
   [int]$IntervalSec = 30,
@@ -7,6 +5,8 @@ param(
   [switch]$Once,
   [string]$LogFile = ""
 )
+
+$ErrorActionPreference = "Stop"
 
 function Write-Log {
   param([string]$Message, [string]$Level = "INFO")

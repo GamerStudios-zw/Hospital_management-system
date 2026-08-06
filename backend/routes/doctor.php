@@ -20,6 +20,11 @@ header('Content-Type: application/json');
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['doctor', 'admin'], $user);
 
+function parsePositiveInt($value) {
+    $parsed = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    return $parsed === false ? null : (int)$parsed;
+}
+
 switch ($action) {
 
     // 1. GET WAITING LIST (Strictly Triage Cleared)
@@ -46,6 +51,111 @@ switch ($action) {
         }
         break;
 
+    // 1b. DIRECT EMERGENCY CHECK-IN (bypass queue/triage to doctor)
+    case 'emergency_checkin':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            $patientId = parsePositiveInt($data->patient_id ?? null);
+            $reason = trim((string)($data->reason ?? 'Emergency direct intake by doctor.'));
+            if (!$patientId) {
+                http_response_code(400);
+                echo json_encode(["message" => "Patient ID is required."]);
+                exit;
+            }
+
+            try {
+                $patientStmt = $db->prepare("SELECT id, full_name, national_id FROM patients WHERE id = ? LIMIT 1");
+                $patientStmt->execute([$patientId]);
+                $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$patient) {
+                    http_response_code(404);
+                    echo json_encode(["message" => "Patient not found."]);
+                    exit;
+                }
+
+                $db->beginTransaction();
+
+                $activeStmt = $db->prepare("SELECT id, status
+                                            FROM patient_queue
+                                            WHERE patient_id = ?
+                                              AND LOWER(status) NOT IN ('completed','cancelled','discharged')
+                                            ORDER BY created_at DESC, id DESC
+                                            LIMIT 1");
+                $activeStmt->execute([$patientId]);
+                $active = $activeStmt->fetch(PDO::FETCH_ASSOC);
+
+                $queueId = null;
+                $targetStatus = 'With Doctor';
+                $assignedDoctorId = isset($user->id) ? $user->id : null;
+
+                if ($active) {
+                    $queueId = (int)$active['id'];
+                    $current = strtolower(trim((string)($active['status'] ?? '')));
+                    $takeoverStatuses = ['waiting', 'urgent care', 'in triage', 'with nurse', 'admission pending', 'with doctor'];
+                    if (!in_array($current, $takeoverStatuses, true)) {
+                        $db->rollBack();
+                        http_response_code(409);
+                        echo json_encode(["message" => "Patient is already in active workflow ({$active['status']})."]);
+                        exit;
+                    }
+                    $upd = $db->prepare("UPDATE patient_queue SET status = ?, doctor_assigned = ? WHERE id = ?");
+                    $upd->execute([$targetStatus, $assignedDoctorId, $queueId]);
+                } else {
+                    $ins = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, ?)");
+                    $ins->execute([$patientId, $assignedDoctorId, $targetStatus]);
+                    $queueId = (int)$db->lastInsertId();
+                }
+
+                $escalationReason = "Emergency direct intake: " . $reason;
+                $dupEsc = $db->prepare("SELECT id
+                                        FROM doctor_escalations
+                                        WHERE patient_id = ?
+                                          AND LOWER(TRIM(reason)) = LOWER(TRIM(?))
+                                          AND LOWER(COALESCE(status, 'open')) = 'open'
+                                          AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+                                        ORDER BY id DESC
+                                        LIMIT 1");
+                $dupEsc->execute([$patientId, $escalationReason]);
+                if (!$dupEsc->fetchColumn()) {
+                    $insEsc = $db->prepare("INSERT INTO doctor_escalations (patient_id, reason, severity, status)
+                                            VALUES (?, ?, 'urgent', 'open')");
+                    $insEsc->execute([$patientId, $escalationReason]);
+                }
+
+                $db->commit();
+
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'doctor', 'Direct emergency doctor intake', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'patient_queue',
+                        'entity_id' => (string)$queueId,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'doctor',
+                        'source' => 'doctor/emergency_checkin',
+                        'metadata' => ['patient_id' => (string)$patientId, 'reason' => $reason]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+
+                Realtime::emit('doctor.emergency_checkin', ['queue_id' => $queueId, 'patient_id' => $patientId]);
+                Realtime::emit('reception.emergency_direct', ['queue_id' => $queueId, 'patient_id' => $patientId, 'to' => 'doctor']);
+
+                echo json_encode([
+                    "message" => "Emergency patient checked in to doctor successfully. Reception has been notified.",
+                    "queue_id" => $queueId,
+                    "patient_id" => (int)$patient['id'],
+                    "patient_name" => $patient['full_name'],
+                    "status" => $targetStatus
+                ]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed emergency check-in: " . $e->getMessage()]);
+            }
+        }
+        break;
+
     // 2. COMPLETE VISIT WITH MULTIPLE/EXTERNAL PRESCRIPTIONS
     case 'complete_multiple':
         if ($method === 'POST') {
@@ -62,8 +172,8 @@ switch ($action) {
                 $stmt = $db->prepare("SELECT patient_id FROM patient_queue WHERE id = ?");
                 $stmt->execute([$data->queue_id]);
                 $patient_id = $stmt->fetchColumn();
-                // Ensure doctor_assigned is set for downstream modules (e.g., pharmacy)
-                $db->prepare("UPDATE patient_queue SET doctor_assigned = COALESCE(doctor_assigned, ?) WHERE id = ?")
+                // Ensure doctor ownership is recorded for downstream modules.
+                $db->prepare("UPDATE patient_queue SET doctor_assigned = ? WHERE id = ?")
                    ->execute([isset($user->id) ? $user->id : null, $data->queue_id]);
 
                 if(!empty($data->prescriptions)) {
@@ -191,8 +301,8 @@ switch ($action) {
                 $stmt = $db->prepare("SELECT patient_id FROM patient_queue WHERE id = ?");
                 $stmt->execute([$data->queue_id]);
                 $patient_id = $stmt->fetchColumn();
-                // Ensure doctor_assigned is set for downstream modules (e.g., pharmacy)
-                $db->prepare("UPDATE patient_queue SET doctor_assigned = COALESCE(doctor_assigned, ?) WHERE id = ?")
+                // Ensure doctor ownership is recorded for downstream modules.
+                $db->prepare("UPDATE patient_queue SET doctor_assigned = ? WHERE id = ?")
                    ->execute([isset($user->id) ? $user->id : null, $data->queue_id]);
 
                 if(!empty($data->prescriptions)) {
@@ -379,7 +489,7 @@ switch ($action) {
 
     // 6. HELPER DATA
     case 'medicines':
-        echo json_encode($db->query("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity > 0 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC));
+        echo json_encode($db->query("SELECT id, name, stock_quantity FROM medicines ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC));
         break;
 
     case 'patients':
@@ -490,15 +600,37 @@ switch ($action) {
     case 'escalation_create':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || empty($data->reason)) {
+            $patientId = filter_var($data->patient_id ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            $reason = trim((string)($data->reason ?? ''));
+            if ($patientId === false || $reason === '') {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient and reason required"]);
                 exit;
             }
+            $dupStmt = $db->prepare("SELECT id
+                                     FROM doctor_escalations
+                                     WHERE patient_id = ?
+                                       AND LOWER(TRIM(reason)) = LOWER(TRIM(?))
+                                       AND LOWER(COALESCE(status, 'open')) = 'open'
+                                       AND created_at >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+                                     ORDER BY id DESC
+                                     LIMIT 1");
+            $dupStmt->execute([(int)$patientId, $reason]);
+            $existingId = $dupStmt->fetchColumn();
+            if ($existingId) {
+                echo json_encode([
+                    "message" => "Duplicate escalation ignored.",
+                    "duplicate" => true,
+                    "escalation_id" => (int)$existingId
+                ]);
+                break;
+            }
+            $severity = trim((string)($data->severity ?? 'urgent')) ?: 'urgent';
+            $status = trim((string)($data->status ?? 'open')) ?: 'open';
             $stmt = $db->prepare("INSERT INTO doctor_escalations (patient_id, reason, severity, status)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->patient_id, $data->reason, $data->severity ?? 'urgent', $data->status ?? 'open']);
-            Realtime::emit('doctor.escalation', ['patient_id' => $data->patient_id]);
+            $stmt->execute([(int)$patientId, $reason, $severity, $status]);
+            Realtime::emit('doctor.escalation', ['patient_id' => (int)$patientId]);
             echo json_encode(["message" => "Escalation created"]);
         }
         break;

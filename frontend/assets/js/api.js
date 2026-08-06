@@ -55,7 +55,23 @@ const Api = {
                 return null;
             }
 
-            return await response.json();
+            const contentType = (response.headers.get("content-type") || "").toLowerCase();
+            if (!contentType.includes("application/json")) {
+                const text = await response.text();
+                if (!response.ok) {
+                    console.error("Server error (Non-JSON received):", text);
+                    notify("Request failed. Please retry.");
+                    return null;
+                }
+                return {};
+            }
+
+            const payload = await response.json();
+            if (!response.ok || (payload && payload.success === false)) {
+                notify((payload && payload.message) ? payload.message : "Request failed.");
+                return null;
+            }
+            return payload;
 
         } catch (error) {
             console.error("API Error:", error);

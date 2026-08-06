@@ -12,6 +12,7 @@ $db = $database->getConnection();
 
 DbSchema::ensureNurseModules($db);
 DbSchema::ensurePharmacyModules($db);
+DbSchema::ensureBedsCatalog($db);
 
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -22,11 +23,178 @@ header('Content-Type: application/json');
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['nurse', 'admin'], $user);
 
+function parsePositiveInt($value) {
+    $parsed = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    return $parsed === false ? null : (int)$parsed;
+}
+
+function normalizePrescriptionItems($items) {
+    if ($items === null) {
+        return [[], null];
+    }
+    if (!is_array($items)) {
+        return [null, "Invalid prescriptions payload."];
+    }
+
+    $normalized = [];
+    foreach ($items as $index => $item) {
+        $entry = is_object($item) ? $item : (object)$item;
+
+        $medicineId = null;
+        if (isset($entry->medicine_id) && $entry->medicine_id !== '' && $entry->medicine_id !== null) {
+            $parsedMedicineId = filter_var($entry->medicine_id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($parsedMedicineId === false) {
+                return [null, "Prescription #" . ($index + 1) . " has an invalid medicine."];
+            }
+            $medicineId = (int)$parsedMedicineId;
+        }
+
+        $manualName = trim((string)($entry->manual_name ?? ''));
+        $dosage = trim((string)($entry->dosage ?? ''));
+        $quantity = filter_var($entry->quantity ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000]]);
+
+        if ($quantity === false) {
+            return [null, "Prescription #" . ($index + 1) . " has an invalid quantity."];
+        }
+        if ($dosage === '') {
+            return [null, "Prescription #" . ($index + 1) . " requires dosage instructions."];
+        }
+        if (!$medicineId && $manualName === '') {
+            return [null, "Prescription #" . ($index + 1) . " requires a medicine selection or manual medicine name."];
+        }
+
+        $normalized[] = [
+            'medicine_id' => $medicineId,
+            'manual_name' => $manualName !== '' ? $manualName : null,
+            'quantity' => (int)$quantity,
+            'dosage' => $dosage
+        ];
+    }
+
+    return [$normalized, null];
+}
+
+function normalizeOptionalVitalsPayload($vitals) {
+    if ($vitals === null) {
+        return [null, null];
+    }
+    if (!is_object($vitals)) {
+        return [null, "Invalid vitals payload."];
+    }
+
+    $temperature = filter_var($vitals->temperature ?? null, FILTER_VALIDATE_FLOAT);
+    if ($temperature === false || $temperature < 30 || $temperature > 45) {
+        return [null, "Temperature must be between 30C and 45C."];
+    }
+
+    $pulse = filter_var($vitals->pulse ?? null, FILTER_VALIDATE_INT);
+    if ($pulse === false || $pulse < 20 || $pulse > 250) {
+        return [null, "Pulse must be between 20 and 250 bpm."];
+    }
+
+    $bpRaw = trim((string)($vitals->bp ?? ''));
+    if (!preg_match('/^(\d{2,3})\/(\d{2,3})$/', $bpRaw, $bpMatch)) {
+        return [null, "Blood pressure must be in systolic/diastolic format."];
+    }
+
+    $systolic = (int)$bpMatch[1];
+    $diastolic = (int)$bpMatch[2];
+    if ($systolic < 50 || $systolic > 300 || $diastolic < 30 || $diastolic > 200 || $systolic <= $diastolic) {
+        return [null, "Blood pressure values are out of safe range."];
+    }
+
+    $weight = filter_var($vitals->weight ?? null, FILTER_VALIDATE_FLOAT);
+    if ($weight === false || $weight < 1 || $weight > 500) {
+        return [null, "Weight must be between 1kg and 500kg."];
+    }
+
+    $spo2 = filter_var($vitals->spo2 ?? null, FILTER_VALIDATE_INT);
+    if ($spo2 === false || $spo2 < 50 || $spo2 > 100) {
+        return [null, "SpO2 must be between 50 and 100."];
+    }
+
+    $notes = trim((string)($vitals->notes ?? ''));
+    if (strlen($notes) > 1000) {
+        return [null, "Vitals notes must not exceed 1000 characters."];
+    }
+
+    return [[
+        "temperature" => round((float)$temperature, 1),
+        "pulse" => (int)$pulse,
+        "bp" => $systolic . "/" . $diastolic,
+        "weight" => round((float)$weight, 1),
+        "spo2" => (int)$spo2,
+        "notes" => $notes
+    ], null];
+}
+
+function detectEmergencyVitals($vitals) {
+    $reasons = [];
+    $temperature = (float)($vitals['temperature'] ?? 0);
+    $pulse = (int)($vitals['pulse'] ?? 0);
+    $spo2 = (int)($vitals['spo2'] ?? 0);
+    $weight = (float)($vitals['weight'] ?? 0);
+    $bpRaw = (string)($vitals['bp'] ?? '');
+    $bpParts = explode('/', $bpRaw);
+    $systolic = isset($bpParts[0]) ? (int)$bpParts[0] : 0;
+    $diastolic = isset($bpParts[1]) ? (int)$bpParts[1] : 0;
+
+    if ($temperature >= 40 || $temperature <= 35) {
+        $reasons[] = "critical temperature ({$temperature}C)";
+    }
+    if ($pulse <= 30 || $pulse >= 130) {
+        $reasons[] = "critical pulse ({$pulse} bpm)";
+    }
+    if ($systolic <= 90 || $systolic >= 180 || $diastolic <= 60 || $diastolic >= 120) {
+        $reasons[] = "critical blood pressure ({$systolic}/{$diastolic})";
+    }
+    if ($spo2 < 90) {
+        $reasons[] = "low oxygen saturation ({$spo2}%)";
+    }
+    if ($weight <= 3 || $weight >= 250) {
+        $reasons[] = "critical weight ({$weight}kg)";
+    }
+
+    return $reasons;
+}
+
+function upsertCriticalVitalsEscalation($db, $patientId, $source, $reasons) {
+    if (!$patientId || empty($reasons)) return false;
+
+    $sourceLabel = trim((string)$source) !== '' ? trim((string)$source) : 'nurse consultation';
+    $reason = "Critical vitals detected during {$sourceLabel}: " . implode('; ', $reasons);
+
+    $existing = $db->prepare("SELECT id
+                              FROM nurse_escalations
+                              WHERE patient_id = ?
+                                AND LOWER(COALESCE(status, 'open')) = 'open'
+                                AND reason LIKE 'Critical vitals detected%'
+                              ORDER BY id DESC
+                              LIMIT 1");
+    $existing->execute([$patientId]);
+    $existingId = $existing->fetchColumn();
+
+    if ($existingId) {
+        $update = $db->prepare("UPDATE nurse_escalations
+                                SET reason = ?, severity = 'urgent', status = 'open'
+                                WHERE id = ?");
+        $update->execute([$reason, $existingId]);
+        return true;
+    }
+
+    $insert = $db->prepare("INSERT INTO nurse_escalations (patient_id, reason, severity, status)
+                            VALUES (?, ?, 'urgent', 'open')");
+    $insert->execute([$patientId, $reason]);
+    return true;
+}
+
 switch ($action) {
 
-    // 1. DASHBOARD STATS (Matches triage widget)
+    // 1. DASHBOARD STATS (Nurse review + urgent + admission)
     case 'stats':
-        $stmt = $db->query("SELECT COUNT(*) as count FROM patient_queue WHERE status IN ('Waiting','waiting','Urgent Care','urgent care','Admission Pending','admission pending')");
+        $stmt = $db->query("SELECT COUNT(*) as count
+                            FROM patient_queue
+                            WHERE LOWER(status) IN ('waiting','urgent care','with nurse','admission pending')");
         $pending = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
 
         $stmt = $db->query("SELECT COUNT(*) as occupied FROM beds WHERE status = 'Occupied'");
@@ -74,6 +242,111 @@ switch ($action) {
             "message" => "Triage is now handled by Nurse Aid.",
             "required_roles" => ["nurse_aid", "admin"]
         ]);
+        break;
+
+    // 3. DIRECT EMERGENCY CHECK-IN (bypass triage to nurse)
+    case 'emergency_checkin':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            $patientId = parsePositiveInt($data->patient_id ?? null);
+            $reason = trim((string)($data->reason ?? 'Emergency direct intake by nurse.'));
+            if (!$patientId) {
+                http_response_code(400);
+                echo json_encode(["message" => "Patient ID is required."]);
+                exit;
+            }
+
+            try {
+                $patientStmt = $db->prepare("SELECT id, full_name, national_id FROM patients WHERE id = ? LIMIT 1");
+                $patientStmt->execute([$patientId]);
+                $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$patient) {
+                    http_response_code(404);
+                    echo json_encode(["message" => "Patient not found."]);
+                    exit;
+                }
+
+                $db->beginTransaction();
+
+                $activeStmt = $db->prepare("SELECT id, status
+                                            FROM patient_queue
+                                            WHERE patient_id = ?
+                                              AND LOWER(status) NOT IN ('completed','cancelled','discharged')
+                                            ORDER BY created_at DESC, id DESC
+                                            LIMIT 1");
+                $activeStmt->execute([$patientId]);
+                $active = $activeStmt->fetch(PDO::FETCH_ASSOC);
+
+                $queueId = null;
+                $targetStatus = 'With Nurse';
+                $assignedUserId = isset($user->id) ? $user->id : null;
+
+                if ($active) {
+                    $queueId = (int)$active['id'];
+                    $current = strtolower(trim((string)($active['status'] ?? '')));
+                    $takeoverStatuses = ['waiting', 'urgent care', 'in triage', 'with doctor', 'admission pending', 'with nurse'];
+                    if (!in_array($current, $takeoverStatuses, true)) {
+                        $db->rollBack();
+                        http_response_code(409);
+                        echo json_encode(["message" => "Patient is already in active workflow ({$active['status']})."]);
+                        exit;
+                    }
+                    $upd = $db->prepare("UPDATE patient_queue SET status = ?, doctor_assigned = ? WHERE id = ?");
+                    $upd->execute([$targetStatus, $assignedUserId, $queueId]);
+                } else {
+                    $ins = $db->prepare("INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, ?)");
+                    $ins->execute([$patientId, $assignedUserId, $targetStatus]);
+                    $queueId = (int)$db->lastInsertId();
+                }
+
+                $escalationReason = "Emergency direct intake: " . $reason;
+                $dupEsc = $db->prepare("SELECT id
+                                        FROM nurse_escalations
+                                        WHERE patient_id = ?
+                                          AND LOWER(TRIM(reason)) = LOWER(TRIM(?))
+                                          AND LOWER(COALESCE(status, 'open')) = 'open'
+                                          AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+                                        ORDER BY id DESC
+                                        LIMIT 1");
+                $dupEsc->execute([$patientId, $escalationReason]);
+                if (!$dupEsc->fetchColumn()) {
+                    $insEsc = $db->prepare("INSERT INTO nurse_escalations (patient_id, reason, severity, status)
+                                            VALUES (?, ?, 'urgent', 'open')");
+                    $insEsc->execute([$patientId, $escalationReason]);
+                }
+
+                $db->commit();
+
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Direct emergency nurse intake', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'patient_queue',
+                        'entity_id' => (string)$queueId,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'nurse',
+                        'source' => 'nurse/emergency_checkin',
+                        'metadata' => ['patient_id' => (string)$patientId, 'reason' => $reason]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+
+                Realtime::emit('nurse.emergency_checkin', ['queue_id' => $queueId, 'patient_id' => $patientId]);
+                Realtime::emit('reception.emergency_direct', ['queue_id' => $queueId, 'patient_id' => $patientId, 'to' => 'nurse']);
+
+                echo json_encode([
+                    "message" => "Emergency patient checked in to nurse successfully. Reception has been notified.",
+                    "queue_id" => $queueId,
+                    "patient_id" => (int)$patient['id'],
+                    "patient_name" => $patient['full_name'],
+                    "status" => $targetStatus
+                ]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed emergency check-in: " . $e->getMessage()]);
+            }
+        }
         break;
 
     // 4. BED MANAGEMENT
@@ -232,7 +505,7 @@ switch ($action) {
         }
         break;
     
-    // 4d. ADMISSION WAITING LIST (Sent by Doctor)
+    // 4d. NURSE REVIEW LIST (post-triage + admission/pharmacy)
     case 'admission_waiting_list':
         if ($method === 'GET') {
             try {
@@ -243,12 +516,33 @@ switch ($action) {
                                  p.dob,
                                  p.gender,
                                  q.created_at,
-                                 q.status,
-                                 (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = p.id AND pr.status IN ('Pending','External')) as pending_prescriptions
+                                  q.status,
+                                  (SELECT COUNT(*) FROM prescriptions pr WHERE pr.patient_id = p.id AND pr.status IN ('Pending','External')) as pending_prescriptions,
+                                  v.bp,
+                                  v.temperature,
+                                  v.pulse,
+                                  v.weight,
+                                  v.spo2,
+                                  v.notes as triage_notes,
+                                  (SELECT COUNT(*)
+                                   FROM nurse_escalations ne
+                                   WHERE ne.patient_id = p.id
+                                     AND LOWER(COALESCE(ne.status, 'open')) = 'open'
+                                     AND LOWER(COALESCE(ne.severity, 'urgent')) = 'urgent') as emergency_count
                           FROM patient_queue q
                           JOIN patients p ON q.patient_id = p.id
-                          WHERE LOWER(q.status) IN ('admission pending','waiting pharmacy','ready for admission')
-                          ORDER BY q.created_at DESC";
+                          LEFT JOIN (
+                              SELECT pv.*
+                              FROM patient_vitals pv
+                              INNER JOIN (
+                                  SELECT queue_id, MAX(id) as latest_id
+                                  FROM patient_vitals
+                                  WHERE queue_id IS NOT NULL
+                                  GROUP BY queue_id
+                              ) latest ON latest.latest_id = pv.id
+                          ) v ON v.queue_id = q.id
+                          WHERE LOWER(q.status) IN ('with nurse','admission pending','waiting pharmacy','ready for admission')
+                          ORDER BY emergency_count DESC, q.created_at DESC";
                 $stmt = $db->query($query);
                 echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
             } catch (Exception $e) {
@@ -257,22 +551,272 @@ switch ($action) {
             }
         }
         break;
-    
-    // 4e. REQUEST PHARMACY TO PREPARE PRESCRIPTIONS
-    case 'pharmacy_request':
+
+    // 4d2. MEDICINES (for nurse consultation prescriptions)
+    case 'medicines':
+        if ($method === 'GET') {
+            $stmt = $db->query("SELECT id, name, stock_quantity FROM medicines ORDER BY name ASC");
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        }
+        break;
+
+    // 4d3. SAVE NURSE CONSULTATION (diagnosis + optional prescriptions)
+    case 'consult_save':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id)) {
+            $queueId = parsePositiveInt($data->queue_id ?? null);
+            $patientId = parsePositiveInt($data->patient_id ?? null);
+            $notes = trim((string)($data->notes ?? ''));
+            $sendToPharmacy = filter_var($data->send_to_pharmacy ?? false, FILTER_VALIDATE_BOOLEAN);
+
+            if (!$queueId || !$patientId) {
                 http_response_code(400);
-                echo json_encode(["message" => "Patient ID required."]);
+                echo json_encode(["message" => "Queue ID and patient ID are required."]);
+                exit;
+            }
+            if ($notes === '') {
+                http_response_code(400);
+                echo json_encode(["message" => "Diagnosis notes are required."]);
+                exit;
+            }
+            list($vitalsPayload, $vitalsError) = normalizeOptionalVitalsPayload($data->vitals ?? null);
+            if ($vitalsError) {
+                http_response_code(400);
+                echo json_encode(["message" => $vitalsError]);
+                exit;
+            }
+
+            list($prescriptions, $prescriptionError) = normalizePrescriptionItems($data->prescriptions ?? []);
+            if ($prescriptionError) {
+                http_response_code(400);
+                echo json_encode(["message" => $prescriptionError]);
+                exit;
+            }
+
+            try {
+                $db->beginTransaction();
+
+                $queueStmt = $db->prepare("SELECT id, patient_id, status FROM patient_queue WHERE id = ? LIMIT 1");
+                $queueStmt->execute([$queueId]);
+                $queue = $queueStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$queue || (int)$queue['patient_id'] !== $patientId) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["message" => "Queue entry does not match patient."]);
+                    exit;
+                }
+
+                $statusLower = strtolower((string)($queue['status'] ?? ''));
+                if (!in_array($statusLower, ['with nurse', 'admission pending', 'waiting pharmacy', 'ready for admission'], true)) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["message" => "This patient cannot be reviewed from the nurse queue right now."]);
+                    exit;
+                }
+
+                $consultStmt = $db->prepare("INSERT INTO nurse_consultations (queue_id, patient_id, nurse_id, diagnosis_notes)
+                                             VALUES (?, ?, ?, ?)");
+                $consultStmt->execute([
+                    $queueId,
+                    $patientId,
+                    isset($user->id) ? $user->id : null,
+                    $notes
+                ]);
+
+                $emergencyReasons = [];
+                $isEmergency = false;
+                $vitalsSaved = false;
+                if ($vitalsPayload) {
+                    $vitalsStmt = $db->prepare("INSERT INTO patient_vitals
+                                                (patient_id, queue_id, temperature, pulse, bp, weight, spo2, notes)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $vitalsStmt->execute([
+                        $patientId,
+                        $queueId,
+                        $vitalsPayload['temperature'],
+                        $vitalsPayload['pulse'],
+                        $vitalsPayload['bp'],
+                        $vitalsPayload['weight'],
+                        $vitalsPayload['spo2'],
+                        $vitalsPayload['notes'] !== '' ? $vitalsPayload['notes'] : 'Captured during nurse consultation.'
+                    ]);
+                    $vitalsSaved = true;
+
+                    $emergencyReasons = detectEmergencyVitals($vitalsPayload);
+                    if (!empty($emergencyReasons)) {
+                        upsertCriticalVitalsEscalation($db, $patientId, 'nurse consultation', $emergencyReasons);
+                        $isEmergency = true;
+                    }
+                }
+
+                $rxCount = 0;
+                if (!empty($prescriptions)) {
+                    $rxStmt = $db->prepare("INSERT INTO prescriptions (patient_id, medicine_id, quantity, dosage, notes, status)
+                                            VALUES (?, ?, ?, ?, ?, ?)");
+                    foreach ($prescriptions as $p) {
+                        $status = $p['medicine_id'] ? 'Pending' : 'External';
+                        $rxStmt->execute([
+                            $patientId,
+                            $p['medicine_id'],
+                            $p['quantity'],
+                            $p['dosage'],
+                            $p['manual_name'],
+                            $status
+                        ]);
+                        $rxCount += 1;
+                    }
+                }
+
+                if ($sendToPharmacy) {
+                    $existingReq = $db->prepare("SELECT id FROM pharmacy_requests WHERE patient_id = ? AND LOWER(status) IN ('pending', 'ready') LIMIT 1");
+                    $existingReq->execute([$patientId]);
+                    if (!$existingReq->fetchColumn()) {
+                        $requestStmt = $db->prepare("INSERT INTO pharmacy_requests (patient_id, requested_by, status, notes)
+                                                     VALUES (?, ?, 'Pending', ?)");
+                        $requestStmt->execute([
+                            $patientId,
+                            isset($user->id) ? $user->id : null,
+                            'Nurse consultation completed and forwarded to pharmacy.'
+                        ]);
+                    }
+
+                    $db->prepare("UPDATE patient_queue SET status = 'Waiting Pharmacy' WHERE id = ?")
+                       ->execute([$queueId]);
+                }
+
+                $db->commit();
+
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Completed nurse consultation', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'patient_queue',
+                        'entity_id' => (string)$queueId,
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'nurse',
+                        'source' => 'nurse/consult_save',
+                        'metadata' => [
+                            'prescriptions_added' => $rxCount,
+                            'sent_to_pharmacy' => $sendToPharmacy ? 'yes' : 'no'
+                        ]
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+
+                Realtime::emit('nurse.consult', ['queue_id' => $queueId, 'patient_id' => $patientId]);
+                if ($sendToPharmacy) {
+                    Realtime::emit('pharmacy.request', ['patient_id' => $patientId]);
+                }
+                if ($isEmergency) {
+                    Realtime::emit('nurse.escalation', ['patient_id' => $patientId, 'queue_id' => $queueId]);
+                }
+
+                echo json_encode([
+                    "message" => $sendToPharmacy
+                        ? "Consultation saved and sent to pharmacy."
+                        : "Consultation saved successfully.",
+                    "prescriptions_added" => $rxCount,
+                    "sent_to_pharmacy" => $sendToPharmacy,
+                    "vitals_saved" => $vitalsSaved,
+                    "emergency" => $isEmergency,
+                    "emergency_reasons" => $emergencyReasons
+                ]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to save consultation: " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 4e. REFER CASE TO DOCTOR (when nurse cannot resolve)
+    case 'refer_doctor':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->queue_id)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Queue ID required."]);
                 exit;
             }
             try {
                 $db->beginTransaction();
+
+                $rowStmt = $db->prepare("SELECT patient_id, status FROM patient_queue WHERE id = ? LIMIT 1");
+                $rowStmt->execute([$data->queue_id]);
+                $queue = $rowStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$queue) {
+                    $db->rollBack();
+                    http_response_code(404);
+                    echo json_encode(["message" => "Queue entry not found."]);
+                    exit;
+                }
+
+                $statusLower = strtolower((string)($queue['status'] ?? ''));
+                if (!in_array($statusLower, ['with nurse', 'urgent care', 'admission pending'], true)) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["message" => "Only nurse-reviewed patients can be referred to doctor."]);
+                    exit;
+                }
+
+                // Clear nurse assignment from queue slot before doctor takes over.
+                $upd = $db->prepare("UPDATE patient_queue SET status = 'With Doctor', doctor_assigned = NULL WHERE id = ?");
+                $upd->execute([$data->queue_id]);
+
+                $reason = trim((string)($data->reason ?? 'Nurse could not resolve case.'));
+                if (!empty($queue['patient_id'])) {
+                    $esc = $db->prepare("INSERT INTO nurse_escalations (patient_id, reason, severity, status)
+                                         VALUES (?, ?, 'urgent', 'open')");
+                    $esc->execute([$queue['patient_id'], $reason]);
+                }
+
+                $db->commit();
+                Realtime::emit('nurse.refer_doctor', ['queue_id' => $data->queue_id]);
+                echo json_encode(["message" => "Patient referred to doctor."]);
+            } catch (Exception $e) {
+                if ($db->inTransaction()) $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to refer patient: " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 4f. REQUEST PHARMACY (nurse resolved OR doctor-admission path)
+    case 'pharmacy_request':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (!isset($data->patient_id) || !isset($data->queue_id)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Patient ID and queue ID required."]);
+                exit;
+            }
+            try {
+                $db->beginTransaction();
+
+                $qStmt = $db->prepare("SELECT id, patient_id, status FROM patient_queue WHERE id = ? LIMIT 1");
+                $qStmt->execute([$data->queue_id]);
+                $queue = $qStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$queue || (int)$queue['patient_id'] !== (int)$data->patient_id) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["message" => "Queue entry does not match patient."]);
+                    exit;
+                }
+
+                $statusLower = strtolower((string)($queue['status'] ?? ''));
+                if (!in_array($statusLower, ['with nurse', 'admission pending', 'waiting pharmacy', 'ready for admission'], true)) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["message" => "This queue item cannot be sent to pharmacy."]);
+                    exit;
+                }
+
                 $check = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
                 $check->execute([$data->patient_id]);
                 $count = (int)$check->fetchColumn();
-                if ($count === 0) {
+
+                // For 'With Nurse' path we allow pharmacy handoff even without doctor prescriptions.
+                if ($count === 0 && $statusLower !== 'with nurse') {
                     $db->rollBack();
                     http_response_code(400);
                     echo json_encode(["message" => "No pending prescriptions for this patient."]);
@@ -292,12 +836,12 @@ switch ($action) {
                     isset($user->id) ? $user->id : null,
                     $data->notes ?? null
                 ]);
-                // Mark admission as waiting on pharmacy prep
+
+                // Move nurse/admission flow into pharmacy stage.
                 $db->prepare("UPDATE patient_queue
                               SET status = 'Waiting Pharmacy'
-                              WHERE patient_id = ?
-                                AND status IN ('Admission Pending','admission pending')")
-                   ->execute([$data->patient_id]);
+                              WHERE id = ?")
+                   ->execute([$data->queue_id]);
                 $db->commit();
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse', 'Requested pharmacy meds', 'Success', null, [
@@ -312,7 +856,11 @@ switch ($action) {
                     // ignore logging errors
                 }
                 Realtime::emit('pharmacy.request', ['patient_id' => $data->patient_id]);
-                echo json_encode(["message" => "Pharmacy request sent.", "pending_prescriptions" => $count]);
+                echo json_encode([
+                    "message" => "Pharmacy request sent.",
+                    "pending_prescriptions" => $count,
+                    "path" => ($statusLower === 'with nurse' ? 'nurse_to_pharmacy' : 'doctor_to_pharmacy')
+                ]);
             } catch (Exception $e) {
                 if ($db->inTransaction()) $db->rollBack();
                 http_response_code(500);
@@ -493,15 +1041,37 @@ switch ($action) {
     case 'escalation_create':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
-            if (!isset($data->patient_id) || empty($data->reason)) {
+            $patientId = parsePositiveInt($data->patient_id ?? null);
+            $reason = trim((string)($data->reason ?? ''));
+            if (!$patientId || $reason === '') {
                 http_response_code(400);
                 echo json_encode(["message" => "Patient and reason required"]);
                 exit;
             }
+            $dupStmt = $db->prepare("SELECT id
+                                     FROM nurse_escalations
+                                     WHERE patient_id = ?
+                                       AND LOWER(TRIM(reason)) = LOWER(TRIM(?))
+                                       AND LOWER(COALESCE(status, 'open')) = 'open'
+                                       AND created_at >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+                                     ORDER BY id DESC
+                                     LIMIT 1");
+            $dupStmt->execute([$patientId, $reason]);
+            $existingId = $dupStmt->fetchColumn();
+            if ($existingId) {
+                echo json_encode([
+                    "message" => "Duplicate escalation ignored.",
+                    "duplicate" => true,
+                    "escalation_id" => (int)$existingId
+                ]);
+                break;
+            }
+            $severity = trim((string)($data->severity ?? 'urgent')) ?: 'urgent';
+            $status = trim((string)($data->status ?? 'open')) ?: 'open';
             $stmt = $db->prepare("INSERT INTO nurse_escalations (patient_id, reason, severity, status)
                                   VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data->patient_id, $data->reason, $data->severity ?? 'urgent', $data->status ?? 'open']);
-            Realtime::emit('nurse.escalation', ['patient_id' => $data->patient_id]);
+            $stmt->execute([$patientId, $reason, $severity, $status]);
+            Realtime::emit('nurse.escalation', ['patient_id' => $patientId]);
             echo json_encode(["message" => "Escalation created"]);
         }
         break;

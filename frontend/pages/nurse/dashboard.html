@@ -61,6 +61,14 @@
         .ward-pill { border-radius: 999px; font-size: 0.72rem; letter-spacing: 0.04em; }
         .ward-meta { font-size: 0.8rem; color: #64748b; }
         .ward-patient { font-weight: 600; color: #0f172a; }
+        .ward-scroll-frame {
+            max-height: min(72vh, 760px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 6px;
+        }
+        .ward-scroll-frame::-webkit-scrollbar { width: 8px; }
+        .ward-scroll-frame::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 
         @media print {
             body.printing .sidebar,
@@ -81,6 +89,7 @@
             main { padding: 16px; }
             .chart-compact { height: 150px; }
             .modal-dialog { max-width: 95%; margin: 1rem auto; }
+            .ward-scroll-frame { max-height: 64vh; }
         }
 
     </style>
@@ -98,9 +107,9 @@
             <nav class="nav flex-column mt-3 flex-grow-1">
                 <a class="nav-link active" onclick="switchTab('wards', this)"><i class="bi bi-hospital me-3"></i> Ward Monitor</a>
                 <a class="nav-link" onclick="switchTab('history', this)"><i class="bi bi-clock-history me-3"></i> Patient History</a>
-                <a class="nav-link" onclick="switchTab('timeline', this)"><i class="bi bi-diagram-3 me-3"></i> Patient Timeline</a>
+                <a class="nav-link" onclick="switchTab('emergency', this)"><i class="bi bi-activity me-3"></i> Emergency Intake</a>
                 <a class="nav-link" onclick="switchTab('tasks', this)"><i class="bi bi-heart-pulse me-3"></i> Urgent Care</a>
-                <a class="nav-link" onclick="switchTab('admission', this)"><i class="bi bi-clipboard2-check me-3"></i> Admission Waiting</a>
+                <a class="nav-link" onclick="switchTab('admission', this)"><i class="bi bi-clipboard2-check me-3"></i> Nurse Review</a>
                 <a class="nav-link" onclick="switchTab('escalations', this)"><i class="bi bi-exclamation-triangle me-3"></i> Escalations</a>
                 <a class="nav-link" onclick="switchTab('discharge', this)"><i class="bi bi-box-arrow-right me-3"></i> Discharge Summary</a>
                 <a class="nav-link" onclick="switchTab('handover', this)"><i class="bi bi-arrow-left-right me-3"></i> Shift Handover</a>
@@ -149,11 +158,17 @@
                         <button class="btn btn-outline-dark btn-sm px-3" onclick="loadBeds()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
                     </div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                     <small class="ward-meta">Last updated: <span id="wardUpdated">--</span></small>
+                    <small id="wardRenderMeta" class="ward-meta"></small>
                 </div>
-                <div id="wardContainer" class="row g-4">
+                <div class="ward-scroll-frame">
+                    <div id="wardContainer" class="row g-4">
                     </div>
+                </div>
+                <div id="wardToggleWrap" class="d-flex justify-content-center mt-3 d-none">
+                    <button id="wardToggleBtn" class="btn btn-outline-success btn-sm rounded-pill px-4" onclick="toggleWardExpand()"></button>
+                </div>
             </section>
 
             <section id="history" class="tab-section">
@@ -189,25 +204,36 @@
                 </div>
             </section>
 
-            <section id="timeline" class="tab-section">
+            <section id="emergency" class="tab-section">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h3 class="fw-bold mb-1">Patient Timeline</h3>
-                        <p class="text-muted mb-0">Combined events (vitals, visits, meds, docs).</p>
+                        <h3 class="fw-bold mb-1">Emergency Intake</h3>
+                        <p class="text-muted mb-0">Receive critical patients directly to nurse care when triage cannot wait.</p>
                     </div>
-                    <button class="btn btn-outline-dark btn-sm" onclick="loadTimeline()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                    <button class="btn btn-outline-dark btn-sm" onclick="loadAdmissionWaiting()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
                 </div>
-                <div class="card border-0 shadow-sm rounded-4 p-4">
-                    <div class="row g-3 align-items-end mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Patient</label>
-                            <select id="timelinePatient" class="form-select"></select>
+                <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-lg-6">
+                            <label class="form-label small fw-bold">Emergency Direct Intake</label>
+                            <input id="nurseEmergencyPatientSearch" class="form-control" list="nurseEmergencyPatientList" placeholder="Search patient and pick from list">
+                            <datalist id="nurseEmergencyPatientList"></datalist>
+                            <div class="small text-muted mt-1">Bypass triage for immediate nurse attention. Reception gets notified automatically.</div>
                         </div>
-                        <div class="col-md-6 text-end">
-                            <button class="btn btn-primary" onclick="loadTimeline()">Load Timeline</button>
+                        <div class="col-lg-4">
+                            <label class="form-label small fw-bold">Reason (optional)</label>
+                            <input id="nurseEmergencyReason" class="form-control" placeholder="Road traffic accident / collapse">
+                        </div>
+                        <div class="col-lg-2 d-grid">
+                            <button id="nurseEmergencyCheckinBtn" class="btn btn-danger" onclick="checkInEmergencyToNurse()">Direct Check-in</button>
                         </div>
                     </div>
-                    <ul class="list-group" id="timelineList"></ul>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small text-muted">After direct check-in, use Nurse Review to attend and capture vitals immediately.</div>
+                        <button class="btn btn-outline-success btn-sm" onclick="openNurseReviewTab()">Open Nurse Review</button>
+                    </div>
                 </div>
             </section>
 
@@ -271,8 +297,23 @@
 
             <section id="admission" class="tab-section">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold">Admission Waiting</h3>
+                    <h3 class="fw-bold">Nurse Review Queue</h3>
                     <button class="btn btn-outline-dark btn-sm" onclick="loadAdmissionWaiting()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                </div>
+                <div class="card border-0 shadow-sm rounded-4 mb-3">
+                    <div class="card-body p-3">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-lg-8">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                    <input id="admissionSearchInput" class="form-control" type="search" placeholder="Search patient, national ID, or status..." oninput="applyAdmissionSearch()">
+                                </div>
+                            </div>
+                            <div class="col-lg-4 text-lg-end">
+                                <span id="admissionSearchMeta" class="small text-muted">Loading queue...</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card border-0 shadow-sm rounded-4">
                     <div class="table-responsive p-3">
@@ -311,7 +352,7 @@
                             <input type="text" id="escReason" class="form-control" placeholder="Severe pain / low SpO2">
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
-                            <button class="btn btn-danger w-100" onclick="createEscalation()">Escalate</button>
+                            <button id="nurseEscalateBtn" class="btn btn-danger w-100" onclick="createEscalation()">Escalate</button>
                         </div>
                     </div>
                 </div>
@@ -399,51 +440,100 @@
     </div>
 </div>
 
-<div class="modal fade" id="vitalsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<div class="modal fade" id="nurseConsultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Clinical Triage - <span id="modalPatientName" class="text-success"></span></h5>
+                <h5 class="modal-title fw-bold">Nurse Consultation: <span id="nurseConsultPatientName" class="text-success"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="vitalsForm" onsubmit="event.preventDefault(); saveVitals();" class="needs-validation">
-                <div class="modal-body p-4">
-                    <div class="row g-4">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Temp (°C)</label>
-                            <input type="number" id="vTemp" class="form-control" min="30" max="45" step="0.1" required>
+            <div class="modal-body p-4">
+                <div id="nurseConsultVitalsDisplay" class="d-flex flex-wrap gap-2 mb-3"></div>
+                <div class="card border-0 bg-light mb-3">
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="nurseConsultCaptureVitals" onchange="toggleConsultVitalsFields()">
+                            <label class="form-check-label fw-semibold" for="nurseConsultCaptureVitals">Capture or update vitals during consultation</label>
+                            <div class="small text-muted">Enable for direct-to-nurse emergencies or changed bedside vitals.</div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Pulse (BPM)</label>
-                            <input type="number" id="vPulse" class="form-control" min="20" max="250" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Blood Pressure</label>
-                            <input type="text" id="vBp" class="form-control" placeholder="120/80" pattern="\d{2,3}/\d{2,3}" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Weight (kg)</label>
-                            <input type="number" id="vWeight" class="form-control" min="1" max="500" step="0.1" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Oxygen (SpO2 %)</label>
-                            <input type="number" id="vSpo2" class="form-control" min="50" max="100" required>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label small fw-bold">Nurse Triage Notes</label>
-                            <textarea id="vNotes" class="form-control" rows="3" placeholder="Observe any visible distress..."></textarea>
+                        <div id="nurseConsultVitalsFields" class="row g-3 d-none">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Temp (C)</label>
+                                <input id="nurseConsultTemp" type="number" step="0.1" min="30" max="45" class="form-control" placeholder="36.8">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Pulse</label>
+                                <input id="nurseConsultPulse" type="number" min="20" max="250" class="form-control" placeholder="72">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">BP</label>
+                                <input id="nurseConsultBp" type="text" class="form-control" placeholder="120/80" pattern="^\d{2,3}/\d{2,3}$" maxlength="7">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Weight (kg)</label>
+                                <input id="nurseConsultWeight" type="number" step="0.1" min="1" max="500" class="form-control" placeholder="70.0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">SpO2 (%)</label>
+                                <input id="nurseConsultSpo2" type="number" min="50" max="100" class="form-control" placeholder="98">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Vitals Notes (optional)</label>
+                                <textarea id="nurseConsultVitalsNotes" class="form-control" rows="2" maxlength="1000" placeholder="Bedside observations while attending..."></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 p-4">
-                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Doctor</button>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Assessment / Diagnosis Notes</label>
+                    <textarea id="nurseConsultDiagnosis" class="form-control" rows="3" placeholder="Clinical findings, provisional diagnosis, management plan..."></textarea>
                 </div>
-            </form>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Search Medicines</label>
+                        <div class="input-group">
+                            <input id="nurseConsultMedSearch" class="form-control" placeholder="Type name and search">
+                            <button class="btn btn-outline-secondary" type="button" onclick="searchNurseMedicines()">Search</button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Medicine</label>
+                        <select id="nurseConsultMed" class="form-select"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Drug Name (if not listed)</label>
+                        <input id="nurseManualMedName" class="form-control" placeholder="Medicine name">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Qty</label>
+                        <input id="nurseConsultQty" class="form-control" type="number" min="1" value="1">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Dosage</label>
+                        <input id="nurseConsultDosage" class="form-control" placeholder="1 tab twice daily">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary w-100" onclick="addNurseMedicationToList()">Add</button>
+                    </div>
+                </div>
+
+                <div class="mt-4" id="nursePrescriptionContainer" style="display:none;">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light"><tr><th>Medicine</th><th>Qty</th><th>Dosage</th><th></th></tr></thead>
+                        <tbody id="nursePrescriptionListTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-danger" onclick="referActiveConsultToDoctor()">Refer Doctor</button>
+                <button type="button" id="nurseConsultSaveBtn" class="btn btn-outline-success" onclick="submitNurseConsult(false)">Save Notes</button>
+                <button type="button" id="nurseConsultSendBtn" class="btn btn-success" onclick="submitNurseConsult(true)">Save & Send Pharmacy</button>
+            </div>
         </div>
     </div>
 </div>
-
 <div class="modal fade" id="bedAdmitModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content border-0 rounded-4 shadow">
@@ -479,7 +569,33 @@
     protectPage(['nurse', 'admin']);
     let activeBedId = null;
     const bedAdmitModal = new bootstrap.Modal(document.getElementById('bedAdmitModal'));
+    const consultModal = new bootstrap.Modal(document.getElementById('nurseConsultModal'));
     let historySnapshot = null;
+    let activeQueueId = null;
+    let activePatientId = null;
+    let activePatientName = '';
+    let isSubmittingConsult = false;
+    let isCreatingEscalation = false;
+    let wardLoadInFlight = false;
+    let wardReloadQueued = false;
+    let wardShowAll = false;
+    let wardCachedRows = [];
+    const WARD_PREVIEW_LIMIT = 12;
+    let nursePatientDirectory = [];
+    let isEmergencyCheckinSubmitting = false;
+    let currentPrescriptions = [];
+    let nurseMedicineCache = [];
+    let nurseAdmissionRows = [];
+    const nurseReviewRowsByQueue = new Map();
+    const CONSULT_VITAL_LIMITS = {
+        temperature: { min: 30, max: 45 },
+        pulse: { min: 20, max: 250 },
+        systolic: { min: 50, max: 300 },
+        diastolic: { min: 30, max: 200 },
+        weight: { min: 1, max: 500 },
+        spo2: { min: 50, max: 100 },
+        notes: { maxLength: 1000 }
+    };
 
     function switchTab(id, el) {
         document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
@@ -490,13 +606,18 @@
 
         if(id === 'wards') loadBeds();
         if(id === 'history') loadHistory();
-        if(id === 'timeline') loadTimeline();
+        if(id === 'emergency') loadAdmissionWaiting();
         if(id === 'tasks') { loadUrgentCare(); loadTasks(); }
         if(id === 'admission') loadAdmissionWaiting();
         if(id === 'escalations') loadEscalations();
         if(id === 'discharge') loadDischarges();
         if(id === 'handover') loadHandover();
         if(id === 'roster') loadShifts();
+    }
+
+    function openNurseReviewTab() {
+        const nav = document.querySelector('.nav-link[onclick*="admission"]');
+        switchTab('admission', nav || null);
     }
 
     function toggleSidebar(open) {
@@ -508,72 +629,449 @@
         backdrop.classList.toggle('show', shouldOpen);
     }
 
-    async function loadBeds() {
-        const beds = await Api.get('/nurse/beds');
-        const container = document.getElementById('wardContainer');
-        if (!container) return;
-        container.innerHTML = '';
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
-        if(beds) {
-            let total = 0;
-            let occupied = 0;
-            let available = 0;
-            let other = 0;
-            const cards = [];
+    async function loadNurseMedicines() {
+        const meds = await Api.get('/nurse/medicines');
+        nurseMedicineCache = Array.isArray(meds) ? meds : [];
+        renderNurseMedicineOptions(nurseMedicineCache);
 
-            beds.forEach(bed => {
-                total += 1;
-                if (bed.status === 'Occupied') occupied += 1;
-                else if (bed.status === 'Available') available += 1;
-                else other += 1;
-
-                const color = bed.status === 'Occupied' ? 'danger' : (bed.status === 'Available' ? 'success' : 'warning');
-                const patientLabel = bed.patient_name ? bed.patient_name : 'Empty';
-                const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
-                const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
-
-                let actionBtn = '';
-                if (bed.status === 'Occupied') {
-                    const dischargeReady = Number(bed.discharge_ready || 0) > 0;
-                    const summaryText = (bed.discharge_ready && bed.discharge_status) ? `Doctor command: ${bed.discharge_status}` : '';
-                    actionBtn = dischargeReady
-                        ? `<div class="mb-2 d-flex align-items-center gap-2">
-                                <span class="badge bg-success-subtle text-success border border-success">Doctor Command</span>
-                                <small class="text-muted">${summaryText}</small>
-                           </div>
-                           <button onclick="discharge(${bed.id})" class="btn btn-sm btn-outline-danger w-100 rounded-pill">Discharge</button>`
-                        : `<div class="mb-2 d-flex align-items-center gap-2">
-                                <span class="badge bg-secondary-subtle text-secondary border border-secondary">Awaiting Doctor</span>
-                                <small class="text-muted">No discharge command yet</small>
-                           </div>
-                           <button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Awaiting Doctor</button>`;
-                } else if (bed.status === 'Available') {
-                    actionBtn = `<button onclick='openBedAdmitModal(${JSON.stringify(bed)})' class="btn btn-sm btn-outline-success w-100 rounded-pill">Admit</button>`;
-                } else {
-                    actionBtn = `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Unavailable</button>`;
+        const searchInput = document.getElementById('nurseConsultMedSearch');
+        if (searchInput && !searchInput.dataset.boundEnter) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchNurseMedicines();
                 }
+            });
+            searchInput.dataset.boundEnter = '1';
+        }
+    }
 
-                cards.push(`
-                    <div class="col-md-3">
-                        <div class="ward-card h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div class="bed-icon text-${color}"><i class="bi bi-hospital"></i></div>
-                                <span class="badge ward-pill bg-${color}-subtle text-${color} border border-${color}">${bed.status}</span>
-                            </div>
-                            <div class="ward-meta mb-1">${wardLabel}</div>
-                            <h6 class="fw-bold mb-1">${bedNumber}</h6>
-                            <div class="ward-patient mb-3">${patientLabel}</div>
-                            ${actionBtn}
-                        </div>
-                    </div>`);
+    function renderNurseMedicineOptions(rows) {
+        const select = document.getElementById('nurseConsultMed');
+        if (!select) return;
+        const current = select.value;
+        select.innerHTML = '<option value="">-- Select --</option>';
+        (rows || []).forEach(m => {
+            const stock = Number(m.stock_quantity || 0);
+            const suffix = stock > 0 ? ` (${stock})` : ' (Out of stock)';
+            const opt = document.createElement('option');
+            opt.value = String(m.id);
+            opt.textContent = `${m.name}${suffix}`;
+            opt.dataset.medicineName = m.name;
+            select.appendChild(opt);
+        });
+        if (current && select.querySelector(`option[value="${current}"]`)) {
+            select.value = current;
+        }
+    }
+
+    function searchNurseMedicines() {
+        const term = (document.getElementById('nurseConsultMedSearch')?.value || '').trim().toLowerCase();
+        if (!term) {
+            renderNurseMedicineOptions(nurseMedicineCache);
+            return;
+        }
+        const filtered = nurseMedicineCache.filter(m =>
+            String(m.name || '').toLowerCase().includes(term)
+        );
+        renderNurseMedicineOptions(filtered);
+        if (!filtered.length) {
+            notify("No matching medicine in database. Enter drug name manually.");
+        }
+    }
+
+    function renderNursePrescriptionTable() {
+        const tbody = document.getElementById('nursePrescriptionListTable');
+        if (!tbody) return;
+        tbody.innerHTML = currentPrescriptions.map((m, idx) => `
+            <tr>
+                <td>${escapeHtml(m.medicine_name)}</td>
+                <td>${m.quantity}</td>
+                <td>${escapeHtml(m.dosage)}</td>
+                <td class="text-end"><i class="bi bi-trash text-danger" style="cursor:pointer;" onclick="removeNurseMedication(${idx})"></i></td>
+            </tr>`).join('');
+    }
+
+    function removeNurseMedication(idx) {
+        currentPrescriptions.splice(idx, 1);
+        const container = document.getElementById('nursePrescriptionContainer');
+        if (container && currentPrescriptions.length === 0) container.style.display = 'none';
+        renderNursePrescriptionTable();
+    }
+
+    function toggleConsultVitalsFields(forceChecked = null) {
+        const toggle = document.getElementById('nurseConsultCaptureVitals');
+        const fields = document.getElementById('nurseConsultVitalsFields');
+        if (!toggle || !fields) return;
+        if (typeof forceChecked === 'boolean') {
+            toggle.checked = forceChecked;
+        }
+        fields.classList.toggle('d-none', !toggle.checked);
+    }
+
+    function setConsultVitalsDefaults(row) {
+        document.getElementById('nurseConsultTemp').value = row?.temperature ?? '';
+        document.getElementById('nurseConsultPulse').value = row?.pulse ?? '';
+        document.getElementById('nurseConsultBp').value = row?.bp ?? '';
+        document.getElementById('nurseConsultWeight').value = row?.weight ?? '';
+        document.getElementById('nurseConsultSpo2').value = row?.spo2 ?? '';
+        document.getElementById('nurseConsultVitalsNotes').value = '';
+    }
+
+    function buildConsultVitalsPayload() {
+        const captureVitals = document.getElementById('nurseConsultCaptureVitals')?.checked;
+        if (!captureVitals) return { payload: null, message: null };
+
+        const temperature = Number(document.getElementById('nurseConsultTemp')?.value);
+        const pulse = Number(document.getElementById('nurseConsultPulse')?.value);
+        const bpInput = String(document.getElementById('nurseConsultBp')?.value || '').trim();
+        const weight = Number(document.getElementById('nurseConsultWeight')?.value);
+        const spo2 = Number(document.getElementById('nurseConsultSpo2')?.value);
+        const notes = String(document.getElementById('nurseConsultVitalsNotes')?.value || '').trim();
+
+        if (!Number.isFinite(temperature) || temperature < CONSULT_VITAL_LIMITS.temperature.min || temperature > CONSULT_VITAL_LIMITS.temperature.max) {
+            return { payload: null, message: `Temperature must be between ${CONSULT_VITAL_LIMITS.temperature.min}C and ${CONSULT_VITAL_LIMITS.temperature.max}C.` };
+        }
+        if (!Number.isInteger(pulse) || pulse < CONSULT_VITAL_LIMITS.pulse.min || pulse > CONSULT_VITAL_LIMITS.pulse.max) {
+            return { payload: null, message: `Pulse must be between ${CONSULT_VITAL_LIMITS.pulse.min} and ${CONSULT_VITAL_LIMITS.pulse.max} bpm.` };
+        }
+
+        const bpMatch = bpInput.match(/^(\d{2,3})\/(\d{2,3})$/);
+        if (!bpMatch) {
+            return { payload: null, message: 'Blood pressure must be in systolic/diastolic format, for example 120/80.' };
+        }
+        const systolic = Number(bpMatch[1]);
+        const diastolic = Number(bpMatch[2]);
+        if (
+            systolic < CONSULT_VITAL_LIMITS.systolic.min ||
+            systolic > CONSULT_VITAL_LIMITS.systolic.max ||
+            diastolic < CONSULT_VITAL_LIMITS.diastolic.min ||
+            diastolic > CONSULT_VITAL_LIMITS.diastolic.max ||
+            systolic <= diastolic
+        ) {
+            return { payload: null, message: 'Blood pressure values are out of safe range.' };
+        }
+        if (!Number.isFinite(weight) || weight < CONSULT_VITAL_LIMITS.weight.min || weight > CONSULT_VITAL_LIMITS.weight.max) {
+            return { payload: null, message: `Weight must be between ${CONSULT_VITAL_LIMITS.weight.min}kg and ${CONSULT_VITAL_LIMITS.weight.max}kg.` };
+        }
+        if (!Number.isInteger(spo2) || spo2 < CONSULT_VITAL_LIMITS.spo2.min || spo2 > CONSULT_VITAL_LIMITS.spo2.max) {
+            return { payload: null, message: `SpO2 must be between ${CONSULT_VITAL_LIMITS.spo2.min}% and ${CONSULT_VITAL_LIMITS.spo2.max}%.` };
+        }
+        if (notes.length > CONSULT_VITAL_LIMITS.notes.maxLength) {
+            return { payload: null, message: `Vitals notes must not exceed ${CONSULT_VITAL_LIMITS.notes.maxLength} characters.` };
+        }
+
+        return {
+            payload: {
+                temperature: Number(temperature.toFixed(1)),
+                pulse,
+                bp: `${systolic}/${diastolic}`,
+                weight: Number(weight.toFixed(1)),
+                spo2,
+                notes
+            },
+            message: null
+        };
+    }
+
+    function addNurseMedicationToList() {
+        const medSelect = document.getElementById('nurseConsultMed');
+        const manualName = (document.getElementById('nurseManualMedName')?.value || '').trim();
+        const quantity = Number(document.getElementById('nurseConsultQty')?.value);
+        const dosage = (document.getElementById('nurseConsultDosage')?.value || '').trim();
+
+        const selectedOption = medSelect?.options[medSelect.selectedIndex];
+        const selectedMedId = medSelect?.value ? Number(medSelect.value) : null;
+        const selectedMedName = selectedOption?.dataset?.medicineName || selectedOption?.textContent || '';
+
+        if (!selectedMedId && !manualName) return notify("Search/select a medicine or type the drug name");
+        if (!Number.isFinite(quantity) || quantity < 1) return notify("Enter quantity");
+        if (!dosage) return notify("Enter dosage");
+
+        currentPrescriptions.push({
+            medicine_id: manualName ? null : selectedMedId,
+            medicine_name: manualName || selectedMedName,
+            manual_name: manualName || null,
+            quantity: Math.trunc(quantity),
+            dosage
+        });
+
+        document.getElementById('nursePrescriptionContainer').style.display = 'block';
+        document.getElementById('nurseManualMedName').value = '';
+        document.getElementById('nurseConsultDosage').value = '';
+        document.getElementById('nurseConsultQty').value = '1';
+        renderNursePrescriptionTable();
+    }
+
+    function openNurseConsultByQueue(queueId) {
+        const row = nurseReviewRowsByQueue.get(String(queueId));
+        if (!row) return notify("Patient row not found. Please refresh.");
+        openNurseConsult(row);
+    }
+
+    async function openNurseConsult(row) {
+        if (!row || !row.queue_id || !row.patient_id) return notify("Invalid queue item.");
+
+        activeQueueId = Number(row.queue_id);
+        activePatientId = Number(row.patient_id);
+        activePatientName = row.full_name || 'Patient';
+        currentPrescriptions = [];
+        isSubmittingConsult = false;
+
+        document.getElementById('nurseConsultPatientName').innerText = activePatientName;
+        document.getElementById('nurseConsultDiagnosis').value = '';
+        document.getElementById('nursePrescriptionListTable').innerHTML = '';
+        document.getElementById('nursePrescriptionContainer').style.display = 'none';
+        document.getElementById('nurseConsultMedSearch').value = '';
+        document.getElementById('nurseManualMedName').value = '';
+        document.getElementById('nurseConsultQty').value = '1';
+        document.getElementById('nurseConsultDosage').value = '';
+        setConsultVitalsDefaults(row);
+
+        const vitalsBadges = [];
+        if (row.bp) vitalsBadges.push(`<span class="badge bg-light text-dark border">BP: ${escapeHtml(row.bp)}</span>`);
+        if (row.temperature !== null && row.temperature !== undefined && row.temperature !== '') vitalsBadges.push(`<span class="badge bg-light text-dark border">Temp: ${escapeHtml(row.temperature)}C</span>`);
+        if (row.pulse !== null && row.pulse !== undefined && row.pulse !== '') vitalsBadges.push(`<span class="badge bg-light text-dark border">Pulse: ${escapeHtml(row.pulse)}</span>`);
+        if (row.weight !== null && row.weight !== undefined && row.weight !== '') vitalsBadges.push(`<span class="badge bg-light text-dark border">Weight: ${escapeHtml(row.weight)}kg</span>`);
+        if (row.spo2 !== null && row.spo2 !== undefined && row.spo2 !== '') vitalsBadges.push(`<span class="badge bg-light text-dark border">SpO2: ${escapeHtml(row.spo2)}%</span>`);
+        if (!vitalsBadges.length) vitalsBadges.push('<span class="badge bg-light text-muted border">Vitals not captured</span>');
+        const triageNotes = String(row.triage_notes || '').trim();
+        const triageHtml = triageNotes
+            ? `<div class="alert alert-info py-2 px-3 w-100 mb-0"><b>Triage Notes:</b> ${escapeHtml(triageNotes)}</div>`
+            : '<div class="text-muted small w-100">Triage Notes: none provided.</div>';
+        document.getElementById('nurseConsultVitalsDisplay').innerHTML = vitalsBadges.join('') + triageHtml;
+        const hasExistingVitals =
+            row.temperature !== null && row.temperature !== undefined && row.temperature !== '' &&
+            row.pulse !== null && row.pulse !== undefined && row.pulse !== '' &&
+            String(row.bp || '').trim() !== '' &&
+            row.weight !== null && row.weight !== undefined && row.weight !== '' &&
+            row.spo2 !== null && row.spo2 !== undefined && row.spo2 !== '';
+        toggleConsultVitalsFields(!hasExistingVitals);
+
+        await loadNurseMedicines();
+        consultModal.show();
+    }
+
+    async function submitNurseConsult(sendToPharmacy) {
+        if (isSubmittingConsult) return;
+        if (!activeQueueId || !activePatientId) return notify("No active patient selected.");
+
+        const notes = (document.getElementById('nurseConsultDiagnosis')?.value || '').trim();
+        if (!notes) return notify("Diagnosis notes are required.");
+        const vitals = buildConsultVitalsPayload();
+        if (vitals.message) return notify(vitals.message);
+
+        isSubmittingConsult = true;
+        const saveBtn = document.getElementById('nurseConsultSaveBtn');
+        const sendBtn = document.getElementById('nurseConsultSendBtn');
+        if (saveBtn) saveBtn.disabled = true;
+        if (sendBtn) sendBtn.disabled = true;
+
+        try {
+            const res = await Api.post('/nurse/consult_save', {
+                queue_id: activeQueueId,
+                patient_id: activePatientId,
+                notes,
+                prescriptions: currentPrescriptions,
+                vitals: vitals.payload,
+                send_to_pharmacy: !!sendToPharmacy
             });
 
-            container.innerHTML = cards.join('');
+            if (res) {
+                const emergencyReasons = Array.isArray(res.emergency_reasons) && res.emergency_reasons.length
+                    ? ` ${res.emergency_reasons.join('; ')}`
+                    : '';
+                const msg = (res.message || 'Consultation saved.') + (res.emergency ? ` Emergency flagged:${emergencyReasons}` : '');
+                notify(
+                    msg,
+                    res.emergency
+                        ? { type: 'error', timeoutMs: 12000 }
+                        : (sendToPharmacy ? { type: 'success', timeoutMs: 8000 } : { type: 'info', timeoutMs: 6000 })
+                );
+                consultModal.hide();
+                loadAdmissionWaiting();
+                if (res.emergency) loadEscalations();
+            }
+        } finally {
+            isSubmittingConsult = false;
+            if (saveBtn) saveBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = false;
+        }
+    }
+
+    async function referActiveConsultToDoctor() {
+        if (!activeQueueId || !activePatientId) return notify("No active patient selected.");
+        const defaultReason = (document.getElementById('nurseConsultDiagnosis')?.value || '').trim() || "Nurse could not resolve case.";
+        await referToDoctor(activeQueueId, activePatientId, defaultReason, true);
+    }
+
+    function buildWardCardHtml(bed) {
+        const color = bed.status === 'Occupied' ? 'danger' : (bed.status === 'Available' ? 'success' : 'warning');
+        const patientLabel = bed.patient_name ? bed.patient_name : 'Empty';
+        const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
+        const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
+
+        let actionBtn = '';
+        if (bed.status === 'Occupied') {
+            const dischargeReady = Number(bed.discharge_ready || 0) > 0;
+            const summaryText = (bed.discharge_ready && bed.discharge_status) ? `Doctor command: ${bed.discharge_status}` : '';
+            actionBtn = dischargeReady
+                ? `<div class="mb-2 d-flex align-items-center gap-2">
+                        <span class="badge bg-success-subtle text-success border border-success">Doctor Command</span>
+                        <small class="text-muted">${summaryText}</small>
+                   </div>
+                   <button onclick="discharge(${bed.id})" class="btn btn-sm btn-outline-danger w-100 rounded-pill">Discharge</button>`
+                : `<div class="mb-2 d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary">Awaiting Doctor</span>
+                        <small class="text-muted">No discharge command yet</small>
+                   </div>
+                   <button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Awaiting Doctor</button>`;
+        } else if (bed.status === 'Available') {
+            actionBtn = `<button onclick='openBedAdmitModal(${JSON.stringify(bed)})' class="btn btn-sm btn-outline-success w-100 rounded-pill">Admit</button>`;
+        } else {
+            actionBtn = `<button class="btn btn-sm btn-outline-secondary w-100 rounded-pill" disabled>Unavailable</button>`;
+        }
+
+        return `
+            <div class="col-md-3">
+                <div class="ward-card h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="bed-icon text-${color}"><i class="bi bi-hospital"></i></div>
+                        <span class="badge ward-pill bg-${color}-subtle text-${color} border border-${color}">${bed.status}</span>
+                    </div>
+                    <div class="ward-meta mb-1">${wardLabel}</div>
+                    <h6 class="fw-bold mb-1">${bedNumber}</h6>
+                    <div class="ward-patient mb-3">${patientLabel}</div>
+                    ${actionBtn}
+                </div>
+            </div>`;
+    }
+
+    function updateWardRenderControls(totalRows, visibleRows) {
+        const meta = document.getElementById('wardRenderMeta');
+        const wrap = document.getElementById('wardToggleWrap');
+        const btn = document.getElementById('wardToggleBtn');
+        if (meta) {
+            meta.textContent = totalRows > 0 ? `Showing ${visibleRows} of ${totalRows} beds` : '';
+        }
+        if (!wrap || !btn) return;
+
+        if (totalRows <= WARD_PREVIEW_LIMIT) {
+            wrap.classList.add('d-none');
+            return;
+        }
+
+        wrap.classList.remove('d-none');
+        btn.textContent = wardShowAll ? 'Show Less' : `View More (${totalRows - visibleRows})`;
+    }
+
+    function renderWardCards(rows) {
+        const container = document.getElementById('wardContainer');
+        if (!container) return;
+
+        const total = Array.isArray(rows) ? rows.length : 0;
+        if (total === 0) {
+            updateWardRenderControls(0, 0);
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 p-4">
+                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                            <div>
+                                <h5 class="mb-1">Ward monitoring is active</h5>
+                                <p class="text-muted mb-0">No bed records are configured yet, so there is nothing to display. Add beds from setup/admin to start tracking occupancy here.</p>
+                            </div>
+                            <button class="btn btn-outline-dark btn-sm px-3" onclick="loadBeds()"><i class="bi bi-arrow-clockwise me-1"></i> Retry</button>
+                        </div>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        if (total <= WARD_PREVIEW_LIMIT) wardShowAll = false;
+        const visibleRows = wardShowAll ? rows : rows.slice(0, WARD_PREVIEW_LIMIT);
+        container.innerHTML = visibleRows.map(buildWardCardHtml).join('');
+        updateWardRenderControls(total, visibleRows.length);
+    }
+
+    function toggleWardExpand() {
+        if (!Array.isArray(wardCachedRows) || wardCachedRows.length <= WARD_PREVIEW_LIMIT) return;
+        wardShowAll = !wardShowAll;
+        renderWardCards(wardCachedRows);
+    }
+
+    async function loadBeds() {
+        const container = document.getElementById('wardContainer');
+        if (!container) return;
+
+        if (wardLoadInFlight) {
+            wardReloadQueued = true;
+            return;
+        }
+        wardLoadInFlight = true;
+
+        const setWardSummary = (total, occupied, available, other) => {
             document.getElementById('wardTotal').innerText = total;
             document.getElementById('wardOccupied').innerText = occupied;
             document.getElementById('wardAvailable').innerText = available;
             document.getElementById('wardOther').innerText = other;
             document.getElementById('wardUpdated').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        };
+
+        try {
+            const beds = await Api.get('/nurse/beds');
+            if (!Array.isArray(beds)) {
+                throw new Error('Failed to load beds');
+            }
+            const bedRows = beds;
+
+            let total = 0;
+            let occupied = 0;
+            let available = 0;
+            let other = 0;
+
+            bedRows.forEach(bed => {
+                total += 1;
+                if (bed.status === 'Occupied') occupied += 1;
+                else if (bed.status === 'Available') available += 1;
+                else other += 1;
+            });
+
+            setWardSummary(total, occupied, available, other);
+            wardCachedRows = bedRows;
+            renderWardCards(bedRows);
+        } catch (err) {
+            // Keep the last successful ward cards visible if refresh fails.
+            const hasRenderedCards = !!container.querySelector('.ward-card');
+            if (hasRenderedCards) {
+                document.getElementById('wardUpdated').innerText = `${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} (sync failed)`;
+                return;
+            }
+
+            setWardSummary(0, 0, 0, 0);
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 p-4">
+                        <h5 class="mb-1 text-danger">Unable to load ward monitor</h5>
+                        <p class="text-muted mb-3">Please retry. If this keeps happening, check the nurse beds endpoint or database connection.</p>
+                        <button class="btn btn-outline-dark btn-sm px-3" onclick="loadBeds()"><i class="bi bi-arrow-clockwise me-1"></i> Retry</button>
+                    </div>
+                </div>`;
+            updateWardRenderControls(0, 0);
+        } finally {
+            wardLoadInFlight = false;
+            if (wardReloadQueued) {
+                wardReloadQueued = false;
+                setTimeout(() => loadBeds(), 0);
+            }
         }
     }
 
@@ -601,7 +1099,7 @@
         activeBedId = bed.id;
         const wardLabel = bed.ward_name ? bed.ward_name : 'General Ward';
         const bedNumber = bed.bed_number ? bed.bed_number : 'Bed';
-        document.getElementById('bedAdmitLabel').innerText = `${wardLabel} • ${bedNumber}`;
+        document.getElementById('bedAdmitLabel').innerText = `${wardLabel} â€¢ ${bedNumber}`;
         loadUrgentPatients();
         bedAdmitModal.show();
     }
@@ -769,11 +1267,76 @@
         if (current) select.value = current;
     }
 
+    function populateNurseEmergencyPatientList(patients) {
+        const list = document.getElementById('nurseEmergencyPatientList');
+        if (!list) return;
+        list.innerHTML = '';
+        (patients || []).forEach((p) => {
+            const option = document.createElement('option');
+            option.value = `${p.full_name} | ${p.national_id || 'N/A'} | ID:${p.id}`;
+            list.appendChild(option);
+        });
+    }
+
+    function resolveEmergencyPatientId(inputValue, patients) {
+        const raw = String(inputValue || '').trim();
+        if (!raw) return null;
+        const match = raw.match(/ID:(\d+)\s*$/i);
+        if (match) return Number(match[1]);
+
+        const needle = raw.toLowerCase();
+        const exact = (patients || []).filter(p => {
+            const candidate = `${p.full_name} | ${p.national_id || 'N/A'}`.toLowerCase();
+            return candidate === needle;
+        });
+        if (exact.length === 1) return Number(exact[0].id);
+        return null;
+    }
+
+    async function checkInEmergencyToNurse() {
+        if (isEmergencyCheckinSubmitting) return;
+        const patientInput = document.getElementById('nurseEmergencyPatientSearch');
+        const reasonInput = document.getElementById('nurseEmergencyReason');
+        const btn = document.getElementById('nurseEmergencyCheckinBtn');
+        const patientId = resolveEmergencyPatientId(patientInput?.value, nursePatientDirectory);
+        if (!patientId) return notify("Pick a patient from the emergency search list.");
+
+        isEmergencyCheckinSubmitting = true;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Checking in...';
+        }
+        try {
+            const res = await Api.post('/nurse/emergency_checkin', {
+                patient_id: patientId,
+                reason: String(reasonInput?.value || '').trim() || null
+            });
+            if (res) {
+                notify(res.message || 'Emergency patient checked in.');
+                if (reasonInput) reasonInput.value = '';
+                if (patientInput) patientInput.value = '';
+                await loadAdmissionWaiting();
+                loadEscalations();
+                if (res.queue_id) {
+                    openNurseConsultByQueue(res.queue_id);
+                }
+            }
+        } finally {
+            isEmergencyCheckinSubmitting = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Direct Check-in';
+            }
+        }
+    }
+
     async function loadPatientOptions() {
         const patients = await Api.get('/nurse/patients');
         if (patients) {
+            nursePatientDirectory = patients;
             renderPatientOptions(document.getElementById('timelinePatient'), patients, '-- Select Patient --');
             renderPatientOptions(document.getElementById('escPatient'), patients, '-- Select Patient --');
+            populateNurseEmergencyPatientList(patients);
         }
 
 
@@ -859,25 +1422,76 @@
         }
     }
 
-    async function loadAdmissionWaiting() {
-        const rows = await Api.get('/nurse/admission_waiting_list');
+    function updateAdmissionSearchMeta(visibleCount, totalCount, term) {
+        const meta = document.getElementById('admissionSearchMeta');
+        if (!meta) return;
+        if (!totalCount) {
+            meta.textContent = 'No patients in nurse queue.';
+            return;
+        }
+        if (term) {
+            meta.textContent = `${visibleCount} of ${totalCount} matched "${term}"`;
+            return;
+        }
+        meta.textContent = `Showing ${visibleCount} patient${visibleCount === 1 ? '' : 's'}.`;
+    }
+
+    function matchAdmissionSearch(row, term) {
+        const haystack = [
+            row.full_name,
+            row.national_id,
+            row.status
+        ].map(v => String(v || '').toLowerCase()).join(' ');
+        return haystack.includes(term);
+    }
+
+    function renderAdmissionWaitingRows(rows, totalCount, term) {
         const tbody = document.getElementById('admissionTable');
         if (!tbody) return;
         tbody.innerHTML = '';
-        if (rows && rows.length) {
+        updateAdmissionSearchMeta(rows.length, totalCount, term);
+        if (rows.length) {
             rows.forEach(r => {
                 const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : '';
                 const count = Number(r.pending_prescriptions || 0);
+                const emergencyCount = Number(r.emergency_count || 0);
+                const isEmergency = emergencyCount > 0;
                 const statusText = String(r.status || 'Admission Pending');
                 const statusLower = statusText.toLowerCase();
-                const statusBadge = statusLower.includes('waiting pharmacy')
-                    ? '<span class="badge bg-info-subtle text-info">Waiting Pharmacy</span>'
-                    : statusLower.includes('ready for admission')
-                        ? '<span class="badge bg-success-subtle text-success">Ready for Admission</span>'
-                        : '<span class="badge bg-warning-subtle text-warning">Admission Pending</span>';
-                const action = count > 0
-                    ? `<button class="btn btn-outline-primary btn-sm" onclick="requestPharmacyMeds(${r.patient_id}, ${r.queue_id})">Request Pharmacy</button>`
-                    : `<span class="text-muted small">No prescriptions</span>`;
+                const isWithNurse = statusLower.includes('with nurse');
+                const isWaitingPharmacy = statusLower.includes('waiting pharmacy');
+                const isReadyForAdmission = statusLower.includes('ready for admission');
+                const isAdmissionPending = statusLower.includes('admission pending');
+
+                const queueBadge = isWithNurse
+                    ? '<span class="badge bg-primary-subtle text-primary">With Nurse</span>'
+                    : isWaitingPharmacy
+                        ? '<span class="badge bg-info-subtle text-info">Waiting Pharmacy</span>'
+                        : isReadyForAdmission
+                            ? '<span class="badge bg-success-subtle text-success">Ready for Admission</span>'
+                            : '<span class="badge bg-warning-subtle text-warning">Admission Pending</span>';
+                const emergencyBadge = isEmergency
+                    ? '<span class="badge bg-danger-subtle text-danger me-1">Emergency</span>'
+                    : '';
+                const statusBadge = emergencyBadge + queueBadge;
+
+                let action = `<span class="text-muted small">No action</span>`;
+                if (isWithNurse) {
+                    action = `
+                        <div class="d-flex justify-content-end flex-wrap gap-1">
+                            <button class="btn btn-outline-success btn-sm" onclick="openNurseConsultByQueue(${r.queue_id})">Attend</button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="referToDoctor(${r.queue_id}, ${r.patient_id})">Refer Doctor</button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="requestPharmacyMeds(${r.patient_id}, ${r.queue_id}, true)">Send Pharmacy</button>
+                        </div>`;
+                } else if (isAdmissionPending && count > 0) {
+                    action = `<button class="btn btn-outline-primary btn-sm" onclick="requestPharmacyMeds(${r.patient_id}, ${r.queue_id})">Request Pharmacy</button>`;
+                } else if (isWaitingPharmacy) {
+                    action = `<span class="text-muted small">Pharmacy notified</span>`;
+                } else if (isReadyForAdmission) {
+                    action = `<span class="text-success small fw-semibold">Ready</span>`;
+                } else if (count === 0) {
+                    action = `<span class="text-muted small">No prescriptions</span>`;
+                }
                 tbody.innerHTML += `
                     <tr>
                         <td>${r.full_name}</td>
@@ -888,20 +1502,75 @@
                         <td class="text-end">${action}</td>
                     </tr>`;
             });
-        } else if (rows) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No patients awaiting admission.</td></tr>';
+            return;
+        }
+
+        if (term && totalCount > 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No queue match for "${escapeHtml(term)}".</td></tr>`;
         } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load admission waiting list.', { type: 'error' });
-            }
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No patients in nurse review queue.</td></tr>';
         }
     }
 
-    async function requestPharmacyMeds(patientId, queueId) {
-        if (!confirm("Request pharmacy to prepare the prescribed meds for this patient?")) return;
-        const res = await Api.post('/nurse/pharmacy_request', { patient_id: patientId, queue_id: queueId });
+    function applyAdmissionSearch() {
+        const termRaw = String(document.getElementById('admissionSearchInput')?.value || '').trim();
+        const term = termRaw.toLowerCase();
+        const filtered = term
+            ? nurseAdmissionRows.filter(row => matchAdmissionSearch(row, term))
+            : nurseAdmissionRows.slice();
+        renderAdmissionWaitingRows(filtered, nurseAdmissionRows.length, termRaw);
+    }
+
+    async function loadAdmissionWaiting() {
+        const rows = await Api.get('/nurse/admission_waiting_list');
+        nurseReviewRowsByQueue.clear();
+        if (rows) {
+            nurseAdmissionRows = Array.isArray(rows) ? rows : [];
+            nurseAdmissionRows.forEach(r => {
+                nurseReviewRowsByQueue.set(String(r.queue_id), r);
+            });
+            applyAdmissionSearch();
+            return;
+        }
+        nurseAdmissionRows = [];
+        const tbody = document.getElementById('admissionTable');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Failed to load nurse queue.</td></tr>';
+        }
+        updateAdmissionSearchMeta(0, 0, '');
+        if (typeof showBanner === 'function') {
+            showBanner('Failed to load admission waiting list.', { type: 'error' });
+        }
+    }
+
+    async function referToDoctor(queueId, patientId, defaultReason = "Nurse could not resolve case.", closeConsultModal = false) {
+        const reason = prompt("Reason for doctor referral:", defaultReason);
+        if (reason === null) return;
+        const res = await Api.post('/nurse/refer_doctor', {
+            queue_id: queueId,
+            patient_id: patientId,
+            reason: reason.trim() || "Nurse could not resolve case."
+        });
         if (res) {
-            showNotification("Pharmacy request sent.");
+            if (closeConsultModal) consultModal.hide();
+            showNotification("Patient referred to doctor.");
+            loadAdmissionWaiting();
+            loadEscalations();
+        }
+    }
+
+    async function requestPharmacyMeds(patientId, queueId, fromNurseReview = false) {
+        const promptText = fromNurseReview
+            ? "Send this nurse-resolved case to pharmacy?"
+            : "Request pharmacy to prepare the prescribed meds for this patient?";
+        if (!confirm(promptText)) return;
+        const res = await Api.post('/nurse/pharmacy_request', {
+            patient_id: patientId,
+            queue_id: queueId,
+            notes: fromNurseReview ? 'Nurse-resolved case forwarded to pharmacy.' : null
+        });
+        if (res) {
+            showNotification(res.message || "Pharmacy request sent.");
             loadAdmissionWaiting();
         }
     }
@@ -955,13 +1624,28 @@
     }
 
     async function createEscalation() {
+        if (isCreatingEscalation) return;
         const patientId = document.getElementById('escPatient').value;
         const reason = document.getElementById('escReason').value.trim();
         if (!patientId || !reason) return notify("Select a patient and add a reason");
-        const res = await Api.post('/nurse/escalation_create', { patient_id: patientId, reason, severity: 'urgent' });
-        if (res) {
-            document.getElementById('escReason').value = '';
-            loadEscalations();
+        const btn = document.getElementById('nurseEscalateBtn');
+        isCreatingEscalation = true;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Escalating...';
+        }
+        try {
+            const res = await Api.post('/nurse/escalation_create', { patient_id: patientId, reason, severity: 'urgent' });
+            if (res) {
+                document.getElementById('escReason').value = '';
+                loadEscalations();
+            }
+        } finally {
+            isCreatingEscalation = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Escalate';
+            }
         }
     }
 
@@ -1063,3 +1747,4 @@
 </script>
 </body>
 </html>
+

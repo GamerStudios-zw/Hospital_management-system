@@ -10,6 +10,7 @@ $db = $database->getConnection();
 
 DbSchema::ensureAppointments($db);
 DbSchema::ensureReceptionHandover($db);
+DbSchema::ensureStaffShifts($db);
 
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -27,14 +28,17 @@ switch ($action) {
                 $stmt = $db->query("SELECT COUNT(*) FROM patient_queue WHERE DATE(created_at) = CURDATE()");
                 $today = $stmt->fetchColumn();
 
-                // Count Pending Triage (Waiting status)
-                $stmt = $db->query("SELECT COUNT(*) FROM patient_queue WHERE status = 'Waiting'");
+                // Count Pending Triage (Waiting + Urgent)
+                $stmt = $db->query("SELECT COUNT(*) FROM patient_queue WHERE LOWER(status) IN ('waiting', 'urgent care')");
                 $pending = $stmt->fetchColumn();
 
                 // Get Patient Flow for the current day
-                $flowQuery = "SELECT q.created_at, p.full_name, q.doctor_assigned, q.status
+                $flowQuery = "SELECT q.created_at, p.full_name,
+                                     COALESCE(u.full_name, CAST(q.doctor_assigned AS CHAR)) AS doctor_assigned,
+                                     q.status
                               FROM patient_queue q
                               JOIN patients p ON q.patient_id = p.id
+                              LEFT JOIN users u ON u.id = q.doctor_assigned
                               WHERE DATE(q.created_at) = CURDATE()
                               ORDER BY q.created_at DESC";
                 $flow = $db->query($flowQuery)->fetchAll(PDO::FETCH_ASSOC);
@@ -75,38 +79,131 @@ switch ($action) {
     case 'register':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
+            $payload = is_object($data) ? $data : (object)[];
 
-            $sql = "INSERT INTO patients (
-                        full_name, national_id, dob, gender, phone, address,
-                        has_medical_aid, medical_aid_provider, medical_aid_number,
-                        kin_name, kin_relation, kin_phone, allergies
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $fullName = trim((string)($payload->full_name ?? ''));
+            $nationalId = strtoupper(trim((string)($payload->national_id ?? '')));
+            $dob = trim((string)($payload->dob ?? ''));
+            $gender = trim((string)($payload->gender ?? ''));
+            $phone = trim((string)($payload->phone ?? ''));
+            $phoneKey = preg_replace('/\s+/', '', $phone);
+            $address = trim((string)($payload->address ?? ''));
+            $hasAid = !empty($payload->has_medical_aid) ? 1 : 0;
+            $aidProvider = trim((string)($payload->medical_aid_provider ?? ''));
+            $aidNumber = trim((string)($payload->medical_aid_number ?? ''));
+            $kinName = trim((string)($payload->kin_name ?? ''));
+            $kinRelation = trim((string)($payload->kin_relation ?? ''));
+            $kinPhone = trim((string)($payload->kin_phone ?? ''));
+            $allergies = trim((string)($payload->allergies ?? ''));
 
-            $stmt = $db->prepare($sql);
+            if ($fullName === '' || $nationalId === '' || $dob === '' || $gender === '' || $phone === '') {
+                http_response_code(400);
+                echo json_encode(["message" => "Full name, ID, DOB, gender, and phone are required.", "success" => false]);
+                break;
+            }
 
-            $params = [
-                $data->full_name,
-                $data->national_id,
-                $data->dob,
-                $data->gender,
-                $data->phone,
-                $data->address,
-                $data->has_medical_aid,
-                $data->medical_aid_provider,
-                $data->medical_aid_number,
-                $data->kin_name,
-                $data->kin_relation,
-                $data->kin_phone,
-                $data->allergies
-            ];
+            $lockSeed = $nationalId !== '' ? $nationalId : strtoupper($fullName . '|' . $dob . '|' . $phoneKey);
+            $lockKey = 'hms:register:' . substr(hash('sha256', $lockSeed), 0, 48);
+            $lockAcquired = false;
 
-            if($stmt->execute($params)) {
-                $newPatientId = $db->lastInsertId();
-                Realtime::emit('reception.register', ['patient_id' => $newPatientId]);
-                echo json_encode(["message" => "Patient Registered Successfully"]);
-            } else {
-                http_response_code(500);
-                echo json_encode(["message" => "Database error during registration"]);
+            try {
+                $lockStmt = $db->prepare("SELECT GET_LOCK(?, 5)");
+                $lockStmt->execute([$lockKey]);
+                $lockAcquired = ((int)$lockStmt->fetchColumn() === 1);
+
+                if (!$lockAcquired) {
+                    http_response_code(429);
+                    echo json_encode(["message" => "Registration is busy. Please try again.", "success" => false]);
+                    break;
+                }
+
+                $duplicateStmt = $db->prepare("SELECT id, full_name FROM patients WHERE UPPER(TRIM(national_id)) = ? ORDER BY id ASC LIMIT 1");
+                $duplicateStmt->execute([$nationalId]);
+                $existing = $duplicateStmt->fetch(PDO::FETCH_ASSOC);
+                if ($existing) {
+                    http_response_code(409);
+                    echo json_encode([
+                        "message" => "A patient with this National ID already exists.",
+                        "patient_id" => (int)$existing['id'],
+                        "full_name" => $existing['full_name'] ?? null,
+                        "success" => false
+                    ]);
+                    break;
+                }
+
+                // Secondary guard when IDs are accidentally reused/blank in old records.
+                $identityStmt = $db->prepare("SELECT id, full_name
+                                              FROM patients
+                                              WHERE UPPER(TRIM(full_name)) = ?
+                                                AND dob = ?
+                                                AND REPLACE(TRIM(phone), ' ', '') = ?
+                                              ORDER BY id ASC
+                                              LIMIT 1");
+                $identityStmt->execute([strtoupper($fullName), $dob, $phoneKey]);
+                $identityMatch = $identityStmt->fetch(PDO::FETCH_ASSOC);
+                if ($identityMatch) {
+                    http_response_code(409);
+                    echo json_encode([
+                        "message" => "An identical patient record already exists.",
+                        "patient_id" => (int)$identityMatch['id'],
+                        "full_name" => $identityMatch['full_name'] ?? null,
+                        "success" => false
+                    ]);
+                    break;
+                }
+
+                $sql = "INSERT INTO patients (
+                            full_name, national_id, dob, gender, phone, address,
+                            has_medical_aid, medical_aid_provider, medical_aid_number,
+                            kin_name, kin_relation, kin_phone, allergies
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                $stmt = $db->prepare($sql);
+                $params = [
+                    $fullName,
+                    $nationalId,
+                    $dob,
+                    $gender,
+                    $phone,
+                    $address,
+                    $hasAid,
+                    $aidProvider,
+                    $aidNumber,
+                    $kinName,
+                    $kinRelation,
+                    $kinPhone,
+                    $allergies
+                ];
+
+                if ($stmt->execute($params)) {
+                    $newPatientId = (int)$db->lastInsertId();
+                    Realtime::emit('reception.register', ['patient_id' => $newPatientId]);
+                    echo json_encode([
+                        "message" => "Patient Registered Successfully",
+                        "patient_id" => $newPatientId,
+                        "success" => true
+                    ]);
+                } else {
+                    http_response_code(500);
+                    echo json_encode(["message" => "Database error during registration", "success" => false]);
+                }
+            } catch (PDOException $e) {
+                if ((string)$e->getCode() === '23000') {
+                    http_response_code(409);
+                    echo json_encode(["message" => "A matching patient record already exists.", "success" => false]);
+                } else {
+                    http_response_code(500);
+                    echo json_encode(["message" => "Database error during registration", "success" => false]);
+                }
+            } finally {
+                if ($lockAcquired) {
+                    try {
+                        $unlockStmt = $db->prepare("SELECT RELEASE_LOCK(?)");
+                        $unlockStmt->execute([$lockKey]);
+                    } catch (Exception $e) {
+                        // Ignore unlock errors.
+                    }
+                }
             }
         }
         break;
@@ -130,16 +227,23 @@ switch ($action) {
                  exit;
             }
 
-            // Reception always sends to Nurse first
-            $initial_status = 'Waiting';
+            // Critical admissions are marked urgent so triage picks them first.
+            $isCritical = !empty($data->is_critical);
+            $initial_status = $isCritical ? 'Urgent Care' : 'Waiting';
 
             $sql = "INSERT INTO patient_queue (patient_id, doctor_assigned, status) VALUES (?, ?, ?)";
             $stmt = $db->prepare($sql);
 
-            if($stmt->execute([$data->patient_id, $data->doctor, $initial_status])) {
+            // Reception sends patient to triage first; nurse assignment happens after vitals capture.
+            if($stmt->execute([$data->patient_id, null, $initial_status])) {
                 $queueId = $db->lastInsertId();
                 Realtime::emit('reception.admit', ['queue_id' => $queueId]);
-                echo json_encode(["message" => "Patient Admitted"]);
+                echo json_encode([
+                    "message" => "Patient admitted to triage",
+                    "queue_id" => (int)$queueId,
+                    "status" => $initial_status,
+                    "next_stage" => "triage"
+                ]);
             } else {
                 http_response_code(500);
                 echo json_encode(["message" => "Admission failed"]);
@@ -186,19 +290,76 @@ switch ($action) {
                 echo json_encode(["message" => "Patient ID and schedule required"]);
                 exit;
             }
-            $stmt = $db->prepare("INSERT INTO appointments (patient_id, doctor_id, scheduled_at, status, reason, notes)
-                                  VALUES (?, ?, ?, ?, ?, ?)");
-            $doctorId = $data->doctor_id ?? null;
-            $status = $data->status ?? 'scheduled';
-            $reason = $data->reason ?? null;
-            $notes = $data->notes ?? null;
-            if ($stmt->execute([$data->patient_id, $doctorId, $data->scheduled_at, $status, $reason, $notes])) {
-                $newId = $db->lastInsertId();
-                Realtime::emit('reception.appointment', ['appointment_id' => $newId]);
-                echo json_encode(["message" => "Appointment created"]);
-            } else {
-                http_response_code(500);
-                echo json_encode(["message" => "Failed to create appointment"]);
+            $patientId = (int)$data->patient_id;
+            $scheduledAt = trim((string)$data->scheduled_at);
+            $doctorId = isset($data->doctor_id) && $data->doctor_id !== '' ? (int)$data->doctor_id : null;
+            if ($patientId <= 0 || $scheduledAt === '') {
+                http_response_code(400);
+                echo json_encode(["message" => "Valid patient and schedule required"]);
+                exit;
+            }
+
+            $lockSeed = $patientId . '|' . ($doctorId !== null ? $doctorId : 0) . '|' . $scheduledAt;
+            $lockKey = 'hms:appt:' . substr(hash('sha256', $lockSeed), 0, 48);
+            $lockAcquired = false;
+
+            try {
+                $lockStmt = $db->prepare("SELECT GET_LOCK(?, 5)");
+                $lockStmt->execute([$lockKey]);
+                $lockAcquired = ((int)$lockStmt->fetchColumn() === 1);
+                if (!$lockAcquired) {
+                    http_response_code(429);
+                    echo json_encode(["message" => "Appointment booking is busy. Please retry."]);
+                    exit;
+                }
+
+                $dupStmt = $db->prepare("SELECT id
+                                         FROM appointments
+                                         WHERE patient_id = ?
+                                           AND scheduled_at = ?
+                                           AND ((doctor_id IS NULL AND ? IS NULL) OR doctor_id = ?)
+                                           AND LOWER(COALESCE(status, 'scheduled')) NOT IN ('cancelled', 'completed')
+                                         LIMIT 1");
+                $dupStmt->execute([$patientId, $scheduledAt, $doctorId, $doctorId]);
+                $duplicate = $dupStmt->fetch(PDO::FETCH_ASSOC);
+                if ($duplicate) {
+                    http_response_code(409);
+                    echo json_encode([
+                        "message" => "An identical appointment already exists.",
+                        "appointment_id" => (int)$duplicate['id']
+                    ]);
+                    exit;
+                }
+
+                $stmt = $db->prepare("INSERT INTO appointments (patient_id, doctor_id, scheduled_at, status, reason, notes)
+                                      VALUES (?, ?, ?, ?, ?, ?)");
+                $status = $data->status ?? 'scheduled';
+                $reason = $data->reason ?? null;
+                $notes = $data->notes ?? null;
+                if ($stmt->execute([$patientId, $doctorId, $scheduledAt, $status, $reason, $notes])) {
+                    $newId = $db->lastInsertId();
+                    Realtime::emit('reception.appointment', ['appointment_id' => $newId]);
+                    echo json_encode(["message" => "Appointment created"]);
+                } else {
+                    http_response_code(500);
+                    echo json_encode(["message" => "Failed to create appointment"]);
+                }
+            } catch (PDOException $e) {
+                if ((string)$e->getCode() === '23000') {
+                    http_response_code(409);
+                    echo json_encode(["message" => "An identical appointment already exists."]);
+                } else {
+                    throw $e;
+                }
+            } finally {
+                if ($lockAcquired) {
+                    try {
+                        $unlockStmt = $db->prepare("SELECT RELEASE_LOCK(?)");
+                        $unlockStmt->execute([$lockKey]);
+                    } catch (Exception $e) {
+                        // Ignore unlock errors.
+                    }
+                }
             }
         }
         break;
@@ -318,11 +479,13 @@ switch ($action) {
     // 4f. QUEUE LIST (Active)
     case 'queue_list':
         if ($method === 'GET') {
-            $sql = "SELECT q.id as queue_id, q.status, q.created_at, q.doctor_assigned,
+            $sql = "SELECT q.id as queue_id, q.status, q.created_at,
+                           COALESCE(u.full_name, CAST(q.doctor_assigned AS CHAR)) AS doctor_assigned,
                            p.full_name, p.national_id, p.phone
                     FROM patient_queue q
                     JOIN patients p ON q.patient_id = p.id
-                    WHERE q.status NOT IN ('Completed','Cancelled','completed','cancelled')
+                    LEFT JOIN users u ON u.id = q.doctor_assigned
+                    WHERE LOWER(q.status) NOT IN ('completed','cancelled','discharged')
                     ORDER BY q.created_at ASC";
             $stmt = $db->query($sql);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
@@ -336,6 +499,19 @@ switch ($action) {
             if (!isset($data->queue_id) || !isset($data->action)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Queue ID and action required"]);
+                exit;
+            }
+            $stateCheck = $db->prepare("SELECT status FROM patient_queue WHERE id = ? LIMIT 1");
+            $stateCheck->execute([$data->queue_id]);
+            $currentStatus = strtolower((string)$stateCheck->fetchColumn());
+            if ($currentStatus === '') {
+                http_response_code(404);
+                echo json_encode(["message" => "Queue item not found"]);
+                exit;
+            }
+            if (!in_array($currentStatus, ['waiting', 'urgent care'], true)) {
+                http_response_code(409);
+                echo json_encode(["message" => "This queue item is already in clinical workflow and cannot be updated by reception."]);
                 exit;
             }
             $actionType = $data->action;
@@ -508,7 +684,13 @@ switch ($action) {
                 $stmt->execute([$pid]);
                 $vitals = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-                $stmt = $db->prepare("SELECT * FROM patient_queue WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50");
+                $stmt = $db->prepare("SELECT q.id, q.patient_id, q.status, q.created_at, q.updated_at,
+                                             COALESCE(u.full_name, CAST(q.doctor_assigned AS CHAR)) AS doctor_assigned
+                                      FROM patient_queue q
+                                      LEFT JOIN users u ON u.id = q.doctor_assigned
+                                      WHERE q.patient_id = ?
+                                      ORDER BY q.created_at DESC
+                                      LIMIT 50");
                 $stmt->execute([$pid]);
                 $visits = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 

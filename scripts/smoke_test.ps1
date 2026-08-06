@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [string]$BaseUrl = "http://localhost/Hospital_Management_System/backend/index.php",
   [string]$Token = ""
 )
+
+$ErrorActionPreference = "Stop"
 
 function Invoke-Api {
   param(
@@ -13,10 +13,13 @@ function Invoke-Api {
   $headers = @{}
   if ($Token) { $headers["Authorization"] = "Bearer $Token" }
   try {
-    $resp = Invoke-RestMethod -Method $Method -Uri "$BaseUrl$Path" -Headers $headers -TimeoutSec 20
-    return @{ ok = $true; data = $resp }
+    $resp = Invoke-WebRequest -Method $Method -Uri "$BaseUrl$Path" -Headers $headers -TimeoutSec 20 -UseBasicParsing
+    $parsed = $null
+    try { $parsed = $resp.Content | ConvertFrom-Json } catch {}
+    return @{ ok = $true; status = [int]$resp.StatusCode; data = $parsed; raw = $resp.Content }
   } catch {
-    $status = $_.Exception.Response.StatusCode.value__ 2>$null
+    $status = 0
+    try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch {}
     return @{ ok = $false; status = $status; error = $_.Exception.Message }
   }
 }
@@ -27,30 +30,33 @@ Write-Host "Token: " + ($(if ($Token) { "provided" } else { "none" }))
 Write-Host ""
 
 $checks = @(
-  @{ name = "health"; path = "/health" },
-  @{ name = "auth_login"; path = "/auth/login" },
-  @{ name = "doctor_waiting_list"; path = "/doctor/waiting_list" },
-  @{ name = "nurse_admission_waiting"; path = "/nurse/admission_waiting_list" },
-  @{ name = "pharmacy_pending"; path = "/pharmacy/pending" },
-  @{ name = "pharmacy_nurse_requests"; path = "/pharmacy/nurse_requests" }
+  @{ name = "health"; path = "/health"; method = "GET"; expect_with_token = @(200); expect_without_token = @(200) },
+  @{ name = "auth_login_method_guard"; path = "/auth/login"; method = "GET"; expect_with_token = @(405); expect_without_token = @(405) },
+  @{ name = "doctor_waiting_list"; path = "/doctor/waiting_list"; method = "GET"; expect_with_token = @(200); expect_without_token = @(401,403) },
+  @{ name = "nurse_admission_waiting"; path = "/nurse/admission_waiting_list"; method = "GET"; expect_with_token = @(200); expect_without_token = @(401,403) },
+  @{ name = "pharmacy_pending"; path = "/pharmacy/pending"; method = "GET"; expect_with_token = @(200); expect_without_token = @(401,403) },
+  @{ name = "pharmacy_nurse_requests"; path = "/pharmacy/nurse_requests"; method = "GET"; expect_with_token = @(200); expect_without_token = @(401,403) }
 )
 
 $fail = $false
 foreach ($c in $checks) {
-  $res = Invoke-Api -Path $c.path
+  $res = Invoke-Api -Path $c.path -Method $c.method
+  $expected = if ($Token) { @($c.expect_with_token) } else { @($c.expect_without_token) }
+  $statusMatches = ($expected -contains [int]$res.status)
+
   if ($Token) {
-    if ($res.ok) {
-      Write-Host "OK   $($c.name)" -ForegroundColor Green
+    if ($statusMatches) {
+      Write-Host "OK   $($c.name) (status=$($res.status))" -ForegroundColor Green
     } else {
-      Write-Host "FAIL $($c.name) (status=$($res.status))" -ForegroundColor Red
+      Write-Host "FAIL $($c.name) (status=$($res.status), expected=$($expected -join ','))" -ForegroundColor Red
       $fail = $true
     }
   } else {
-    # Without token, most routes should return 401/403 (auth enforced)
-    if (-not $res.ok -and ($res.status -eq 401 -or $res.status -eq 403)) {
-      Write-Host "OK   $($c.name) (auth enforced)" -ForegroundColor Green
+    # Without token we keep this non-blocking for local sanity checks.
+    if ($statusMatches) {
+      Write-Host "OK   $($c.name) (status=$($res.status))" -ForegroundColor Green
     } else {
-      Write-Host "WARN $($c.name) (expected 401/403 without token)" -ForegroundColor Yellow
+      Write-Host "WARN $($c.name) (status=$($res.status), expected=$($expected -join ','))" -ForegroundColor Yellow
     }
   }
 }

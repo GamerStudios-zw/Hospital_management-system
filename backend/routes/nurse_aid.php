@@ -11,6 +11,7 @@ $database = new Database();
 $db = $database->getConnection();
 
 DbSchema::ensureNurseModules($db);
+DbSchema::ensureStaffShifts($db);
 
 $action = isset($segments[1]) ? $segments[1] : '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -20,6 +21,166 @@ header('Content-Type: application/json');
 
 $user = AuthMiddleware::isAuthenticated();
 RoleMiddleware::allow(['nurse_aid', 'admin'], $user);
+
+function selectAvailableNurse($db) {
+    // Prefer nurses currently on an active shift.
+    $onShiftQuery = "SELECT u.id, u.full_name
+                     FROM users u
+                     WHERE u.role = 'nurse'
+                       AND COALESCE(u.is_active, 1) = 1
+                       AND EXISTS (
+                           SELECT 1
+                           FROM staff_shifts s
+                           WHERE s.user_id = u.id
+                             AND LOWER(COALESCE(s.role, 'nurse')) = 'nurse'
+                             AND NOW() BETWEEN s.shift_start AND s.shift_end
+                             AND LOWER(COALESCE(s.status, 'confirmed')) IN ('confirmed', 'active')
+                       )
+                     ORDER BY (
+                         SELECT COUNT(*)
+                         FROM patient_queue q
+                         WHERE q.doctor_assigned = u.id
+                           AND LOWER(q.status) IN ('with nurse', 'admission pending', 'waiting pharmacy', 'ready for admission')
+                     ) ASC, u.id ASC
+                     LIMIT 1";
+
+    $stmt = $db->query($onShiftQuery);
+    $nurse = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+    if ($nurse) return $nurse;
+
+    // Fallback: any active nurse account.
+    $fallbackQuery = "SELECT u.id, u.full_name
+                      FROM users u
+                      WHERE u.role = 'nurse'
+                        AND COALESCE(u.is_active, 1) = 1
+                      ORDER BY (
+                          SELECT COUNT(*)
+                          FROM patient_queue q
+                          WHERE q.doctor_assigned = u.id
+                            AND LOWER(q.status) IN ('with nurse', 'admission pending', 'waiting pharmacy', 'ready for admission')
+                      ) ASC, u.id ASC
+                      LIMIT 1";
+    $stmt = $db->query($fallbackQuery);
+    $nurse = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+    return $nurse ?: null;
+}
+
+function parsePositiveInt($value) {
+    $parsed = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    return $parsed === false ? null : (int)$parsed;
+}
+
+function validateVitalsPayload($data) {
+    if (!is_object($data)) {
+        return [null, "Invalid request payload."];
+    }
+
+    $temperature = filter_var($data->temperature ?? null, FILTER_VALIDATE_FLOAT);
+    if ($temperature === false || $temperature < 30 || $temperature > 45) {
+        return [null, "Temperature must be between 30C and 45C."];
+    }
+
+    $pulse = filter_var($data->pulse ?? null, FILTER_VALIDATE_INT);
+    if ($pulse === false || $pulse < 20 || $pulse > 250) {
+        return [null, "Pulse must be between 20 and 250 bpm."];
+    }
+
+    $bpRaw = isset($data->bp) ? trim((string)$data->bp) : '';
+    if (!preg_match('/^(\d{2,3})\/(\d{2,3})$/', $bpRaw, $bpMatch)) {
+        return [null, "Blood pressure must be in systolic/diastolic format."];
+    }
+
+    $systolic = (int)$bpMatch[1];
+    $diastolic = (int)$bpMatch[2];
+    if ($systolic < 50 || $systolic > 300 || $diastolic < 30 || $diastolic > 200 || $systolic <= $diastolic) {
+        return [null, "Blood pressure values are out of safe range for a living patient."];
+    }
+
+    $weight = filter_var($data->weight ?? null, FILTER_VALIDATE_FLOAT);
+    if ($weight === false || $weight < 1 || $weight > 500) {
+        return [null, "Weight must be between 1kg and 500kg."];
+    }
+
+    $spo2 = filter_var($data->spo2 ?? null, FILTER_VALIDATE_INT);
+    if ($spo2 === false || $spo2 < 50 || $spo2 > 100) {
+        return [null, "SpO2 must be between 50 and 100."];
+    }
+
+    $notes = isset($data->notes) ? trim((string)$data->notes) : '';
+    $notesLength = strlen($notes);
+    if ($notesLength < 3 || $notesLength > 1000) {
+        return [null, "Notes must be 3 to 1000 characters."];
+    }
+
+    return [[
+        "temperature" => round((float)$temperature, 1),
+        "pulse" => (int)$pulse,
+        "bp" => $systolic . "/" . $diastolic,
+        "weight" => round((float)$weight, 1),
+        "spo2" => (int)$spo2,
+        "notes" => $notes
+    ], null];
+}
+
+function detectEmergencyVitals($vitals) {
+    $reasons = [];
+    $temperature = (float)($vitals['temperature'] ?? 0);
+    $pulse = (int)($vitals['pulse'] ?? 0);
+    $spo2 = (int)($vitals['spo2'] ?? 0);
+    $weight = (float)($vitals['weight'] ?? 0);
+    $bpRaw = (string)($vitals['bp'] ?? '');
+    $bpParts = explode('/', $bpRaw);
+    $systolic = isset($bpParts[0]) ? (int)$bpParts[0] : 0;
+    $diastolic = isset($bpParts[1]) ? (int)$bpParts[1] : 0;
+
+    if ($temperature >= 40 || $temperature <= 35) {
+        $reasons[] = "critical temperature ({$temperature}C)";
+    }
+    if ($pulse <= 30 || $pulse >= 130) {
+        $reasons[] = "critical pulse ({$pulse} bpm)";
+    }
+    if ($systolic <= 90 || $systolic >= 180 || $diastolic <= 60 || $diastolic >= 120) {
+        $reasons[] = "critical blood pressure ({$systolic}/{$diastolic})";
+    }
+    if ($spo2 < 90) {
+        $reasons[] = "low oxygen saturation ({$spo2}%)";
+    }
+    if ($weight <= 3 || $weight >= 250) {
+        $reasons[] = "critical weight ({$weight}kg)";
+    }
+
+    return $reasons;
+}
+
+function createCriticalVitalsEscalation($db, $patientId, $source, $reasons) {
+    if (!$patientId || empty($reasons)) return false;
+
+    $sourceLabel = trim((string)$source) !== '' ? trim((string)$source) : 'triage';
+    $reason = "Critical vitals detected during {$sourceLabel}: " . implode('; ', $reasons);
+
+    $existing = $db->prepare("SELECT id
+                              FROM nurse_escalations
+                              WHERE patient_id = ?
+                                AND LOWER(COALESCE(status, 'open')) = 'open'
+                                AND reason LIKE 'Critical vitals detected%'
+                              ORDER BY id DESC
+                              LIMIT 1");
+    $existing->execute([$patientId]);
+    $existingId = $existing->fetchColumn();
+
+    if ($existingId) {
+        $update = $db->prepare("UPDATE nurse_escalations
+                                SET reason = ?, severity = 'urgent', status = 'open'
+                                WHERE id = ?");
+        $update->execute([$reason, $existingId]);
+        return true;
+    }
+
+    $insert = $db->prepare("INSERT INTO nurse_escalations (patient_id, reason, severity, status)
+                            VALUES (?, ?, 'urgent', 'open')");
+    $insert->execute([$patientId, $reason]);
+    return true;
+}
 
 switch ($action) {
 
@@ -141,11 +302,22 @@ switch ($action) {
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
 
-            if(!isset($data->queue_id) || !isset($data->patient_id)) {
+            $queueId = parsePositiveInt($data->queue_id ?? null);
+            $patientId = parsePositiveInt($data->patient_id ?? null);
+            if (!$queueId || !$patientId) {
                 http_response_code(400);
                 echo json_encode(["message" => "Missing Patient or Queue ID"]);
                 exit;
             }
+
+            list($validatedVitals, $validationError) = validateVitalsPayload($data);
+            if ($validationError) {
+                http_response_code(400);
+                echo json_encode(["message" => $validationError]);
+                exit;
+            }
+            $emergencyReasons = detectEmergencyVitals($validatedVitals);
+            $isEmergency = !empty($emergencyReasons);
 
             try {
                 $db->beginTransaction();
@@ -153,7 +325,7 @@ switch ($action) {
                 // Prevent duplicate vitals rows for the same queue item.
                 // If already captured once, update the same entry instead of inserting another row.
                 $check = $db->prepare("SELECT id FROM patient_vitals WHERE queue_id = ? ORDER BY id DESC LIMIT 1");
-                $check->execute([$data->queue_id]);
+                $check->execute([$queueId]);
                 $existingVitalId = $check->fetchColumn();
 
                 if ($existingVitalId) {
@@ -162,12 +334,12 @@ switch ($action) {
                             WHERE id = ?";
                     $stmt = $db->prepare($sql);
                     $stmt->execute([
-                        $data->temperature,
-                        $data->pulse,
-                        $data->bp,
-                        $data->weight,
-                        $data->spo2,
-                        $data->notes,
+                        $validatedVitals['temperature'],
+                        $validatedVitals['pulse'],
+                        $validatedVitals['bp'],
+                        $validatedVitals['weight'],
+                        $validatedVitals['spo2'],
+                        $validatedVitals['notes'],
                         $existingVitalId
                     ]);
                 } else {
@@ -175,20 +347,31 @@ switch ($action) {
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                     $stmt = $db->prepare($sql);
                     $stmt->execute([
-                        $data->patient_id,
-                        $data->queue_id,
-                        $data->temperature,
-                        $data->pulse,
-                        $data->bp,
-                        $data->weight,
-                        $data->spo2,
-                        $data->notes
+                        $patientId,
+                        $queueId,
+                        $validatedVitals['temperature'],
+                        $validatedVitals['pulse'],
+                        $validatedVitals['bp'],
+                        $validatedVitals['weight'],
+                        $validatedVitals['spo2'],
+                        $validatedVitals['notes']
                     ]);
                 }
 
-                // Update status to 'With Doctor' after triage is complete
-                $upd = $db->prepare("UPDATE patient_queue SET status = 'With Doctor' WHERE id = ?");
-                $upd->execute([$data->queue_id]);
+                // After triage, route to nurse review queue.
+                $assignedNurse = selectAvailableNurse($db);
+                if ($assignedNurse) {
+                    $upd = $db->prepare("UPDATE patient_queue SET status = 'With Nurse', doctor_assigned = ? WHERE id = ?");
+                    $upd->execute([$assignedNurse['id'], $queueId]);
+                } else {
+                    // Keep queue moving even if no active nurse account is currently available.
+                    $upd = $db->prepare("UPDATE patient_queue SET status = 'With Nurse', doctor_assigned = NULL WHERE id = ?");
+                    $upd->execute([$queueId]);
+                }
+
+                if ($isEmergency) {
+                    createCriticalVitalsEscalation($db, $patientId, 'triage', $emergencyReasons);
+                }
 
                 $db->commit();
 
@@ -196,7 +379,7 @@ switch ($action) {
                     ActivityLogger::log($db, $user->full_name ?? 'nurse aid', 'Captured vitals', 'Success', null, [
                         'event_type' => 'audit',
                         'entity_type' => 'patient_queue',
-                        'entity_id' => (string)$data->queue_id,
+                        'entity_id' => (string)$queueId,
                         'actor_id' => isset($user->id) ? (string)$user->id : null,
                         'actor_role' => $user->role ?? 'nurse_aid',
                         'source' => 'nurse_aid/save_vitals'
@@ -205,8 +388,23 @@ switch ($action) {
                     // ignore logging errors
                 }
 
-                Realtime::emit('nurse.save_vitals', ['queue_id' => $data->queue_id]);
-                echo json_encode(["message" => "Vitals saved successfully."]);
+                Realtime::emit('nurse.save_vitals', ['queue_id' => $queueId]);
+                if ($isEmergency) {
+                    Realtime::emit('nurse.escalation', [
+                        'patient_id' => $patientId,
+                        'queue_id' => $queueId,
+                        'severity' => 'urgent'
+                    ]);
+                }
+                echo json_encode([
+                    "message" => $isEmergency
+                        ? "Critical vitals flagged. Patient rushed to nurse attention immediately."
+                        : ($assignedNurse ? "Vitals saved and routed to nurse." : "Vitals saved and queued for nurse review."),
+                    "emergency" => $isEmergency,
+                    "emergency_reasons" => $emergencyReasons,
+                    "assigned_nurse_id" => $assignedNurse ? (int)$assignedNurse['id'] : null,
+                    "assigned_nurse" => $assignedNurse ? $assignedNurse['full_name'] : null
+                ]);
             } catch (Exception $e) {
                 $db->rollBack();
                 http_response_code(500);
@@ -220,17 +418,28 @@ switch ($action) {
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
 
-            if(!isset($data->queue_id) || !isset($data->patient_id)) {
+            $queueId = parsePositiveInt($data->queue_id ?? null);
+            $patientId = parsePositiveInt($data->patient_id ?? null);
+            if (!$queueId || !$patientId) {
                 http_response_code(400);
                 echo json_encode(["message" => "Missing Patient or Queue ID"]);
                 exit;
             }
 
+            list($validatedVitals, $validationError) = validateVitalsPayload($data);
+            if ($validationError) {
+                http_response_code(400);
+                echo json_encode(["message" => $validationError]);
+                exit;
+            }
+            $emergencyReasons = detectEmergencyVitals($validatedVitals);
+            $isEmergency = !empty($emergencyReasons);
+
             try {
                 $db->beginTransaction();
 
                 $check = $db->prepare("SELECT id FROM patient_vitals WHERE patient_id = ? AND DATE(created_at) = CURDATE() ORDER BY id DESC LIMIT 1");
-                $check->execute([$data->patient_id]);
+                $check->execute([$patientId]);
                 $existingVitalId = $check->fetchColumn();
 
                 if ($existingVitalId) {
@@ -239,12 +448,12 @@ switch ($action) {
                             WHERE id = ?";
                     $stmt = $db->prepare($sql);
                     $stmt->execute([
-                        $data->temperature,
-                        $data->pulse,
-                        $data->bp,
-                        $data->weight,
-                        $data->spo2,
-                        $data->notes,
+                        $validatedVitals['temperature'],
+                        $validatedVitals['pulse'],
+                        $validatedVitals['bp'],
+                        $validatedVitals['weight'],
+                        $validatedVitals['spo2'],
+                        $validatedVitals['notes'],
                         $existingVitalId
                     ]);
                 } else {
@@ -252,15 +461,19 @@ switch ($action) {
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                     $stmt = $db->prepare($sql);
                     $stmt->execute([
-                        $data->patient_id,
-                        $data->queue_id,
-                        $data->temperature,
-                        $data->pulse,
-                        $data->bp,
-                        $data->weight,
-                        $data->spo2,
-                        $data->notes
+                        $patientId,
+                        $queueId,
+                        $validatedVitals['temperature'],
+                        $validatedVitals['pulse'],
+                        $validatedVitals['bp'],
+                        $validatedVitals['weight'],
+                        $validatedVitals['spo2'],
+                        $validatedVitals['notes']
                     ]);
+                }
+
+                if ($isEmergency) {
+                    createCriticalVitalsEscalation($db, $patientId, 'daily vitals', $emergencyReasons);
                 }
 
                 $db->commit();
@@ -278,7 +491,20 @@ switch ($action) {
                     // ignore logging errors
                 }
 
-                echo json_encode(["message" => "Daily vitals saved successfully."]);
+                if ($isEmergency) {
+                    Realtime::emit('nurse.escalation', [
+                        'patient_id' => $patientId,
+                        'queue_id' => $queueId,
+                        'severity' => 'urgent'
+                    ]);
+                }
+                echo json_encode([
+                    "message" => $isEmergency
+                        ? "Daily vitals saved. Emergency alert raised for immediate nurse attention."
+                        : "Daily vitals saved successfully.",
+                    "emergency" => $isEmergency,
+                    "emergency_reasons" => $emergencyReasons
+                ]);
             } catch (Exception $e) {
                 $db->rollBack();
                 http_response_code(500);

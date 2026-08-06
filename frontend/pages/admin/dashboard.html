@@ -61,6 +61,7 @@
                 <li class="nav-item"><a onclick="showSection('staff_admin')" class="nav-link" id="nav-staff">Staff Management</a></li>
                 <li class="nav-item"><a onclick="showSection('logs_admin')" class="nav-link" id="nav-logs">System Logs</a></li>
                 <li class="nav-item"><a onclick="showSection('settings_admin')" class="nav-link" id="nav-settings">Settings</a></li>
+                <li class="nav-item"><a onclick="showSection('wards_admin')" class="nav-link" id="nav-wards">Manage Wards</a></li>
                 <li class="nav-item"><a onclick="openChangePasswordModal()" class="nav-link">Change Password</a></li>
                 <li class="nav-item">
                     <button id="logoutBtn" class="nav-link text-danger w-100 text-start border-0 bg-transparent">
@@ -367,7 +368,7 @@
                                 <button type="button" class="btn btn-primary mt-3" onclick="saveSettings()">Save Changes</button>
                             </div>
                         </div>
-                    </div>
+                        </div>
                     <div class="col-md-6">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-header bg-white fw-bold">Data & Security</div>
@@ -382,7 +383,57 @@
                     </div>
                 </div>
             </div>
+            <div id="wards_admin" class="section">
+                <div class="header-nav">
+                    <div><h2 class="fw-bold m-0">Ward Management</h2><p class="text-muted m-0">Add, edit or remove hospital wards.</p></div>
+                    <button class="btn btn-primary" onclick="openAddWardModal()"><i class="bi bi-hospital me-2"></i> Add Ward</button>
+                </div>
+                <div class="card stat-card">
+                    <div class="table-responsive p-3">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr><th>Ward Name</th><th>Capacity</th><th>Status</th><th>Notes</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="wardsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
+    </div>
+</div>
+
+<!-- Wards management modals -->
+<div class="modal fade" id="addWardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Add New Ward</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="addWardForm">
+                    <div class="mb-3"><label class="form-label">Ward Name</label><input type="text" id="wardName" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Capacity</label><input type="number" id="wardCapacity" class="form-control" min="1" value="1" required></div>
+                    <div class="mb-3"><label class="form-label">Notes (optional)</label><textarea id="wardNotes" class="form-control" rows="2"></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="addWardSubmitBtn" class="btn btn-primary" onclick="submitNewWard()">Add Ward</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editWardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Edit Ward</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="editWardForm">
+                    <input type="hidden" id="editWardId">
+                    <div class="mb-3"><label class="form-label">Ward Name</label><input type="text" id="editWardName" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Capacity</label><input type="number" id="editWardCapacity" class="form-control" min="1" required></div>
+                    <div class="mb-3"><label class="form-label">Notes (optional)</label><textarea id="editWardNotes" class="form-control" rows="2"></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="editWardSubmitBtn" class="btn btn-primary" onclick="submitUpdateWard()">Save Changes</button></div>
+        </div>
     </div>
 </div>
 
@@ -461,6 +512,7 @@
 <script src="../../assets/js/app.js"></script>
 <script>
     let cachedUsers = [];
+    let cachedWards = [];
     const shiftModal = new bootstrap.Modal(document.getElementById('addShiftModal'));
     let shiftTypeChart = null;
     let presentRoleChart = null;
@@ -490,7 +542,8 @@
             shifts_admin: 'nav-shifts',
             staff_admin: 'nav-staff',
             logs_admin: 'nav-logs',
-            settings_admin: 'nav-settings'
+            settings_admin: 'nav-settings',
+            wards_admin: 'nav-wards'
         };
         Object.values(navMap).forEach((id) => document.getElementById(id)?.classList.remove('active'));
         document.getElementById(navMap[sectionId])?.classList.add('active');
@@ -500,13 +553,14 @@
         if (sectionId === 'staff_admin') loadUsers();
         if (sectionId === 'logs_admin') { loadLogs(); loadLogAnalytics(); }
         if (sectionId === 'settings_admin') loadSettings();
+        if (sectionId === 'wards_admin') loadWards();
         toggleSidebar(false);
     }
 
     function activateInitialAdminSection() {
         const sectionId = (window.location.hash || '').replace('#', '').trim();
         if (!sectionId) return;
-        const valid = ['overview', 'shifts_admin', 'staff_admin', 'logs_admin', 'settings_admin'];
+        const valid = ['overview', 'shifts_admin', 'staff_admin', 'logs_admin', 'settings_admin', 'wards_admin'];
         if (valid.includes(sectionId)) showSection(sectionId);
     }
 
@@ -614,6 +668,103 @@
         const shifts = await Api.get('/shifts/list');
         const tbody = document.getElementById('adminShiftTableBody');
         tbody.innerHTML = shifts?.length ? shifts.map(s => `<tr><td class="fw-bold">${s.full_name}</td><td><span class="badge bg-secondary">${s.role.toUpperCase()}</span></td><td>${new Date(s.shift_start).toLocaleString()}</td><td>${new Date(s.shift_end).toLocaleString()}</td><td>${s.shift_type}</td><td><span class="badge bg-success-subtle text-success border">Scheduled</span></td></tr>`).join('') : '<tr><td colspan="6" class="text-center py-4">No shifts found.</td></tr>';
+    }
+
+    // Wards management (frontend only hooks)
+    async function loadWards() {
+        const wards = await Api.get('/wards');
+        cachedWards = wards || [];
+        const tbody = document.getElementById('wardsTableBody');
+        if (!tbody) return;
+        if (!cachedWards.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No wards found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = cachedWards.map(w => `
+            <tr>
+                <td class="fw-bold">${w.name}</td>
+                <td>${w.capacity ?? '-'}</td>
+                <td>${Number(w.is_active) === 1 ? '<span class="badge bg-success-subtle text-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
+                <td>${w.notes || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditWardModal(${w.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteWard(${w.id})"><i class="bi bi-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openAddWardModal() {
+        document.getElementById('addWardForm').reset();
+        new bootstrap.Modal(document.getElementById('addWardModal')).show();
+    }
+
+    async function submitNewWard() {
+        const submitBtn = document.getElementById('addWardSubmitBtn');
+        if (submitBtn?.disabled) return;
+        const name = (document.getElementById('wardName').value || '').trim();
+        const capacity = Number(document.getElementById('wardCapacity').value) || 0;
+        const notes = document.getElementById('wardNotes').value || '';
+        if (!name) return notify('Ward name is required.');
+        const data = { name, capacity, notes };
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+            const res = await Api.post('/wards/add', data);
+            if (res) {
+                notify('Ward added');
+                bootstrap.Modal.getInstance(document.getElementById('addWardModal'))?.hide();
+                loadWards();
+            }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
+
+    async function openEditWardModal(id) {
+        const w = cachedWards.find(x => Number(x.id) === Number(id));
+        if (!w) {
+            // try fetch single
+            const single = await Api.get(`/wards?id=${id}`);
+            if (single) cachedWards = [single];
+        }
+        const ward = cachedWards.find(x => Number(x.id) === Number(id));
+        if (!ward) return notify('Ward not found');
+        document.getElementById('editWardId').value = ward.id;
+        document.getElementById('editWardName').value = ward.name || '';
+        document.getElementById('editWardCapacity').value = ward.capacity || 0;
+        document.getElementById('editWardNotes').value = ward.notes || '';
+        new bootstrap.Modal(document.getElementById('editWardModal')).show();
+    }
+
+    async function submitUpdateWard() {
+        const submitBtn = document.getElementById('editWardSubmitBtn');
+        if (submitBtn?.disabled) return;
+        const id = document.getElementById('editWardId').value;
+        const name = (document.getElementById('editWardName').value || '').trim();
+        const capacity = Number(document.getElementById('editWardCapacity').value) || 0;
+        const notes = document.getElementById('editWardNotes').value || '';
+        if (!id || !name) return notify('Missing data');
+        const data = { name, capacity, notes };
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+            const res = await Api.request(`/wards?id=${id}`, 'PUT', data);
+            if (res) {
+                notify('Ward updated');
+                bootstrap.Modal.getInstance(document.getElementById('editWardModal'))?.hide();
+                loadWards();
+            }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
+
+    async function deleteWard(id) {
+        if (!confirm('Delete this ward? This action is permanent.')) return;
+        const res = await Api.request(`/wards?id=${id}`, 'DELETE');
+        if (res) {
+            notify('Ward deleted');
+            loadWards();
+        }
     }
 
     async function submitNewUser() {

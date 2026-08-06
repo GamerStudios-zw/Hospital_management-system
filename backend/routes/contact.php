@@ -1,5 +1,5 @@
 <?php
-include_once 'controllers/ContactController.php';
+require_once __DIR__ . '/../controllers/ContactController.php';
 
 $controller = new ContactController();
 $method = $_SERVER['REQUEST_METHOD'];

@@ -40,31 +40,36 @@ class AuthController {
             return;
         }
 
-        $username = trim($data->username ?? '');
+        $loginId = trim($data->username ?? '');
         $password = trim($data->password ?? '');
 
-        if (empty($username) || empty($password)) {
+        if (empty($loginId) || empty($password)) {
             http_response_code(400);
             echo json_encode(["message" => "Empty username or password"]);
             return;
         }
 
-        // 3. Direct Manual Database Check (Bypassing User.php to find the bug)
-        // We run the query HERE to see exactly what is happening.
-        $query = "SELECT * FROM users WHERE username = :u LIMIT 1";
+        // 3. Allow login using either username or email.
+        $query = "SELECT * FROM users WHERE username = :login OR email = :login LIMIT 1";
         $stmt = $this->db->prepare($query);
-        $stmt->bindParam(':u', $username);
+        $stmt->bindParam(':login', $loginId);
         $stmt->execute();
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         // CHECK 1: Did we find the user?
         if (!$row) {
+            $userCount = 0;
             try {
-                ActivityLogger::log($this->db, $username ?: 'unknown', 'Login Failed', 'Failed', null, [
+                $userCount = (int)$this->db->query("SELECT COUNT(*) FROM users")->fetchColumn();
+            } catch (Exception $e) {
+                $userCount = 0;
+            }
+            try {
+                ActivityLogger::log($this->db, $loginId ?: 'unknown', 'Login Failed', 'Failed', null, [
                     'event_type' => 'audit',
                     'entity_type' => 'user',
-                    'entity_id' => $username ?: null,
+                    'entity_id' => $loginId ?: null,
                     'source' => 'auth/login',
                     'severity' => 'WARN',
                     'status_code' => 401,
@@ -76,7 +81,9 @@ class AuthController {
             http_response_code(401);
             echo json_encode([
                 "message" => "Login Failed",
-                "reason" => "User '$username' not found in database"
+                "reason" => ($userCount === 0)
+                    ? "No user accounts found. Run backend/install.php to create default users."
+                    : "User '$loginId' not found in database"
             ]);
             return;
         }
@@ -202,10 +209,10 @@ class AuthController {
         } else {
             // FAILURE - PRINT DEBUG INFO
             try {
-                ActivityLogger::log($this->db, $username ?: 'unknown', 'Login Failed', 'Failed', null, [
+                ActivityLogger::log($this->db, $loginId ?: 'unknown', 'Login Failed', 'Failed', null, [
                     'event_type' => 'audit',
                     'entity_type' => 'user',
-                    'entity_id' => $username ?: null,
+                    'entity_id' => $loginId ?: null,
                     'source' => 'auth/login',
                     'severity' => 'WARN',
                     'status_code' => 401,
@@ -219,7 +226,7 @@ class AuthController {
                 "message" => "Login Failed",
                 "reason" => "Password Mismatch",
                 "debug_info" => [
-                    "input_user" => $username,
+                    "input_user" => $loginId,
                     "input_pass" => $password,
                     "stored_hash_start" => substr($row['password_hash'], 0, 10) . "...",
                     "hash_length" => strlen($row['password_hash'])

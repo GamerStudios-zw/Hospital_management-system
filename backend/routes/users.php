@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // FILE: backend/routes/users.php
 
 require_once __DIR__ . '/../config/database.php';
@@ -122,35 +122,67 @@ switch ($method) {
         } catch (Exception $e) {
             // fallback to default location
         }
-        $data->username = $firstName . '@' . $location;
+        $baseUsername = $firstName . '@' . $location;
+        $username = $baseUsername;
+        $suffix = 1;
+        $usernameCheck = $db->prepare("SELECT 1 FROM users WHERE username = ? LIMIT 1");
+        while (true) {
+            $usernameCheck->execute([$username]);
+            if (!$usernameCheck->fetchColumn()) break;
+            $suffix += 1;
+            $username = $firstName . $suffix . '@' . $location;
+            if ($suffix > 999) {
+                http_response_code(500);
+                echo json_encode(["message" => "Unable to generate unique username."]);
+                exit();
+            }
+        }
+        $data->username = $username;
+
+        $emailCheck = $db->prepare("SELECT 1 FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1");
+        $emailCheck->execute([$data->email]);
+        if ($emailCheck->fetchColumn()) {
+            http_response_code(409);
+            echo json_encode(["message" => "A user with this email already exists."]);
+            exit();
+        }
 
         $hash = password_hash($data->password, PASSWORD_BCRYPT);
         $sql = "INSERT INTO users (full_name, username, email, password_hash, role, gender) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $db->prepare($sql);
 
-        if($stmt->execute([$data->full_name, $data->username, $data->email, $hash, $data->role, $data->gender ?? null])) {
-            http_response_code(201);
-            try {
-                $actor = AuthMiddleware::isAuthenticated();
-                $newId = $db->lastInsertId();
-                ActivityLogger::log($db, $actor->full_name ?? 'admin', "Created user: " . $data->username, 'Success', null, [
-                    'event_type' => 'audit',
-                    'entity_type' => 'user',
-                    'entity_id' => $newId ? (string)$newId : null,
-                    'actor_id' => isset($actor->id) ? (string)$actor->id : null,
-                    'actor_role' => $actor->role ?? 'admin',
-                    'source' => 'users/create',
-                    'new_values' => [
-                        'username' => $data->username,
-                        'full_name' => $data->full_name,
-                        'role' => $data->role
-                    ],
-                    'safe_fields' => ['username', 'full_name', 'role']
-                ]);
-            } catch (Exception $e) {
-                // ignore logging errors
+        try {
+            if($stmt->execute([$data->full_name, $data->username, $data->email, $hash, $data->role, $data->gender ?? null])) {
+                http_response_code(201);
+                try {
+                    $actor = AuthMiddleware::isAuthenticated();
+                    $newId = $db->lastInsertId();
+                    ActivityLogger::log($db, $actor->full_name ?? 'admin', "Created user: " . $data->username, 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => 'user',
+                        'entity_id' => $newId ? (string)$newId : null,
+                        'actor_id' => isset($actor->id) ? (string)$actor->id : null,
+                        'actor_role' => $actor->role ?? 'admin',
+                        'source' => 'users/create',
+                        'new_values' => [
+                            'username' => $data->username,
+                            'full_name' => $data->full_name,
+                            'role' => $data->role
+                        ],
+                        'safe_fields' => ['username', 'full_name', 'role']
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                echo json_encode(["message" => "User created successfully"]);
             }
-            echo json_encode(["message" => "User created successfully"]);
+        } catch (PDOException $e) {
+            if ((string)$e->getCode() === '23000') {
+                http_response_code(409);
+                echo json_encode(["message" => "A user with the same email or username already exists."]);
+                exit();
+            }
+            throw $e;
         }
         break;
 

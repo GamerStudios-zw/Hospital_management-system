@@ -1,6 +1,6 @@
 <?php
-require_once '../config/database.php';
-require_once '../models/Visit.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../models/Visit.php';
 
 class QueueController {
     private $db;

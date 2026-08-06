@@ -15,7 +15,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 2. Error Reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('html_errors', '0');
+ini_set('log_errors', '1');
+
+// Keep internal error details off the wire by default.
+$debugEnabled = filter_var(getenv('HMS_DEBUG') ?: '0', FILTER_VALIDATE_BOOL);
+$sendJsonError = function ($statusCode, $message, array $debug = []) use ($debugEnabled) {
+    if (!headers_sent()) {
+        http_response_code($statusCode);
+        header("Content-Type: application/json; charset=UTF-8");
+    }
+    $payload = ["message" => $message];
+    if ($debugEnabled && !empty($debug)) {
+        $payload["debug"] = $debug;
+    }
+    echo json_encode($payload);
+};
+
+set_exception_handler(function (Throwable $e) use ($sendJsonError) {
+    while (ob_get_level() > 0) {
+        @ob_end_clean();
+    }
+    $sendJsonError(500, "Internal server error", [
+        "type" => get_class($e),
+        "message" => $e->getMessage(),
+        "file" => $e->getFile(),
+        "line" => $e->getLine()
+    ]);
+    exit;
+});
+
+register_shutdown_function(function () use ($sendJsonError) {
+    $error = error_get_last();
+    if (!$error) return;
+    $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+    if (!in_array($error['type'], $fatalTypes, true)) return;
+
+    while (ob_get_level() > 0) {
+        @ob_end_clean();
+    }
+    $sendJsonError(500, "Internal server error", [
+        "type" => $error['type'] ?? null,
+        "message" => $error['message'] ?? null,
+        "file" => $error['file'] ?? null,
+        "line" => $error['line'] ?? null
+    ]);
+});
 
 // 3. Load Dependencies
 if (file_exists('vendor/autoload.php')) {
@@ -45,6 +92,7 @@ $module = isset($segments[0]) ? $segments[0] : '';
 // 4.5 Maintenance Mode Gate
 try {
     $db = (new Database())->getConnection();
+    DbSchema::ensureCoreClinicalSchema($db);
     DbSchema::ensureUserRole($db, 'it_support');
     if ($db) {
         $stmt = $db->prepare("SELECT maintenance_mode FROM system_settings WHERE id = 1 LIMIT 1");
@@ -122,6 +170,14 @@ switch ($module) {
         require_once 'routes/inventory.php';
         break;
 
+    case 'queue':
+        require_once 'routes/queue.php';
+        break;
+
+    case 'contact':
+        require_once 'routes/contact.php';
+        break;
+
     // This now correctly points to the new file we just made
     case 'reports':
         require_once 'routes/reports.php';
@@ -133,6 +189,10 @@ switch ($module) {
 
     case 'shifts':
         require_once 'routes/shifts.php';
+        break;
+
+    case 'wards':
+        require_once 'routes/wards.php';
         break;
 
     case 'settings':

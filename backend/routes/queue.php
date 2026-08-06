@@ -1,9 +1,9 @@
 <?php
 // backend/routes/queue.php
 
-include_once 'controllers/QueueController.php';
-include_once 'middleware/AuthMiddleware.php';
-include_once 'middleware/RoleMiddleware.php';
+require_once __DIR__ . '/../controllers/QueueController.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../middleware/RoleMiddleware.php';
 
 $controller = new QueueController();
 $action = isset($segments[1]) ? $segments[1] : '';

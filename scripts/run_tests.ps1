@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [string]$BaseUrl = "http://localhost/Hospital_Management_System/backend/index.php",
   [string]$Token = ""
 )
+
+$ErrorActionPreference = "Stop"
 
 function Invoke-DbTest {
   Write-Host "Running DB connection test..." -ForegroundColor Cyan

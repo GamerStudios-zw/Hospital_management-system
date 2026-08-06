@@ -299,7 +299,7 @@
                             <input class="form-check-input" type="checkbox" id="thermalModeToggle">
                             <label class="form-check-label small" for="thermalModeToggle">Thermal Mode</label>
                         </div>
-                        <button class="btn btn-info text-white fw-bold" onclick="loadPending()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                        <button class="btn btn-info text-white fw-bold" onclick="refreshDispensary()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
                     </div>
                 </div>
                 <div class="row g-3 mb-4">
@@ -354,7 +354,7 @@
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
-                                <tr><th class="ps-4">Patient</th><th>Medication</th><th>Dosage</th><th>Doctor</th><th class="text-end pe-4">Actions</th></tr>
+                                <tr><th class="ps-4">Patient (Name and surname)</th><th>Prescribing physician</th><th class="text-end pe-4">Actions</th></tr>
                             </thead>
                             <tbody id="pendingTable"></tbody>
                         </table>
@@ -808,7 +808,7 @@
 </div>
 
 <div class="modal fade" id="dispenseModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header border-0 p-4 pb-0">
                 <h5 class="modal-title fw-bold">Verify & Dispense</h5>
@@ -818,17 +818,25 @@
                 <div class="alert alert-danger d-none" id="stockWarning"></div>
                 <p class="mb-1 text-muted small">PATIENT</p>
                 <h5 class="fw-bold mb-3" id="modalPatient"></h5>
-                <p class="mb-1 text-muted small">MEDICATION</p>
-                <h5 class="fw-bold mb-3 text-info" id="modalMed"></h5>
-                <p class="mb-1 text-muted small">DOSAGE</p>
-                <div class="p-2 bg-light rounded border mb-3" id="modalDosage"></div>
+                <p class="mb-1 text-muted small">PRESCRIPTION</p>
+                <div class="p-2 bg-light rounded border mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="small text-muted" id="modalPrescriptionCount"></div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleModalSelection(true)">Select all</button>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleModalSelection(false)">Clear</button>
+                        </div>
+                    </div>
+                    <div id="modalPrescriptionList" class="vstack gap-2"></div>
+                </div>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="checkVerify">
-                    <label class="form-check-label fw-bold">I have verified the medicine and dosage.</label>
+                    <label class="form-check-label fw-bold">I have verified all medicines and dosages.</label>
                 </div>
             </div>
-            <div class="modal-footer border-0 p-4 pt-0">
-                <button class="btn btn-info w-100 py-2 fw-bold text-white shadow-sm" onclick="confirmDispense()">Confirm Dispense</button>
+            <div class="modal-footer border-0 p-4 pt-0 d-flex gap-2">
+                <button id="modalPrintRemainingBtn" class="btn btn-outline-dark fw-bold flex-fill" onclick="printRemainingFromModal()">Print Remaining</button>
+                <button id="modalDispenseSelectedBtn" class="btn btn-info text-white fw-bold flex-fill" onclick="confirmDispense()">Dispense Selected</button>
             </div>
         </div>
     </div>
@@ -898,7 +906,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     protectPage(['pharmacist', 'admin', 'senior_pharmacist']);
-    let activePrescriptionId = null;
+    let activePendingEntry = null;
+    let pendingGroupedEntries = [];
     let activePrintData = null;
     const dispenseModal = new bootstrap.Modal(document.getElementById('dispenseModal'));
     const editStockModal = new bootstrap.Modal(document.getElementById('editStockModal'));
@@ -911,12 +920,21 @@
     let cachedMeds = [];
     let poItems = [];
     let thermalModeEnabled = false;
+    let pendingLoadInFlight = null;
+    let analyticsLoadInFlight = null;
+    let analyticsRefreshTimer = null;
+    let dispenseInProgress = false;
     const isSeniorPharmacyRole = () => {
         const user = JSON.parse(localStorage.getItem("hms_user") || "{}");
         const role = String(user.role || '').toLowerCase().replace(/[\s-]+/g, '_');
         return role === 'senior_pharmacist';
     };
     const restrictedSeniorTabs = ['inventory', 'refills', 'suppliers', 'adjustments'];
+
+    function refreshDispensary() {
+        loadNurseRequests();
+        loadPending({ refreshAnalytics: true });
+    }
 
     function switchTab(id, el) {
         if (restrictedSeniorTabs.includes(id) && !isSeniorPharmacyRole()) {
@@ -929,7 +947,7 @@
         el.classList.add('active');
         if (window.innerWidth < 992) toggleSidebar(false);
 
-        if(id === 'dispensary') { loadNurseRequests(); loadPending(); }
+        if(id === 'dispensary') refreshDispensary();
         if(id === 'inventory') loadInventory();
         if(id === 'history') loadHistory();
         if(id === 'interactions') loadInteractionRules();
@@ -994,34 +1012,122 @@
         }
     }
 
-    async function loadPending() {
-        const list = await Api.get('/pharmacy/pending');
-        const tbody = document.getElementById('pendingTable');
-        tbody.innerHTML = '';
-        if(list) {
-            list.forEach(item => {
-                const medName = item.med_name || `<span class="text-danger">${item.manual_name} (External)</span>`;
-                const doctorLabel = item.doctor_name || item.doctor_assigned || 'Any Available Doctor';
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="ps-4 fw-bold">${item.patient_name}</td>
-                        <td>${medName} <small class="text-muted">(Stock: ${item.stock_quantity || 0})</small></td>
-                        <td><span class="badge bg-light text-dark border">${item.dosage}</span></td>
-                        <td>${doctorLabel}</td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-outline-dark btn-sm me-1" onclick='preparePrint(${JSON.stringify(item)})'><i class="bi bi-printer"></i></button>
-                            ${item.controlled_requires_approval ? `<button class="btn btn-warning btn-sm me-1" onclick="requestControlled(${item.id})">Request Approval</button>` : ''}
-                            <button class="btn btn-info text-white btn-sm fw-bold" onclick='openDispenseModal(${JSON.stringify(item)})'>Dispense</button>
-                        </td>
-                    </tr>`;
-            });
-            document.getElementById('statPending').innerText = list.length;
-        } else {
-            if (typeof showBanner === 'function') {
-                showBanner('Failed to load pending prescriptions.', { type: 'error' });
+    function groupPendingPrescriptions(list) {
+        const groups = new Map();
+        (list || []).forEach((item, idx) => {
+            const key = item.patient_id
+                ? `patient-${item.patient_id}`
+                : `patient-name-${(item.patient_name || 'unknown').toLowerCase()}-${idx}`;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    patient_id: item.patient_id || null,
+                    patient_name: item.patient_name || 'Unknown Patient',
+                    doctor_label: item.doctor_name || item.doctor_assigned || 'Any Available Doctor',
+                    created_at: item.created_at || null,
+                    prescriptions: []
+                });
             }
+            const entry = groups.get(key);
+            entry.prescriptions.push(item);
+            if ((!entry.doctor_label || entry.doctor_label === 'Any Available Doctor') && (item.doctor_name || item.doctor_assigned)) {
+                entry.doctor_label = item.doctor_name || item.doctor_assigned;
+            }
+            if (item.created_at) {
+                const entryTime = entry.created_at ? new Date(entry.created_at).getTime() : Number.POSITIVE_INFINITY;
+                const itemTime = new Date(item.created_at).getTime();
+                if (!Number.isNaN(itemTime) && itemTime < entryTime) entry.created_at = item.created_at;
+            }
+        });
+        return Array.from(groups.values()).sort((a, b) => {
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : Number.POSITIVE_INFINITY;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : Number.POSITIVE_INFINITY;
+            return aTime - bTime;
+        });
+    }
+
+    function scheduleAnalyticsRefresh(delayMs = 400) {
+        if (analyticsRefreshTimer) clearTimeout(analyticsRefreshTimer);
+        analyticsRefreshTimer = setTimeout(() => {
+            loadPharmacyAnalytics();
+        }, delayMs);
+    }
+
+    async function loadPending(options = {}) {
+        const { refreshAnalytics = false } = options;
+        if (pendingLoadInFlight) return pendingLoadInFlight;
+
+        pendingLoadInFlight = (async () => {
+            const list = await Api.get('/pharmacy/pending');
+            const tbody = document.getElementById('pendingTable');
+            if (!tbody) return;
+
+            if (list) {
+                pendingGroupedEntries = groupPendingPrescriptions(list);
+                if (!pendingGroupedEntries.length) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">No pending prescriptions.</td></tr>';
+                } else {
+                    const rowsHtml = pendingGroupedEntries.map((entry, index) => `
+                        <tr>
+                            <td class="ps-4 fw-bold">${entry.patient_name}</td>
+                            <td>${entry.doctor_label}</td>
+                            <td class="text-end pe-4 text-nowrap">
+                                <button class="btn btn-outline-dark btn-sm me-1" onclick="openPendingPrint(${index})">Print</button>
+                                <button class="btn btn-info text-white btn-sm fw-bold me-1" onclick="openDispenseModal(${index})">Prescribe</button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deletePendingEntry(${index})">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    tbody.innerHTML = rowsHtml;
+                }
+                document.getElementById('statPending').innerText = pendingGroupedEntries.length;
+            } else {
+                pendingGroupedEntries = [];
+                if (typeof showBanner === 'function') {
+                    showBanner('Failed to load pending prescriptions.', { type: 'error' });
+                }
+            }
+
+            if (refreshAnalytics) scheduleAnalyticsRefresh();
+        })();
+
+        try {
+            return await pendingLoadInFlight;
+        } finally {
+            pendingLoadInFlight = null;
         }
-        loadPharmacyAnalytics();
+    }
+
+    function openPendingPrint(index) {
+        const entry = pendingGroupedEntries[index];
+        if (!entry) return;
+        preparePrint(entry);
+    }
+
+    async function deletePendingEntry(index) {
+        const entry = pendingGroupedEntries[index];
+        if (!entry || !entry.prescriptions || !entry.prescriptions.length) return;
+        const prescriptionIds = entry.prescriptions
+            .map(item => Number(item.id))
+            .filter(id => Number.isInteger(id) && id > 0);
+        if (!prescriptionIds.length) return;
+        const proceed = confirm(`Delete ${prescriptionIds.length} pending prescription(s) for ${entry.patient_name}?`);
+        if (!proceed) return;
+
+        const res = await Api.post('/pharmacy/delete', { prescription_ids: prescriptionIds });
+        if (!res) return;
+
+        const msg = String(res.message || '');
+        if (/^failed/i.test(msg) || /^error:/i.test(msg)) {
+            notify(msg || 'Failed to delete prescription(s).', 'error');
+            return;
+        }
+
+        notify(msg || 'Prescription deleted.');
+        if (activePendingEntry && String(activePendingEntry.patient_id || '') === String(entry.patient_id || '')) {
+            dispenseModal.hide();
+            activePendingEntry = null;
+        }
+        loadPending({ refreshAnalytics: true });
     }
 
     async function loadNurseRequests() {
@@ -1087,7 +1193,7 @@
                 if (isExpired) {
                     expiryBadge = `<span class="badge bg-danger-subtle text-danger border border-danger ms-2">Expired</span>`;
                 } else if (isExpiringSoon) {
-                    expiryBadge = `<span class="badge bg-warning-subtle text-warning border border-warning ms-2">Expiring ≤60d</span>`;
+                    expiryBadge = `<span class="badge bg-warning-subtle text-warning border border-warning ms-2">Expiring <=60d</span>`;
                 }
 
                 tbody.innerHTML += `
@@ -1135,23 +1241,52 @@
     function preparePrint(item) { activePrintData = item; printThermalReceipt(); }
 
     function printThermalReceipt() {
+        if (!activePrintData) return;
         const printWindow = window.open('', '_blank', 'width=300,height=600');
         const date = new Date().toLocaleDateString();
+        const prescriptions = (Array.isArray(activePrintData.prescriptions) && activePrintData.prescriptions.length)
+            ? activePrintData.prescriptions
+            : [activePrintData];
+
         if (!thermalModeEnabled) {
-            const content = `<html><head><style>body{font-family:Arial,sans-serif;font-size:12px;padding:12px;}h3{margin:0 0 8px 0;}hr{border:0;border-top:1px solid #ccc;margin:8px 0;}</style></head><body>
+            const rows = prescriptions.map((rx, idx) => {
+                const medName = rx.med_name || `${rx.manual_name || 'External'} (External)`;
+                return `<tr>
+                    <td>${idx + 1}</td>
+                    <td>${medName}</td>
+                    <td>${rx.quantity || 0}</td>
+                    <td>${rx.dosage || '-'}</td>
+                </tr>`;
+            }).join('');
+            const content = `<html><head><style>
+body{font-family:Arial,sans-serif;font-size:12px;padding:12px;}
+h3{margin:0 0 8px 0;}
+hr{border:0;border-top:1px solid #ccc;margin:8px 0;}
+table{width:100%;border-collapse:collapse;margin-top:8px;}
+th,td{border:1px solid #ddd;padding:4px;text-align:left;font-size:11px;vertical-align:top;}
+</style></head><body>
 <h3>HMS Pharmacy</h3>
 <div><b>Date:</b> ${date}</div>
-<div><b>Patient:</b> ${activePrintData.patient_name}</div>
+<div><b>Patient:</b> ${activePrintData.patient_name || '-'}</div>
 <hr>
-<div><b>RX:</b> ${activePrintData.med_name || activePrintData.manual_name}</div>
-<div><b>QTY:</b> ${activePrintData.quantity}</div>
-<div><b>SIG:</b> ${activePrintData.dosage}</div>
+<table>
+<thead><tr><th>#</th><th>Medicine</th><th>Qty</th><th>Dosage</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
 </body></html>`;
             printWindow.document.write(content);
             printWindow.document.close();
             printWindow.onload = () => { printWindow.print(); printWindow.close(); };
             return;
         }
+
+        const lines = prescriptions.map((rx, idx) => {
+            const medName = rx.med_name || `${rx.manual_name || 'External'} (External)`;
+            return `<div><b>${idx + 1}. ${medName}</b></div>
+<div>QTY: ${rx.quantity || 0}</div>
+<div>SIG: ${rx.dosage || '-'}</div>`;
+        }).join('<hr>');
+
         const content = `<html><head><style>
 @page { size: 58mm auto; margin: 0; }
 body { width: 48mm; margin: 0; padding: 5mm; font-family: "Courier New", monospace; font-size: 11px; line-height: 1.2; color: #000; }
@@ -1162,15 +1297,13 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 </style></head><body>
 <div class="center">
   <div style="font-weight:bold;">HMS PHARMACY</div>
-  <div class="small">MHT-P11 • 58mm</div>
+  <div class="small">MHT-P11 - 58mm</div>
 </div>
 <hr>
 <div class="row"><span>Date</span><span>${date}</span></div>
-<div class="row"><span>Patient</span><span>${activePrintData.patient_name}</span></div>
+<div class="row"><span>Patient</span><span>${activePrintData.patient_name || '-'}</span></div>
 <hr>
-<div><b>RX:</b> ${activePrintData.med_name || activePrintData.manual_name}</div>
-<div>QTY: ${activePrintData.quantity}</div>
-<div>SIG: ${activePrintData.dosage}</div>
+${lines}
 <hr>
 <div class="center small">Take as directed.</div>
 </body></html>`;
@@ -1648,7 +1781,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 .center { text-align: center; }
 .small { font-size: 9px; }
 </style></head><body>
-<div class="center"><div style="font-weight:bold;">STOCK REPORT</div><div class="small">MHT-P11 • 58mm</div></div>
+<div class="center"><div style="font-weight:bold;">STOCK REPORT</div><div class="small">MHT-P11 - 58mm</div></div>
 <hr>${rows}<hr><div class="center small">${new Date().toLocaleString()}</div></body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
@@ -1666,25 +1799,242 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 .center { text-align: center; }
 .small { font-size: 9px; }
 </style></head><body>
-<div class="center"><div style="font-weight:bold;">DISPENSE LOG</div><div class="small">MHT-P11 • 58mm</div></div>
+<div class="center"><div style="font-weight:bold;">DISPENSE LOG</div><div class="small">MHT-P11 - 58mm</div></div>
 <hr>${rows}<hr><div class="center small">${new Date().toLocaleDateString()}</div></body></html>`;
         printWindow.document.write(content);
         printWindow.document.close();
         printWindow.onload = () => { printWindow.print(); printWindow.close(); };
     }
 
-    function openDispenseModal(item) {
-        activePrescriptionId = item.id;
-        document.getElementById('modalPatient').innerText = item.patient_name;
-        document.getElementById('modalMed').innerText = `${item.med_name || item.manual_name} (Qty: ${item.quantity})`;
-        document.getElementById('modalDosage').innerText = item.dosage;
+    function isPrescriptionOutOfStock(item) {
+        if (!item || !item.med_name) return false;
+        const stock = Number(item.stock_quantity || 0);
+        const qty = Number(item.quantity || 0);
+        return Number.isFinite(stock) && Number.isFinite(qty) && stock < qty;
+    }
+
+    function toggleModalSelection(selectAll) {
+        document.querySelectorAll('#modalPrescriptionList .modal-rx-check:not(:disabled)').forEach(cb => {
+            cb.checked = !!selectAll;
+        });
+    }
+
+    function renderDispenseModalContent() {
+        if (!activePendingEntry || !Array.isArray(activePendingEntry.prescriptions)) return;
+        const prescriptions = activePendingEntry.prescriptions;
+        document.getElementById('modalPatient').innerText = activePendingEntry.patient_name || 'Unknown Patient';
+        document.getElementById('modalPrescriptionCount').innerText = `${prescriptions.length} medicine(s)`;
+
+        const outOfStockCount = prescriptions.filter(isPrescriptionOutOfStock).length;
+        const stockWarning = document.getElementById('stockWarning');
+        if (outOfStockCount > 0) {
+            stockWarning.classList.remove('d-none');
+            stockWarning.innerText = `${outOfStockCount} medicine(s) are out of stock and were left pending. Use Print Remaining for external purchase.`;
+        } else {
+            stockWarning.classList.add('d-none');
+            stockWarning.innerText = '';
+        }
+
+        document.getElementById('modalPrescriptionList').innerHTML = prescriptions.map((item) => {
+            const prescriptionId = Number(item.id || 0);
+            const medName = item.med_name || `${item.manual_name || 'External'} (External)`;
+            const dosage = item.dosage || 'No dosage provided';
+            const qty = Number(item.quantity || 0);
+            const outOfStock = isPrescriptionOutOfStock(item);
+            const stockLine = item.med_name ? `Stock: ${item.stock_quantity || 0}` : 'External medication';
+            const statusBadge = outOfStock
+                ? '<span class="badge bg-danger-subtle text-danger border border-danger">Out of stock</span>'
+                : '<span class="badge bg-success-subtle text-success border border-success">Ready</span>';
+            const approvalBtn = Number(item.controlled_requires_approval) === 1
+                ? `<button class="btn btn-warning btn-sm ms-2" onclick="requestControlled(${prescriptionId})">Request Approval</button>`
+                : '';
+            const disableInteractive = dispenseInProgress ? 'disabled' : '';
+            const dispenseButton = outOfStock
+                ? '<button class="btn btn-outline-secondary btn-sm" disabled>Out of Stock</button>'
+                : `<button class="btn btn-success btn-sm rx-dispense-btn" ${disableInteractive} onclick="dispenseSinglePrescription(${prescriptionId})">Dispense</button>`;
+
+            return `<div class="border rounded-3 p-2">
+                <div class="d-flex align-items-start gap-2">
+                    <div class="pt-1">
+                        <input class="form-check-input modal-rx-check" type="checkbox" value="${prescriptionId}" ${(outOfStock || dispenseInProgress) ? 'disabled' : ''}>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${medName} <span class="text-muted small">(Qty: ${qty})</span></div>
+                        <div class="small text-muted">${dosage}</div>
+                        <div class="small text-muted">${stockLine}</div>
+                        <div class="mt-1">${statusBadge}${approvalBtn}</div>
+                    </div>
+                    <div class="text-end">
+                        ${dispenseButton}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function getSelectedPrescriptionIds() {
+        return Array.from(document.querySelectorAll('#modalPrescriptionList .modal-rx-check:checked'))
+            .map(el => Number(el.value))
+            .filter(id => Number.isInteger(id) && id > 0);
+    }
+
+    function ensureDispenseVerification() {
+        if (!document.getElementById('checkVerify').checked) {
+            notify('Please verify all medicines and dosages.');
+            return false;
+        }
+        return true;
+    }
+
+    function isErrorResponse(res) {
+        if (!res) return true;
+        const msg = String(res.message || '');
+        return /^error:/i.test(msg) || /^failed/i.test(msg);
+    }
+
+    function setDispenseUiBusy(isBusy) {
+        dispenseInProgress = !!isBusy;
+        const printBtn = document.getElementById('modalPrintRemainingBtn');
+        const batchBtn = document.getElementById('modalDispenseSelectedBtn');
+        if (printBtn) printBtn.disabled = !!isBusy;
+        if (batchBtn) {
+            batchBtn.disabled = !!isBusy;
+            batchBtn.innerText = isBusy ? 'Processing...' : 'Dispense Selected';
+        }
+    }
+
+    function removeDispensedFromActiveEntry(dispensedIds) {
+        if (!activePendingEntry || !Array.isArray(activePendingEntry.prescriptions) || !dispensedIds.length) return;
+        const idSet = new Set(dispensedIds.map(id => Number(id)));
+        activePendingEntry.prescriptions = activePendingEntry.prescriptions.filter(item => !idSet.has(Number(item.id)));
+        const activePatientId = String(activePendingEntry.patient_id || '');
+        const activePatientName = String(activePendingEntry.patient_name || '');
+
+        pendingGroupedEntries = pendingGroupedEntries
+            .map(entry => {
+                const samePatient = activePatientId
+                    ? String(entry.patient_id || '') === activePatientId
+                    : String(entry.patient_name || '') === activePatientName;
+                if (!samePatient) return entry;
+                return {
+                    ...entry,
+                    prescriptions: (entry.prescriptions || []).filter(item => !idSet.has(Number(item.id)))
+                };
+            })
+            .filter(entry => Array.isArray(entry.prescriptions) && entry.prescriptions.length > 0);
+    }
+
+    async function dispensePrescriptionIds(prescriptionIds) {
+        if (dispenseInProgress) return;
+        if (!activePendingEntry || !Array.isArray(activePendingEntry.prescriptions) || !activePendingEntry.prescriptions.length) {
+            return notify('No prescription selected.');
+        }
+
+        const uniqueIds = Array.from(new Set((prescriptionIds || [])
+            .map(id => Number(id))
+            .filter(id => Number.isInteger(id) && id > 0)));
+        if (!uniqueIds.length) return notify('Select at least one medicine to dispense.');
+        if (!ensureDispenseVerification()) return;
+
+        // Never send known out-of-stock medicines for dispense.
+        const inStockIds = uniqueIds.filter((id) => {
+            const item = activePendingEntry.prescriptions.find(p => Number(p.id) === id);
+            return item && !isPrescriptionOutOfStock(item);
+        });
+        if (!inStockIds.length) return notify('Selected medicines are out of stock.');
+
+        setDispenseUiBusy(true);
+        try {
+            const dispensed = [];
+            const failed = [];
+
+            // Fast path: one batched request.
+            if (inStockIds.length > 1) {
+                const batchRes = await Api.post('/pharmacy/dispense', { prescription_ids: inStockIds });
+                if (!isErrorResponse(batchRes)) {
+                    dispensed.push(...inStockIds);
+                } else {
+                    // Fallback path: isolate failures per medicine.
+                    for (const prescriptionId of inStockIds) {
+                        const res = await Api.post('/pharmacy/dispense', { prescription_id: prescriptionId });
+                        if (isErrorResponse(res)) {
+                            failed.push(String(res?.message || `Failed to dispense prescription #${prescriptionId}`));
+                        } else {
+                            dispensed.push(prescriptionId);
+                        }
+                    }
+                }
+            } else {
+                const res = await Api.post('/pharmacy/dispense', { prescription_id: inStockIds[0] });
+                if (isErrorResponse(res)) {
+                    failed.push(String(res?.message || `Failed to dispense prescription #${inStockIds[0]}`));
+                } else {
+                    dispensed.push(inStockIds[0]);
+                }
+            }
+
+            if (dispensed.length) {
+                removeDispensedFromActiveEntry(dispensed);
+                notify(`${dispensed.length} medicine(s) dispensed.`);
+            }
+            if (failed.length) {
+                notify(failed[0], 'error');
+            }
+
+            if (!activePendingEntry.prescriptions.length) {
+                dispenseModal.hide();
+                activePendingEntry = null;
+                await loadPending({ refreshAnalytics: true });
+                return;
+            }
+
+            renderDispenseModalContent();
+            await loadPending({ refreshAnalytics: true });
+        } finally {
+            setDispenseUiBusy(false);
+            if (activePendingEntry && Array.isArray(activePendingEntry.prescriptions) && activePendingEntry.prescriptions.length) {
+                renderDispenseModalContent();
+            }
+        }
+    }
+
+    async function dispenseSinglePrescription(prescriptionId) {
+        await dispensePrescriptionIds([Number(prescriptionId)]);
+    }
+
+    function printRemainingFromModal() {
+        if (!activePendingEntry || !Array.isArray(activePendingEntry.prescriptions) || !activePendingEntry.prescriptions.length) {
+            return notify('No remaining medicines to print.');
+        }
+        preparePrint({
+            patient_name: activePendingEntry.patient_name,
+            prescriptions: activePendingEntry.prescriptions
+        });
+    }
+
+    function openDispenseModal(index) {
+        const entry = typeof index === 'number' ? pendingGroupedEntries[index] : index;
+        if (!entry) return;
+
+        const prescriptions = (Array.isArray(entry.prescriptions) && entry.prescriptions.length)
+            ? entry.prescriptions
+            : [entry];
+
+        activePendingEntry = {
+            patient_id: entry.patient_id || (prescriptions[0] ? prescriptions[0].patient_id : null),
+            patient_name: entry.patient_name || (prescriptions[0] ? prescriptions[0].patient_name : ''),
+            prescriptions
+        };
+
+        setDispenseUiBusy(false);
+        document.getElementById('checkVerify').checked = false;
+        renderDispenseModalContent();
         dispenseModal.show();
     }
 
     async function confirmDispense() {
-        if(!document.getElementById('checkVerify').checked) return notify("Please verify the dosage.");
-        const res = await Api.post('/pharmacy/dispense', { prescription_id: activePrescriptionId });
-        if(res) { dispenseModal.hide(); loadPending(); }
+        const selectedIds = getSelectedPrescriptionIds();
+        await dispensePrescriptionIds(selectedIds);
     }
 
     function openAddModal() { new bootstrap.Modal(document.getElementById('addStockModal')).show(); }
@@ -1788,7 +2138,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
             inventoryExpiryChart = new Chart(expiryCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Expired', '≤ 60 Days', '61–120 Days', '120+ Days'],
+                    labels: ['Expired', '<= 60 Days', '61-120 Days', '120+ Days'],
                     datasets: [{
                         data: [expiryBuckets.expired, expiryBuckets.soon, expiryBuckets.mid, expiryBuckets.safe],
                         backgroundColor: ['#ef4444', '#f97316', '#eab308', '#22c55e'],
@@ -1817,46 +2167,53 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
     }
 
     async function loadPharmacyAnalytics() {
-        const data = await Api.get('/pharmacy/analytics');
-        if (!data) return;
+        if (analyticsLoadInFlight) return analyticsLoadInFlight;
 
-        const statusRows = data.status_counts || [];
-        if (pharmacyStatusChart) pharmacyStatusChart.destroy();
-        pharmacyStatusChart = new Chart(document.getElementById('pharmacyStatusChart'), {
-            type: 'doughnut',
-            data: {
-                labels: statusRows.map(r => r.status),
-                datasets: [{ data: statusRows.map(r => r.count), backgroundColor: ['#f59e0b','#10b981','#3b82f6','#ef4444','#6b7280'] }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        analyticsLoadInFlight = (async () => {
+            const data = await Api.get('/pharmacy/analytics');
+            if (!data) return;
 
-        const days = last7Days();
-        const dispMap = Object.fromEntries((data.dispensed_by_day || []).map(r => [r.day, r.count]));
-        const pendMap = Object.fromEntries((data.pending_by_day || []).map(r => [r.day, r.count]));
-        const labels = days.map(d => d.label);
+            const statusRows = data.status_counts || [];
+            if (pharmacyStatusChart) pharmacyStatusChart.destroy();
+            pharmacyStatusChart = new Chart(document.getElementById('pharmacyStatusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: statusRows.map(r => r.status),
+                    datasets: [{ data: statusRows.map(r => r.count), backgroundColor: ['#f59e0b','#10b981','#3b82f6','#ef4444','#6b7280'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
 
-        if (pharmacyVolumeChart) pharmacyVolumeChart.destroy();
-        pharmacyVolumeChart = new Chart(document.getElementById('pharmacyVolumeChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Dispensed', data: days.map(d => dispMap[d.key] || 0), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', tension: 0.3 },
-                    { label: 'Pending', data: days.map(d => pendMap[d.key] || 0), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.2)', tension: 0.3 }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+            const days = last7Days();
+            const dispMap = Object.fromEntries((data.dispensed_by_day || []).map(r => [r.day, r.count]));
+            const pendMap = Object.fromEntries((data.pending_by_day || []).map(r => [r.day, r.count]));
+            const labels = days.map(d => d.label);
+
+            if (pharmacyVolumeChart) pharmacyVolumeChart.destroy();
+            pharmacyVolumeChart = new Chart(document.getElementById('pharmacyVolumeChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Dispensed', data: days.map(d => dispMap[d.key] || 0), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', tension: 0.3 },
+                        { label: 'Pending', data: days.map(d => pendMap[d.key] || 0), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.2)', tension: 0.3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        })();
+
+        try {
+            return await analyticsLoadInFlight;
+        } finally {
+            analyticsLoadInFlight = null;
+        }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
         applyRoleBasedPharmacyAccess();
-        loadPending();
+        refreshDispensary();
         if (isSeniorPharmacyRole()) loadInventory();
-        loadHistory();
-        loadPharmacistShifts();
-        loadPharmacyAnalytics();
         loadPharmacyPatients();
         if (isSeniorPharmacyRole()) loadPharmacyMeds();
         renderPoItems();

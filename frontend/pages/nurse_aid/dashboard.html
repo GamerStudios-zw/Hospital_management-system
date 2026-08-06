@@ -203,33 +203,33 @@
                     <div class="row g-4">
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Temp (°C)</label>
-                            <input id="vTemp" type="number" step="0.1" class="form-control" required>
+                            <input id="vTemp" type="number" step="0.1" min="30" max="45" class="form-control" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Pulse</label>
-                            <input id="vPulse" type="number" class="form-control" required>
+                            <input id="vPulse" type="number" min="20" max="250" class="form-control" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">BP</label>
-                            <input id="vBp" type="text" class="form-control" placeholder="120/80" required>
+                            <input id="vBp" type="text" class="form-control" placeholder="120/80" pattern="^\d{2,3}/\d{2,3}$" maxlength="7" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Weight (kg)</label>
-                            <input id="vWeight" type="number" step="0.1" class="form-control">
+                            <input id="vWeight" type="number" step="0.1" min="1" max="500" class="form-control" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">SpO2</label>
-                            <input id="vSpo2" type="number" class="form-control">
+                            <input id="vSpo2" type="number" min="50" max="100" class="form-control" required>
                         </div>
                         <div class="col-md-12">
                             <label class="form-label small fw-bold">Nurse Aid Notes</label>
-                            <textarea id="vNotes" class="form-control" rows="3" placeholder="Add clinical notes..."></textarea>
+                            <textarea id="vNotes" class="form-control" rows="3" minlength="3" maxlength="1000" placeholder="Add clinical notes..." required></textarea>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 p-4">
                     <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Doctor</button>
+                    <button type="submit" id="saveVitalsBtn" class="btn btn-success px-5 fw-bold">Finalize & Route to Nurse</button>
                 </div>
             </form>
         </div>
@@ -249,6 +249,73 @@
     let triageChart = null;
     let vitalsMode = 'triage';
     let reminderIntervalId = null;
+    const VITAL_LIMITS = {
+        temperature: { min: 30, max: 45 },
+        pulse: { min: 20, max: 250 },
+        systolic: { min: 50, max: 300 },
+        diastolic: { min: 30, max: 200 },
+        weight: { min: 1, max: 500 },
+        spo2: { min: 50, max: 100 },
+        notes: { minLength: 3, maxLength: 1000 }
+    };
+
+    function validateVitalsInput() {
+        const temperature = Number(document.getElementById('vTemp').value);
+        const pulse = Number(document.getElementById('vPulse').value);
+        const bpInput = document.getElementById('vBp').value.trim();
+        const weight = Number(document.getElementById('vWeight').value);
+        const spo2 = Number(document.getElementById('vSpo2').value);
+        const notes = document.getElementById('vNotes').value.trim();
+
+        if (!Number.isFinite(temperature) || temperature < VITAL_LIMITS.temperature.min || temperature > VITAL_LIMITS.temperature.max) {
+            return { valid: false, message: `Temperature must be between ${VITAL_LIMITS.temperature.min}C and ${VITAL_LIMITS.temperature.max}C.` };
+        }
+
+        if (!Number.isInteger(pulse) || pulse < VITAL_LIMITS.pulse.min || pulse > VITAL_LIMITS.pulse.max) {
+            return { valid: false, message: `Pulse must be between ${VITAL_LIMITS.pulse.min} and ${VITAL_LIMITS.pulse.max} bpm.` };
+        }
+
+        const bpMatch = bpInput.match(/^(\d{2,3})\/(\d{2,3})$/);
+        if (!bpMatch) {
+            return { valid: false, message: 'Blood pressure must be in systolic/diastolic format, for example 120/80.' };
+        }
+
+        const systolic = Number(bpMatch[1]);
+        const diastolic = Number(bpMatch[2]);
+        if (
+            systolic < VITAL_LIMITS.systolic.min ||
+            systolic > VITAL_LIMITS.systolic.max ||
+            diastolic < VITAL_LIMITS.diastolic.min ||
+            diastolic > VITAL_LIMITS.diastolic.max ||
+            systolic <= diastolic
+        ) {
+            return { valid: false, message: 'Blood pressure values are out of safe range.' };
+        }
+
+        if (!Number.isFinite(weight) || weight < VITAL_LIMITS.weight.min || weight > VITAL_LIMITS.weight.max) {
+            return { valid: false, message: `Weight must be between ${VITAL_LIMITS.weight.min}kg and ${VITAL_LIMITS.weight.max}kg.` };
+        }
+
+        if (!Number.isInteger(spo2) || spo2 < VITAL_LIMITS.spo2.min || spo2 > VITAL_LIMITS.spo2.max) {
+            return { valid: false, message: `SpO2 must be between ${VITAL_LIMITS.spo2.min}% and ${VITAL_LIMITS.spo2.max}%.` };
+        }
+
+        if (notes.length < VITAL_LIMITS.notes.minLength || notes.length > VITAL_LIMITS.notes.maxLength) {
+            return { valid: false, message: `Notes must be ${VITAL_LIMITS.notes.minLength}-${VITAL_LIMITS.notes.maxLength} characters.` };
+        }
+
+        return {
+            valid: true,
+            payload: {
+                temperature: Number(temperature.toFixed(1)),
+                pulse,
+                bp: `${systolic}/${diastolic}`,
+                weight: Number(weight.toFixed(1)),
+                spo2,
+                notes
+            }
+        };
+    }
 
     function switchTab(id, el) {
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -297,10 +364,7 @@
                 const status = q.status || 'Waiting';
                 const badgeClass = status.toLowerCase().includes('urgent') ? 'bg-danger'
                     : (status.toLowerCase().includes('triage') ? 'bg-info text-dark' : 'bg-warning text-dark');
-                const isUrgent = status.toLowerCase().includes('urgent');
-                const actionBtn = isUrgent
-                    ? `<span class="badge bg-light text-muted border">Awaiting doctor</span>`
-                    : `<button class="btn btn-success btn-sm rounded-pill px-3" onclick='openVitalsModal(${JSON.stringify(q)}, "triage")'>Capture</button>`;
+                const actionBtn = `<button class="btn btn-success btn-sm rounded-pill px-3" onclick='openVitalsModal(${JSON.stringify(q)}, "triage")'>Capture</button>`;
                 tbody.innerHTML += `
                     <tr>
                         <td class="ps-4 small">${new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
@@ -334,7 +398,7 @@
         document.getElementById('modalPatientName').innerText = q.full_name;
         const saveBtn = document.getElementById('saveVitalsBtn');
         if (saveBtn) {
-            saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Doctor';
+            saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse';
         }
         if (vitalsMode === 'triage') {
             Api.post('/nurse_aid/start_triage', { queue_id: activeQueueId });
@@ -351,37 +415,42 @@
             saveBtn.textContent = 'Saving...';
         }
 
-        const temperature = document.getElementById('vTemp').value.trim();
-        const pulse = document.getElementById('vPulse').value.trim();
-        const bp = document.getElementById('vBp').value.trim();
-        const weight = document.getElementById('vWeight').value.trim();
-        const spo2 = document.getElementById('vSpo2').value.trim();
-        const notes = document.getElementById('vNotes').value.trim();
-
-        if (!temperature || !pulse || !bp || !weight || !spo2 || !notes) {
+        if (!activeQueueId || !activePatientId) {
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Doctor';
+                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse';
             }
             isSavingVitals = false;
-            return notify("All vitals fields and notes are required");
+            return notify("Missing queue or patient for this vitals entry.");
+        }
+
+        const validation = validateVitalsInput();
+        if (!validation.valid) {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse';
+            }
+            isSavingVitals = false;
+            return notify(validation.message);
         }
 
         const data = {
             patient_id: activePatientId,
             queue_id: activeQueueId,
-            temperature,
-            pulse,
-            bp,
-            weight,
-            spo2,
-            notes
+            ...validation.payload
         };
 
         try {
             const endpoint = vitalsMode === 'daily' ? '/nurse_aid/save_daily_vitals' : '/nurse_aid/save_vitals';
             const res = await Api.post(endpoint, data);
             if (res) {
+                const reasons = Array.isArray(res.emergency_reasons) && res.emergency_reasons.length
+                    ? ` ${res.emergency_reasons.join('; ')}`
+                    : '';
+                notify(
+                    (res.message || 'Vitals saved.') + reasons,
+                    res.emergency ? { type: 'error', timeoutMs: 12000 } : { type: 'success', timeoutMs: 6000 }
+                );
                 vitalsModal.hide();
                 document.getElementById('vitalsForm').reset();
                 loadTriageQueue();
@@ -394,7 +463,7 @@
             isSavingVitals = false;
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.textContent = 'Finalize & Route to Doctor';
+                saveBtn.textContent = vitalsMode === 'daily' ? 'Save Daily Vitals' : 'Finalize & Route to Nurse';
             }
         }
     }

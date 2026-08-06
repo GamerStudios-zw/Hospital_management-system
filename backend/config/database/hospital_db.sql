@@ -53,13 +53,26 @@ CREATE TABLE IF NOT EXISTS `user_sessions` (
 --
 CREATE TABLE IF NOT EXISTS `patients` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) NOT NULL,
-  `dob` date NOT NULL,
-  `gender` enum('Male','Female','Other') NOT NULL,
-  `contact` varchar(50) NOT NULL,
+  `full_name` varchar(150) DEFAULT NULL,
+  `name` varchar(150) DEFAULT NULL,
+  `national_id` varchar(50) DEFAULT NULL,
+  `dob` date DEFAULT NULL,
+  `gender` varchar(20) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `contact` varchar(50) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `has_medical_aid` tinyint(1) NOT NULL DEFAULT 0,
+  `medical_aid_provider` varchar(120) DEFAULT NULL,
+  `medical_aid_number` varchar(80) DEFAULT NULL,
+  `kin_name` varchar(120) DEFAULT NULL,
+  `kin_relation` varchar(80) DEFAULT NULL,
+  `kin_phone` varchar(30) DEFAULT NULL,
+  `allergies` text DEFAULT NULL,
   `fingerprint_hash` text DEFAULT NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_patients_full_name` (`full_name`),
+  KEY `idx_patients_national_id` (`national_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -136,20 +149,79 @@ CREATE TABLE IF NOT EXISTS `vital_signs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
+-- 6A. OPERATIONAL QUEUE TABLE (USED BY CURRENT DASHBOARDS)
+--
+CREATE TABLE IF NOT EXISTS `patient_queue` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `patient_id` int(11) NOT NULL,
+  `doctor_assigned` int(11) DEFAULT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'Waiting',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_queue_patient` (`patient_id`),
+  KEY `idx_queue_status` (`status`),
+  KEY `idx_queue_doctor` (`doctor_assigned`),
+  KEY `idx_queue_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6B. BEDS / WARD CAPACITY TABLE
+--
+CREATE TABLE IF NOT EXISTS `beds` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ward_name` varchar(191) NOT NULL,
+  `bed_number` varchar(50) NOT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'Available',
+  `current_patient_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_beds_ward_bed` (`ward_name`, `bed_number`),
+  KEY `idx_beds_status` (`status`),
+  KEY `idx_beds_patient` (`current_patient_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- 6C. OPERATIONAL VITALS TABLE (USED BY CURRENT DASHBOARDS)
+--
+CREATE TABLE IF NOT EXISTS `patient_vitals` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `patient_id` int(11) NOT NULL,
+  `queue_id` int(11) DEFAULT NULL,
+  `temperature` varchar(10) DEFAULT NULL,
+  `pulse` varchar(10) DEFAULT NULL,
+  `bp` varchar(20) DEFAULT NULL,
+  `weight` varchar(10) DEFAULT NULL,
+  `spo2` varchar(10) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_patient_vitals_patient` (`patient_id`),
+  KEY `idx_patient_vitals_queue` (`queue_id`),
+  KEY `idx_patient_vitals_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
 -- 7. PRESCRIPTIONS TABLE
 --
 CREATE TABLE IF NOT EXISTS `prescriptions` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `visit_id` int(11) NOT NULL,
-  `medication_name` varchar(100) NOT NULL,
-  `dosage` varchar(50) NOT NULL,
+  `patient_id` int(11) DEFAULT NULL,
+  `medicine_id` int(11) DEFAULT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `visit_id` int(11) DEFAULT NULL,
+  `medication_name` varchar(100) DEFAULT NULL,
+  `dosage` varchar(100) DEFAULT NULL,
   `frequency` varchar(50) DEFAULT NULL,
   `duration` varchar(50) DEFAULT NULL,
-  `status` enum('pending','dispensed') DEFAULT 'pending',
+  `notes` text DEFAULT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'Pending',
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `visit_id` (`visit_id`),
-  CONSTRAINT `prescriptions_ibfk_1` FOREIGN KEY (`visit_id`) REFERENCES `visits` (`id`) ON DELETE CASCADE
+  KEY `idx_prescriptions_patient` (`patient_id`),
+  KEY `idx_prescriptions_status` (`status`),
+  KEY `idx_prescriptions_medicine` (`medicine_id`),
+  KEY `idx_prescriptions_visit` (`visit_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -202,4 +274,4 @@ CREATE TABLE IF NOT EXISTS `contact_inquiries` (
   `status` enum('new','read','replied') DEFAULT 'new',
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -33,6 +33,23 @@ $requireSeniorPharmacy = function () use ($normalizedRole) {
         exit;
     }
 };
+$extractPrescriptionIds = function ($payload) {
+    $ids = [];
+    if (isset($payload->prescription_ids) && is_array($payload->prescription_ids)) {
+        foreach ($payload->prescription_ids as $id) {
+            $pid = (int)$id;
+            if ($pid > 0) {
+                $ids[$pid] = $pid;
+            }
+        }
+    } elseif (isset($payload->prescription_id)) {
+        $pid = (int)$payload->prescription_id;
+        if ($pid > 0) {
+            $ids[$pid] = $pid;
+        }
+    }
+    return array_values($ids);
+};
 
 switch ($action) {
 
@@ -40,7 +57,7 @@ switch ($action) {
     case 'pending':
         if ($method === 'GET') {
             // Use LEFT JOIN so manual/external medicines still show up
-            $query = "SELECT p.id, p.quantity, p.dosage, p.created_at, p.notes as manual_name,
+            $query = "SELECT p.id, p.patient_id, p.quantity, p.dosage, p.created_at, p.notes as manual_name,
                              pat.full_name as patient_name, pat.medical_aid_number,
                              med.name as med_name, med.stock_quantity,
                              q.doctor_assigned,
@@ -97,8 +114,9 @@ switch ($action) {
     case 'dispense':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
+            $prescriptionIds = $extractPrescriptionIds($data ?? (object)[]);
 
-            if(!isset($data->prescription_id)) {
+            if (empty($prescriptionIds)) {
                 http_response_code(400);
                 echo json_encode(["message" => "Missing ID"]);
                 exit;
@@ -106,55 +124,70 @@ switch ($action) {
 
             try {
                 $db->beginTransaction();
+                $affectedPatients = [];
+                $dispensedCount = 0;
 
-                $stmt = $db->prepare("SELECT patient_id, medicine_id, quantity FROM prescriptions WHERE id = ?");
-                $stmt->execute([$data->prescription_id]);
-                $presc = $stmt->fetch(PDO::FETCH_ASSOC);
+                foreach ($prescriptionIds as $prescriptionId) {
+                    $stmt = $db->prepare("SELECT patient_id, medicine_id, quantity, status FROM prescriptions WHERE id = ? FOR UPDATE");
+                    $stmt->execute([$prescriptionId]);
+                    $presc = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                if(!$presc) throw new Exception("Prescription not found");
+                    if (!$presc) {
+                        throw new Exception("Prescription #{$prescriptionId} not found");
+                    }
+                    if (!in_array((string)$presc['status'], ['Pending', 'External'], true)) {
+                        throw new Exception("Prescription #{$prescriptionId} is not pending.");
+                    }
 
-                // Block controlled substances without approval
-                if ($presc['medicine_id']) {
-                    $ctrl = $db->prepare("SELECT requires_approval FROM controlled_substances WHERE medicine_id = ?");
-                    $ctrl->execute([$presc['medicine_id']]);
-                    $requires = $ctrl->fetchColumn();
-                    if ($requires && !in_array($normalizedRole, ['pharmacist', 'senior_pharmacist', 'admin'], true)) {
-                        $appr = $db->prepare("SELECT COUNT(*) FROM controlled_requests WHERE prescription_id = ? AND status = 'Approved'");
-                        $appr->execute([$data->prescription_id]);
-                        if ((int)$appr->fetchColumn() === 0) {
-                            throw new Exception("Controlled substance requires approval before dispensing.");
+                    // Block controlled substances without approval
+                    if ($presc['medicine_id']) {
+                        $ctrl = $db->prepare("SELECT requires_approval FROM controlled_substances WHERE medicine_id = ?");
+                        $ctrl->execute([$presc['medicine_id']]);
+                        $requires = $ctrl->fetchColumn();
+                        if ($requires && !in_array($normalizedRole, ['pharmacist', 'senior_pharmacist', 'admin'], true)) {
+                            $appr = $db->prepare("SELECT COUNT(*) FROM controlled_requests WHERE prescription_id = ? AND status = 'Approved'");
+                            $appr->execute([$prescriptionId]);
+                            if ((int)$appr->fetchColumn() === 0) {
+                                throw new Exception("Controlled substance requires approval before dispensing.");
+                            }
                         }
                     }
-                }
 
-                // Only deduct stock if it's a system-tracked medicine
-                if($presc['medicine_id']) {
-                    $checkStock = $db->prepare("SELECT stock_quantity FROM medicines WHERE id = ?");
-                    $checkStock->execute([$presc['medicine_id']]);
-                    $currentStock = $checkStock->fetchColumn();
+                    // Only deduct stock if it's a system-tracked medicine
+                    if ($presc['medicine_id']) {
+                        $checkStock = $db->prepare("SELECT stock_quantity FROM medicines WHERE id = ? FOR UPDATE");
+                        $checkStock->execute([$presc['medicine_id']]);
+                        $currentStock = $checkStock->fetchColumn();
 
-                    if($currentStock < $presc['quantity']) {
-                        throw new Exception("Insufficient stock! Available: $currentStock");
+                        if ($currentStock < $presc['quantity']) {
+                            throw new Exception("Insufficient stock! Available: $currentStock");
+                        }
+
+                        $updateStock = $db->prepare("UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?");
+                        $updateStock->execute([$presc['quantity'], $presc['medicine_id']]);
                     }
 
-                    $updateStock = $db->prepare("UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?");
-                    $updateStock->execute([$presc['quantity'], $presc['medicine_id']]);
+                    $updateStatus = $db->prepare("UPDATE prescriptions SET status = 'Dispensed' WHERE id = ?");
+                    $updateStatus->execute([$prescriptionId]);
+
+                    if (!empty($presc['patient_id'])) {
+                        $patientId = (int)$presc['patient_id'];
+                        $affectedPatients[$patientId] = $patientId;
+                    }
+                    $dispensedCount++;
                 }
 
-                $updateStatus = $db->prepare("UPDATE prescriptions SET status = 'Dispensed' WHERE id = ?");
-                $updateStatus->execute([$data->prescription_id]);
-
                 // If no pending/external prescriptions remain, move admission to "Ready for Admission"
-                if (!empty($presc['patient_id'])) {
+                foreach ($affectedPatients as $patientId) {
                     $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
-                    $pendingStmt->execute([$presc['patient_id']]);
+                    $pendingStmt->execute([$patientId]);
                     $remaining = (int)$pendingStmt->fetchColumn();
                     if ($remaining === 0) {
                         $db->prepare("UPDATE patient_queue
                                       SET status = 'Ready for Admission'
                                       WHERE patient_id = ?
                                         AND status IN ('Waiting Pharmacy','waiting pharmacy')")
-                           ->execute([$presc['patient_id']]);
+                           ->execute([$patientId]);
                     }
                 }
 
@@ -162,8 +195,8 @@ switch ($action) {
                 try {
                     ActivityLogger::log($db, $user->full_name ?? 'pharmacist', 'Dispensed medication', 'Success', null, [
                         'event_type' => 'audit',
-                        'entity_type' => 'prescription',
-                        'entity_id' => (string)$data->prescription_id,
+                        'entity_type' => count($prescriptionIds) > 1 ? 'prescription_batch' : 'prescription',
+                        'entity_id' => implode(',', $prescriptionIds),
                         'actor_id' => isset($user->id) ? (string)$user->id : null,
                         'actor_role' => $user->role ?? 'pharmacist',
                         'source' => 'pharmacy/dispense'
@@ -171,8 +204,16 @@ switch ($action) {
                 } catch (Exception $e) {
                     // ignore logging errors
                 }
-                Realtime::emit('pharmacy.dispense', ['prescription_id' => $data->prescription_id]);
-                echo json_encode(["message" => "Medication dispensed successfully"]);
+                Realtime::emit('pharmacy.dispense', [
+                    'prescription_ids' => $prescriptionIds,
+                    'dispensed_count' => $dispensedCount
+                ]);
+                echo json_encode([
+                    "message" => $dispensedCount === 1
+                        ? "Medication dispensed successfully"
+                        : "Medications dispensed successfully",
+                    "dispensed_count" => $dispensedCount
+                ]);
 
             } catch (Exception $e) {
                 $db->rollBack();
@@ -182,7 +223,94 @@ switch ($action) {
         }
         break;
 
-    // 2b. UPDATE NURSE REQUEST STATUS
+    // 2b. DELETE PENDING MEDICATION(S)
+    case 'delete':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            $prescriptionIds = $extractPrescriptionIds($data ?? (object)[]);
+
+            if (empty($prescriptionIds)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Missing ID"]);
+                exit;
+            }
+
+            try {
+                $db->beginTransaction();
+                $placeholders = implode(',', array_fill(0, count($prescriptionIds), '?'));
+
+                $fetchStmt = $db->prepare("SELECT id, patient_id, status FROM prescriptions WHERE id IN ($placeholders) FOR UPDATE");
+                $fetchStmt->execute($prescriptionIds);
+                $rows = $fetchStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                if (empty($rows)) {
+                    throw new Exception("Prescription not found");
+                }
+
+                $eligibleIds = [];
+                $affectedPatients = [];
+                foreach ($rows as $row) {
+                    if (in_array((string)$row['status'], ['Pending', 'External'], true)) {
+                        $eligibleIds[] = (int)$row['id'];
+                        if (!empty($row['patient_id'])) {
+                            $patientId = (int)$row['patient_id'];
+                            $affectedPatients[$patientId] = $patientId;
+                        }
+                    }
+                }
+                if (empty($eligibleIds)) {
+                    throw new Exception("Selected prescription(s) cannot be deleted.");
+                }
+
+                $eligiblePlaceholders = implode(',', array_fill(0, count($eligibleIds), '?'));
+                $deleteStmt = $db->prepare("UPDATE prescriptions SET status = 'Deleted' WHERE id IN ($eligiblePlaceholders)");
+                $deleteStmt->execute($eligibleIds);
+                $deletedCount = $deleteStmt->rowCount();
+                if ($deletedCount < 1) {
+                    throw new Exception("Nothing was deleted.");
+                }
+
+                foreach ($affectedPatients as $patientId) {
+                    $pendingStmt = $db->prepare("SELECT COUNT(*) FROM prescriptions WHERE patient_id = ? AND status IN ('Pending','External')");
+                    $pendingStmt->execute([$patientId]);
+                    $remaining = (int)$pendingStmt->fetchColumn();
+                    if ($remaining === 0) {
+                        $db->prepare("UPDATE patient_queue
+                                      SET status = 'Ready for Admission'
+                                      WHERE patient_id = ?
+                                        AND status IN ('Waiting Pharmacy','waiting pharmacy')")
+                           ->execute([$patientId]);
+                    }
+                }
+
+                $db->commit();
+                try {
+                    ActivityLogger::log($db, $user->full_name ?? 'pharmacist', 'Deleted pending medication', 'Success', null, [
+                        'event_type' => 'audit',
+                        'entity_type' => count($eligibleIds) > 1 ? 'prescription_batch' : 'prescription',
+                        'entity_id' => implode(',', $eligibleIds),
+                        'actor_id' => isset($user->id) ? (string)$user->id : null,
+                        'actor_role' => $user->role ?? 'pharmacist',
+                        'source' => 'pharmacy/delete'
+                    ]);
+                } catch (Exception $e) {
+                    // ignore logging errors
+                }
+                Realtime::emit('pharmacy.delete', ['prescription_ids' => $eligibleIds]);
+                echo json_encode([
+                    "message" => $deletedCount === 1
+                        ? "Prescription deleted."
+                        : "Prescriptions deleted.",
+                    "deleted_count" => (int)$deletedCount
+                ]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                http_response_code(500);
+                echo json_encode(["message" => "Failed to delete prescription(s): " . $e->getMessage()]);
+            }
+        }
+        break;
+
+    // 2c. UPDATE NURSE REQUEST STATUS
     case 'nurse_request_update':
         if ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
@@ -473,15 +601,63 @@ switch ($action) {
         if ($method === 'POST') {
             $requireSeniorPharmacy();
             $data = json_decode(file_get_contents("php://input"));
-            if (empty($data->name)) {
+            $name = preg_replace('/\s+/', ' ', trim((string)($data->name ?? '')));
+            if ($name === '') {
                 http_response_code(400);
                 echo json_encode(["message" => "Supplier name required"]);
                 exit;
             }
-            $stmt = $db->prepare("INSERT INTO suppliers (name, contact_name, phone, email, address)
-                                  VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$data->name, $data->contact_name ?? null, $data->phone ?? null, $data->email ?? null, $data->address ?? null]);
-            echo json_encode(["message" => "Supplier created"]);
+            $lockKey = 'hms:supplier:' . substr(hash('sha256', strtolower($name)), 0, 48);
+            $lockAcquired = false;
+            try {
+                $lockStmt = $db->prepare("SELECT GET_LOCK(?, 5)");
+                $lockStmt->execute([$lockKey]);
+                $lockAcquired = ((int)$lockStmt->fetchColumn() === 1);
+                if (!$lockAcquired) {
+                    http_response_code(429);
+                    echo json_encode(["message" => "Supplier creation is busy. Please retry."]);
+                    exit;
+                }
+
+                $dup = $db->prepare("SELECT id FROM suppliers WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) LIMIT 1");
+                $dup->execute([$name]);
+                $existing = $dup->fetch(PDO::FETCH_ASSOC);
+                if ($existing) {
+                    http_response_code(409);
+                    echo json_encode([
+                        "message" => "A supplier with this name already exists.",
+                        "supplier_id" => (int)$existing['id']
+                    ]);
+                    exit;
+                }
+
+                $stmt = $db->prepare("INSERT INTO suppliers (name, contact_name, phone, email, address)
+                                      VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    $name,
+                    trim((string)($data->contact_name ?? '')) ?: null,
+                    trim((string)($data->phone ?? '')) ?: null,
+                    trim((string)($data->email ?? '')) ?: null,
+                    trim((string)($data->address ?? '')) ?: null
+                ]);
+                echo json_encode(["message" => "Supplier created"]);
+            } catch (PDOException $e) {
+                if ((string)$e->getCode() === '23000') {
+                    http_response_code(409);
+                    echo json_encode(["message" => "A supplier with this name already exists."]);
+                } else {
+                    throw $e;
+                }
+            } finally {
+                if ($lockAcquired) {
+                    try {
+                        $unlockStmt = $db->prepare("SELECT RELEASE_LOCK(?)");
+                        $unlockStmt->execute([$lockKey]);
+                    } catch (Exception $e) {
+                        // Ignore unlock errors.
+                    }
+                }
+            }
         }
         break;
 

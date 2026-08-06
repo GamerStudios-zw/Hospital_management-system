@@ -379,7 +379,7 @@
 
                                 <div class="col-12 mt-4 text-end">
                                     <button type="button" class="btn btn-light me-2" onclick="showSection('dashboard')">Cancel</button>
-                                    <button type="submit" class="btn btn-primary px-5">Save Record</button>
+                                    <button id="registerSubmitBtn" type="submit" class="btn btn-primary px-5">Save Record</button>
                                 </div>
                             </div>
                         </form>
@@ -623,14 +623,14 @@
                             <h4 id="modalPatientName" class="fw-bold text-dark mb-0">--</h4>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Assign to Doctor</label>
-                            <select id="admitDoctor" class="form-select"></select>
+                            <label class="form-label fw-bold">Triage Routing</label>
+                            <div class="form-control bg-light">Patient goes to triage first for vitals, then is routed to a nurse.</div>
                         </div>
                         <div class="alert alert-danger d-flex align-items-center">
                             <input class="form-check-input me-3" type="checkbox" id="admitCritical" style="width: 20px; height: 20px;">
                             <div>
                                 <label class="form-check-label fw-bold" for="admitCritical">CRITICAL CONDITION</label>
-                                <div class="small">Bypasses Nurse Station. Sends directly to Doctor.</div>
+                                <div class="small">Marks patient as urgent for immediate triage.</div>
                             </div>
                         </div>
                         <button class="btn btn-success w-100 py-3 fw-bold mt-3" onclick="confirmAdmission()">CONFIRM ADMISSION</button>
@@ -738,6 +738,7 @@
     let historySnapshot = null;
     let cachedPatients = [];
     let cachedDoctors = [];
+    let registerInFlight = false;
 
     document.addEventListener("DOMContentLoaded", () => {
         loadDashboardStats();
@@ -839,7 +840,7 @@
         populatePatientSelects();
         cachedPatients.forEach(p => {
             const historyBtn = `<button class="btn btn-sm btn-outline-secondary" onclick='openHistory(${JSON.stringify(p)})'><i class="bi bi-clock-history me-1"></i>History</button>`;
-            let actionBtn = `<div class="d-flex gap-2">${historyBtn}<button class="btn btn-sm btn-outline-primary" onclick='openAdmitModal(${JSON.stringify(p)})'>Admit <i class="bi bi-arrow-right"></i></button></div>`;
+            let actionBtn = `<div class="d-flex gap-2">${historyBtn}<button class="btn btn-sm btn-outline-primary" onclick='openAdmitModal(${JSON.stringify(p)})'>Triage <i class="bi bi-arrow-right"></i></button></div>`;
             if(p.is_active > 0) actionBtn = `<div class="d-flex gap-2 align-items-center">${historyBtn}<span class="badge bg-success py-2 px-3"><i class="bi bi-check-lg me-1"></i> Active Queue</span></div>`;
 
             tbody.innerHTML += `<tr>
@@ -854,6 +855,7 @@
     function openAdmitModal(p) {
         currentPatientId = p.id;
         document.getElementById('modalPatientName').innerText = p.full_name;
+        document.getElementById('admitCritical').checked = false;
         modalInstance.show();
     }
 
@@ -1047,19 +1049,31 @@
         tbody.innerHTML = '';
         if (data && data.length) {
             data.forEach(q => {
-                tbody.innerHTML += `<tr>
-                    <td>${q.full_name}</td>
-                    <td>${q.doctor_assigned || '-'}</td>
-                    <td><span class="badge bg-warning-subtle text-warning">${q.status}</span></td>
-                    <td>${q.created_at ? new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                    <td class="text-end">
-                        <div class="btn-group btn-group-sm">
+                const status = String(q.status || '').toLowerCase();
+                const isEditable = status === 'waiting' || status === 'urgent care';
+                const statusClass = status === 'with nurse'
+                    ? 'bg-primary-subtle text-primary'
+                    : status === 'with doctor'
+                        ? 'bg-info-subtle text-info'
+                        : status === 'in triage'
+                            ? 'bg-secondary-subtle text-secondary'
+                            : status === 'waiting pharmacy'
+                                ? 'bg-success-subtle text-success'
+                                : 'bg-warning-subtle text-warning';
+                const actionCell = isEditable
+                    ? `<div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-secondary" onclick="queueAction(${q.queue_id}, 'move_top')">Move Top</button>
                             <button class="btn btn-outline-info" onclick="queueAction(${q.queue_id}, 'reassign')">Reassign</button>
                             <button class="btn btn-outline-danger" onclick="queueAction(${q.queue_id}, 'cancel')">Cancel</button>
                             <button class="btn btn-outline-dark" onclick="queueAction(${q.queue_id}, 'no_show')">No-show</button>
-                        </div>
-                    </td>
+                        </div>`
+                    : `<span class="text-muted small">In clinical workflow</span>`;
+                tbody.innerHTML += `<tr>
+                    <td>${q.full_name}</td>
+                    <td>${q.doctor_assigned || '-'}</td>
+                    <td><span class="badge ${statusClass}">${q.status}</span></td>
+                    <td>${q.created_at ? new Date(q.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                    <td class="text-end">${actionCell}</td>
                 </tr>`;
             });
         } else if (data) {
@@ -1164,24 +1178,34 @@
     async function confirmAdmission() {
         const data = {
             patient_id: currentPatientId,
-            doctor: document.getElementById('admitDoctor').value,
             is_critical: document.getElementById('admitCritical').checked
         };
         const res = await Api.post('/reception/admit', data);
         if(res) {
+            notify("Patient admitted to triage queue.");
             modalInstance.hide();
             loadDashboardStats();
             showSection('dashboard');
         }
     }
 
+    function setRegisterSubmitting(isSubmitting) {
+        registerInFlight = !!isSubmitting;
+        const submitBtn = document.getElementById('registerSubmitBtn');
+        if (!submitBtn) return;
+        submitBtn.disabled = !!isSubmitting;
+        submitBtn.innerText = isSubmitting ? 'Saving...' : 'Save Record';
+    }
+
     async function registerPatient() {
-        const idVal = document.getElementById('regId').value;
-        const phoneVal = document.getElementById('regPhone').value;
+        if (registerInFlight) return;
+
+        const idVal = document.getElementById('regId').value.trim();
+        const phoneVal = document.getElementById('regPhone').value.trim();
         const dobVal = new Date(document.getElementById('regDob').value);
         const hasAid = document.getElementById('hasAidToggle').checked;
-        const nameVal = document.getElementById('regName').value;
-        const kinNameVal = document.getElementById('kinName').value;
+        const nameVal = document.getElementById('regName').value.trim();
+        const kinNameVal = document.getElementById('kinName').value.trim();
 
         if(!validateFullName(nameVal)) return notify("Full Name must include first and surname (e.g., Al Ali).");
         if(!validateFullName(kinNameVal)) return notify("Kin Full Name must include first and surname (e.g., Al Ali).");
@@ -1205,12 +1229,27 @@
             allergies: document.getElementById('regAllergies').value
         };
 
-        const res = await Api.post('/reception/register', data);
-        if(res) {
+        setRegisterSubmitting(true);
+        try {
+            const res = await Api.post('/reception/register', data);
+            if (!res) {
+                notify("Registration failed. Please try again.", "error");
+                return;
+            }
+
+            const msg = String(res.message || '');
+            const success = (res.success === true) || Number(res.patient_id) > 0 || /patient registered successfully/i.test(msg);
+            if (!success) {
+                notify(msg || "Registration failed.", /already exists|duplicate/i.test(msg) ? "warning" : "error");
+                return;
+            }
+
             notify("Registration successful!");
             document.getElementById('registrationForm').reset();
             loadDirectory();
             showSection('directory');
+        } finally {
+            setRegisterSubmitting(false);
         }
     }
 
@@ -1304,11 +1343,13 @@
     async function loadDoctors() {
         const users = await Api.get('/users');
         const select = document.getElementById('admitDoctor');
-        select.innerHTML = '<option value="">Any Available</option>';
         cachedDoctors = (users || []).filter(u => u.role === 'doctor');
-        cachedDoctors.forEach(d => {
-            select.innerHTML += `<option value="${d.full_name}">${d.full_name}</option>`;
-        });
+        if (select) {
+            select.innerHTML = '<option value="">Any Available</option>';
+            cachedDoctors.forEach(d => {
+                select.innerHTML += `<option value="${d.full_name}">${d.full_name}</option>`;
+            });
+        }
         populateDoctorSelects();
     }
 
