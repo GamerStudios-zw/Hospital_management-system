@@ -5,10 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IT Support Dashboard | HMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/fonts.css" rel="stylesheet">
     <link href="../../assets/css/theme.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background: #f4f6f9; }
+        :root {
+            --it-bg: #eaf0f6;
+            --it-surface: #ffffff;
+            --it-border: #dbe6f2;
+            --it-primary: #0b7db6;
+            --it-primary-strong: #075985;
+            --it-text: #0f172a;
+            --it-muted: #64748b;
+            --it-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
+        }
+        body {
+            font-family: var(--app-font);
+            color: var(--it-text);
+            background:
+                radial-gradient(circle at 10% -5%, #d8edf8 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
+                var(--it-bg);
+        }
         .sidebar {
             width: 240px;
             position: fixed;
@@ -16,25 +34,93 @@
             bottom: 0;
             left: 0;
             padding: 24px 16px;
+            background: linear-gradient(180deg, #082f49 0%, #0f172a 100%);
+            border-right: 1px solid rgba(148, 163, 184, 0.2);
         }
         .main {
             margin-left: 260px;
             padding: 24px;
         }
+        .sidebar .nav-link {
+            color: #c9d8e8;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .sidebar .nav-link:hover {
+            color: #ffffff;
+            background: rgba(14, 165, 233, 0.16);
+        }
+        .sidebar .nav-link.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            box-shadow: 0 10px 20px -14px rgba(2, 132, 199, 0.9);
+        }
         .card-metric {
-            border-left: 4px solid var(--primary-color);
+            border-left: 4px solid var(--it-primary);
         }
         .table thead th {
             white-space: nowrap;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--it-muted);
+            background: #f1f6fc !important;
+            border-bottom: 1px solid #dce7f2;
         }
+        .table > :not(caption) > * > * {
+            border-bottom-color: #e6edf5;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+        .table-hover tbody tr:hover { background-color: #f5faff; }
         .status-pill {
             border-radius: 999px;
             padding: 4px 10px;
             font-size: 12px;
         }
+        .card {
+            border: 1px solid var(--it-border) !important;
+            border-radius: 16px !important;
+            box-shadow: var(--it-shadow) !important;
+            background: var(--it-surface);
+        }
+        .card.p-3 {
+            background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+        }
+        .btn {
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--it-primary), #0ea5e9);
+            border-color: transparent;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--it-primary-strong), #0284c7);
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border-color: #cfdcea;
+            background-color: #fbfdff;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #7dd3fc;
+            box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.2);
+        }
         .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
         .sidebar-backdrop.show { display: block; }
-        .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .mobile-topbar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            background: #ffffff;
+            border: 1px solid var(--it-border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: var(--it-shadow);
+        }
 
         @media (max-width: 992px) {
             .sidebar { position: fixed; left: -260px; width: 240px; z-index: 1040; transition: left 0.25s ease; }
@@ -44,7 +130,7 @@
         }
     </style>
 </head>
-<body>
+<body class="hms-module module-it">
     <aside class="sidebar app-sidebar d-flex flex-column">
         <div class="d-flex align-items-center gap-2 mb-4">
             <i class="bi bi-shield-check fs-3"></i>

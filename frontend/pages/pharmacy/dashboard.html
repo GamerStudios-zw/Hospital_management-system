@@ -9,38 +9,261 @@
     <link href="../../assets/css/theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { font-family: var(--app-font); background: #f1f5f9; color: #1e293b; }
-        .sidebar { min-height: 100vh; background: #0f172a; color: white; position: sticky; top: 0; }
-        .sidebar .nav-link { color: #94a3b8; padding: 14px 20px; border-radius: 8px; margin: 4px 10px; cursor: pointer; display: flex; align-items: center; }
-        .sidebar .nav-link.active { background: #0ea5e9; color: white; }
+        :root {
+            --ph-bg: #eaf0f6;
+            --ph-bg-soft: #f7fbff;
+            --ph-surface: #ffffff;
+            --ph-border: #dbe6f2;
+            --ph-text: #0f172a;
+            --ph-muted: #64748b;
+            --ph-primary: #0b7db6;
+            --ph-primary-strong: #075985;
+            --ph-primary-soft: #e0f2fe;
+            --ph-danger: #dc2626;
+            --ph-radius: 16px;
+            --ph-shadow: 0 16px 34px -24px rgba(15, 23, 42, 0.4);
+        }
+        body {
+            font-family: var(--app-font);
+            color: var(--ph-text);
+            background:
+                radial-gradient(circle at 10% -5%, #d8edf8 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, #d7e9ff 0%, transparent 45%),
+                var(--ph-bg);
+        }
+        .sidebar {
+            min-height: 100vh;
+            color: #f8fafc;
+            position: sticky;
+            top: 0;
+            background: linear-gradient(180deg, #082f49 0%, #0f172a 100%);
+            border-right: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .sidebar .nav-link {
+            color: #c9d8e8;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin: 4px 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .sidebar .nav-link:hover {
+            color: #ffffff;
+            background: rgba(14, 165, 233, 0.16);
+        }
+        .sidebar .nav-link.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            box-shadow: 0 10px 20px -14px rgba(2, 132, 199, 0.9);
+        }
+        .brand-title {
+            color: #e0f2fe;
+            letter-spacing: 0.03em;
+            text-shadow: 0 1px 0 rgba(2, 6, 23, 0.4);
+        }
+        .pharmacy-main {
+            padding: 24px;
+        }
         .tab-section { display: none; }
-        .tab-section.active { display: block; }
-        .stat-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
-        .inventory-metrics { background: #ffffff; border-radius: 16px; padding: 18px; border: 1px solid #e2e8f0; box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.35); }
-        .inventory-chart { background: #f8fafc; border-radius: 14px; padding: 14px; border: 1px solid #e2e8f0; }
-        .inventory-chart h6 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+        .tab-section.active {
+            display: block;
+            animation: sectionFade 0.2s ease;
+        }
+        @keyframes sectionFade {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .stat-card {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            border-radius: 14px;
+            padding: 14px 16px;
+            border: 1px solid var(--ph-border);
+            box-shadow: var(--ph-shadow);
+        }
+        .inventory-metrics {
+            background: var(--ph-surface);
+            border-radius: var(--ph-radius);
+            padding: 18px;
+            border: 1px solid var(--ph-border);
+            box-shadow: var(--ph-shadow);
+        }
+        .inventory-metrics h6 {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ph-muted);
+            margin-bottom: 12px;
+        }
+        .inventory-chart {
+            background: var(--ph-bg-soft);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--ph-border);
+        }
+        .card {
+            border-radius: var(--ph-radius) !important;
+            border: 1px solid var(--ph-border) !important;
+            box-shadow: var(--ph-shadow) !important;
+            background: var(--ph-surface);
+        }
+        .card.p-4 {
+            background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+        }
+        .table-responsive {
+            border-radius: 12px;
+        }
+        .table > :not(caption) > * > * {
+            border-bottom-color: #e6edf5;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+        .table thead th {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--ph-muted);
+            background: #f1f6fc !important;
+            border-bottom: 1px solid #dce7f2;
+        }
+        .table-hover tbody tr:hover { background-color: #f5faff; }
+        .tab-section > .d-flex.justify-content-between.mb-4 {
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+            border: 1px solid var(--ph-border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            box-shadow: var(--ph-shadow);
+            align-items: center;
+        }
+        .tab-section > .d-flex.justify-content-between.mb-4 h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            letter-spacing: 0.01em;
+        }
+        .tab-section > .d-flex.justify-content-between.mb-4 .btn {
+            white-space: nowrap;
+        }
+        .btn {
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .btn-info,
+        .btn-primary {
+            background: linear-gradient(135deg, var(--ph-primary), #0ea5e9);
+            border-color: transparent;
+        }
+        .btn-info:hover,
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--ph-primary-strong), #0284c7);
+        }
+        .btn-outline-dark {
+            border-color: #c9d7e6;
+            color: #1e3a5f;
+            background: #ffffff;
+        }
+        .btn-outline-dark:hover {
+            border-color: #9eb5cc;
+            color: #0f2f4d;
+            background: #f3f8fd;
+        }
+        .form-control,
+        .form-select {
+            border-radius: 10px;
+            border-color: #cfdcea;
+            background-color: #fbfdff;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #7dd3fc;
+            box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.2);
+        }
+        .form-label.small.fw-bold {
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.72rem !important;
+        }
+        .text-muted.small {
+            color: #64748b !important;
+        }
+        .badge {
+            border-radius: 999px;
+            padding: 0.42em 0.7em;
+            font-weight: 600;
+        }
+        .alert {
+            border-radius: 12px;
+            border: 1px solid #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
         .chart-compact { height: 170px; }
         .chart-compact canvas { height: 170px !important; max-height: 170px; }
-        @media print { .no-print { display: none !important; } }
-        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1030; }
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 1030;
+        }
         .sidebar-backdrop.show { display: block; }
-        .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .mobile-topbar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            background: #ffffff;
+            border: 1px solid var(--ph-border);
+            border-radius: 12px;
+            box-shadow: var(--ph-shadow);
+        }
+        .modal-content {
+            border: 1px solid var(--ph-border) !important;
+            border-radius: 16px !important;
+        }
+        .modal-header {
+            background: #f7fbff;
+            border-bottom: 1px solid #e4edf7 !important;
+        }
+        .modal-footer {
+            border-top: 1px solid #e4edf7 !important;
+        }
+        @media print {
+            .no-print { display: none !important; }
+        }
         @media (max-width: 992px) {
-            .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; width: 240px; z-index: 1040; transition: left 0.25s ease; }
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 0;
+                height: 100vh;
+                width: 240px;
+                z-index: 1040;
+                transition: left 0.25s ease;
+            }
             .sidebar.open { left: 0; }
             .mobile-topbar { display: flex; }
-            main { padding: 16px; }
+            .pharmacy-main { padding: 16px; }
             .chart-compact { height: 150px; }
             .modal-dialog { max-width: 95%; margin: 1rem auto; }
+            .tab-section > .d-flex.justify-content-between.mb-4 {
+                padding: 10px 12px;
+            }
+            .tab-section > .d-flex.justify-content-between.mb-4 h3 {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
-<body>
+<body class="hms-module module-pharmacy">
 <div class="container-fluid p-0 no-print">
     <div class="row g-0">
         <div class="col-md-2 sidebar d-flex flex-column">
             <div class="p-4 text-center">
-                <h4 class="fw-bold text-info mb-0"><i class="bi bi-capsule-pill me-2"></i>HMS PHARMACY</h4>
+                <h4 class="fw-bold mb-0 brand-title"><i class="bi bi-capsule-pill me-2"></i>HMS PHARMACY</h4>
             </div>
             <nav class="nav flex-column mt-3 flex-grow-1">
                 <a class="nav-link active" onclick="switchTab('dispensary', this)"><i class="bi bi-prescription2 me-3"></i> Dispensary</a>
@@ -62,7 +285,7 @@
         </div>
         <div class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
 
-        <main class="col-md-10 p-4">
+        <main class="col-md-10 pharmacy-main">
             <div class="mobile-topbar d-lg-none">
                 <button class="btn btn-outline-info btn-sm" onclick="toggleSidebar(true)"><i class="bi bi-list"></i></button>
                 <div class="fw-bold text-info">Pharmacy Dashboard</div>

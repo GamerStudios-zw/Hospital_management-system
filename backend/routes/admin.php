@@ -148,6 +148,8 @@ if ($resource === 'admin') {
             if ($method === 'GET') {
                 try {
                     DbSchema::ensureStaffShifts($db);
+                    AuthMiddleware::ensureSessionColumns($db);
+                    AuthMiddleware::ensureSessionTable($db);
                     $date = $_GET['date'] ?? null;
                     $dateClause = '';
                     $dateParams = [];
@@ -165,7 +167,23 @@ if ($resource === 'admin') {
                                                  WHERE s.shift_start <= NOW() AND s.shift_end >= NOW()
                                                  AND (s.status IS NULL OR s.status NOT IN ('Cancelled','cancelled'))" . $dateClause);
                     $presentStmt->execute($dateParams);
-                    $present = (int)$presentStmt->fetchColumn();
+                    $presentByShifts = (int)$presentStmt->fetchColumn();
+
+                    // Live presence straight from DB sessions (independent of shift assignment windows).
+                    $presentSessionStmt = $db->prepare("SELECT COUNT(DISTINCT u.id)
+                                                        FROM users u
+                                                        LEFT JOIN user_sessions us
+                                                          ON us.user_id = u.id
+                                                         AND (us.expires_at IS NULL OR us.expires_at > NOW())
+                                                        WHERE u.is_active = 1
+                                                          AND (
+                                                              (u.current_session_id IS NOT NULL AND (u.session_expires_at IS NULL OR u.session_expires_at > NOW()))
+                                                              OR us.session_id IS NOT NULL
+                                                          )");
+                    $presentSessionStmt->execute();
+                    $presentBySessions = (int)$presentSessionStmt->fetchColumn();
+
+                    $present = max($presentByShifts, $presentBySessions);
 
                     $utilization = $totalStaff > 0 ? round(($present / $totalStaff) * 100, 2) : 0;
 
@@ -185,6 +203,21 @@ if ($resource === 'admin') {
                                                      GROUP BY u.role");
                     $presentRoleStmt->execute($dateParams);
                     $presentByRole = $presentRoleStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                    if (empty($presentByRole)) {
+                        $presentRoleLiveStmt = $db->prepare("SELECT u.role, COUNT(DISTINCT u.id) as count
+                                                             FROM users u
+                                                             LEFT JOIN user_sessions us
+                                                               ON us.user_id = u.id
+                                                              AND (us.expires_at IS NULL OR us.expires_at > NOW())
+                                                             WHERE u.is_active = 1
+                                                               AND (
+                                                                   (u.current_session_id IS NOT NULL AND (u.session_expires_at IS NULL OR u.session_expires_at > NOW()))
+                                                                   OR us.session_id IS NOT NULL
+                                                               )
+                                                             GROUP BY u.role");
+                        $presentRoleLiveStmt->execute();
+                        $presentByRole = $presentRoleLiveStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                    }
 
                     $roleUtilStmt = $db->prepare("SELECT u.role,
                                                          COUNT(*) as total,

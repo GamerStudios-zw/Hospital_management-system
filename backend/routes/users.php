@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // FILE: backend/routes/users.php
 
 require_once __DIR__ . '/../config/database.php';
@@ -175,7 +175,7 @@ switch ($method) {
                     SUM(CASE WHEN (us.expires_at IS NULL OR us.expires_at > NOW()) THEN 1 ELSE 0 END) AS active_sessions
                   FROM users u
                   LEFT JOIN user_sessions us ON us.user_id = u.id
-                  GROUP BY u.id, u.full_name, u.username, u.email, u.role, u.is_active, u.session_expires_at
+                  GROUP BY u.id, u.full_name, u.username, u.email, u.role, u.gender, u.is_active, u.session_expires_at
                   ORDER BY u.id DESC";
         $stmt = $db->prepare($query);
         $stmt->execute();
@@ -218,3 +218,4 @@ switch ($method) {
         break;
 }
 ?>
+
